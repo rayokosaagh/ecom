@@ -1,0 +1,136 @@
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+
+import { Navbar } from "@/components/nav/Navbar";
+import { Footer } from "@/components/layout/Footer";
+import { CheckoutForm, type ShippingValues } from "@/components/cart/CheckoutForm";
+import { requireUser } from "@/lib/auth/dal";
+import { getNavData } from "@/lib/nav/data";
+import { getCart } from "@/lib/cart/service";
+import { findCartId } from "@/lib/cart/identity";
+import { prisma } from "@/lib/prisma";
+import { pickupAvailable } from "@/lib/checkout/fulfilment";
+import { getStoreSettings } from "@/lib/settings/service";
+
+export const metadata: Metadata = { title: "Checkout" };
+
+const EMPTY: ShippingValues = {
+  name: "",
+  line1: "",
+  line2: "",
+  city: "",
+  region: "",
+  postcode: "",
+  country: "",
+  phone: "",
+};
+
+/**
+ * Prefill from the last order that recorded an address.
+ *
+ * Deliberately not a saved "default address" on the account: the most recent
+ * delivery is the better guess in practice, it needs no extra model, and
+ * nothing has to be kept in sync when someone moves — they simply overwrite
+ * the fields once and the next order inherits that instead.
+ */
+async function lastUsedAddress(userId: string): Promise<ShippingValues> {
+  const previous = await prisma.order.findFirst({
+    where: { userId, shippingLine1: { not: null } },
+    orderBy: { createdAt: "desc" },
+    select: {
+      shippingName: true,
+      shippingLine1: true,
+      shippingLine2: true,
+      shippingCity: true,
+      shippingRegion: true,
+      shippingPostcode: true,
+      shippingCountry: true,
+      shippingPhone: true,
+    },
+  });
+
+  if (!previous) return EMPTY;
+
+  return {
+    name: previous.shippingName ?? "",
+    line1: previous.shippingLine1 ?? "",
+    line2: previous.shippingLine2 ?? "",
+    city: previous.shippingCity ?? "",
+    region: previous.shippingRegion ?? "",
+    postcode: previous.shippingPostcode ?? "",
+    country: previous.shippingCountry ?? "",
+    phone: previous.shippingPhone ?? "",
+  };
+}
+
+export default async function CheckoutPage() {
+  const user = await requireUser();
+  const [nav, cart] = await Promise.all([
+    getNavData(),
+    getCart(await findCartId(), user.id),
+  ]);
+
+  // Nothing to check out, or something in the cart cannot be bought — either
+  // way the cart is where it gets resolved, and this page would only show a
+  // total that is about to be rejected.
+  if (cart.items.length === 0) redirect("/cart");
+  const blocked = cart.items.some(
+    (item) => item.unavailable || item.availableStock < item.quantity,
+  );
+  if (blocked) redirect("/cart");
+
+  const [values, settings] = await Promise.all([
+    lastUsedAddress(user.id),
+    getStoreSettings(),
+  ]);
+
+  /**
+   * Passed as data rather than rendered here.
+   *
+   * The summary re-totals as the fulfilment radio moves, which a server-rendered
+   * node cannot do — it would keep quoting delivery on an order the shopper has
+   * chosen to collect. The arithmetic still lives in one place: the client
+   * summary and the checkout action both call `deliveryChargeFor`.
+   */
+  const summary = {
+    count: cart.count,
+    subtotalCents: cart.subtotalCents,
+    payableCents: cart.payableCents,
+    discountCents: cart.discountCents,
+    discountLabel: cart.discount?.ok ? cart.discount.label : null,
+    items: cart.items.map((item) => ({
+      id: item.id,
+      name: item.product.name,
+      variantLabel: item.variantLabel || null,
+      color: item.color || null,
+      quantity: item.quantity,
+      unitPriceCents: item.unitPriceCents,
+    })),
+  };
+
+  // Only offered when the shop has both switched collection on and said where
+  // to come. See `pickupAvailable`.
+  const pickup = pickupAvailable(settings)
+    ? {
+        address: settings.pickupAddress,
+        hours: settings.pickupHours,
+        note: settings.pickupNote,
+      }
+    : null;
+
+  return (
+    <div className="bg-surface-container-low flex min-h-dvh flex-col">
+      <Navbar {...nav} />
+
+      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
+        <h1 className="text-on-surface mb-6 text-3xl font-medium tracking-tight">
+          Checkout
+        </h1>
+
+        <CheckoutForm values={values} summary={summary} pickup={pickup} />
+      </main>
+
+      <Footer />
+    </div>
+  );
+}

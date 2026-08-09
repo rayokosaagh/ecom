@@ -1,0 +1,1401 @@
+// Prisma schema for the Ecom storefront + admin dashboard.
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Application roles. ADMIN implies every USER privilege.
+enum Role {
+  USER
+  ADMIN
+}
+
+enum NotificationType {
+  ORDER
+  STOCK
+  ACCOUNT
+  SYSTEM
+}
+
+/// What kind of file a review attachment is. Derived from the extension the
+/// upload action wrote, which in turn comes from sniffing the bytes — never
+/// from anything the browser claimed.
+enum ReviewMediaKind {
+  IMAGE
+  VIDEO
+}
+
+/// Whether a review is visible to shoppers. Hiding rather than deleting keeps
+/// the author's one-review-per-product slot taken, so a hidden review cannot be
+/// re-posted verbatim by writing a "new" one.
+enum ReviewStatus {
+  PUBLISHED
+  HIDDEN
+}
+
+/// How a discount code takes money off.
+enum DiscountKind {
+  /// `value` is a percentage, 1–100.
+  PERCENT
+  /// `value` is an amount in minor units.
+  FIXED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  CANCELLED
+}
+
+/// How an order reaches the customer.
+///
+/// Two members and no third, deliberately: this is the choice made once at
+/// checkout, and it decides three things that would otherwise each need their
+/// own flag — whether an address is collected, whether delivery is charged, and
+/// what `SHIPPED` is called on the receipt.
+///
+/// `SHIPPED` covers both, rather than a `COLLECTED` status being added beside
+/// it. The status is about the shop's obligation being discharged, which is one
+/// idea whichever way the goods travelled — and splitting it would fork
+/// `REVENUE_STATUSES`, the dashboard pipeline, the review-eligibility check and
+/// every transition table, to record something this column already says.
+/// `fulfilmentLabels` renames it at the surface instead.
+enum FulfilmentMethod {
+  /// Sent to an address. Charged at the flat rate, free over the threshold.
+  DELIVERY
+
+  /// Collected from the shop. Never charged delivery, and no address is asked
+  /// for — only who is coming.
+  PICKUP
+}
+
+/// Why a cancelled order was cancelled.
+///
+/// One enum rather than one per side, even though the customer and the admin
+/// are offered different subsets of it — `cancellationReasons` in
+/// `lib/orders/cancellation` decides who may choose what. Two enums would make
+/// "how many orders did we lose last month, and to what" a query that has to
+/// union two columns and reconcile two spellings of the same idea.
+///
+/// The subsets are disjoint apart from `OTHER`, so a stored value also says
+/// which side ended the order without a second column recording it.
+enum OrderCancelReason {
+  // Offered to the customer, on their own receipt.
+  ORDERED_BY_MISTAKE
+  FOUND_BETTER_PRICE
+  DELIVERY_TOO_SLOW
+  CHANGED_MIND
+  BOUGHT_ELSEWHERE
+
+  // Offered to an admin, in the dashboard.
+  OUT_OF_STOCK
+  PAYMENT_FAILED
+  CUSTOMER_REQUESTED
+  SUSPECTED_FRAUD
+  UNDELIVERABLE_ADDRESS
+
+  /// Offered to both, and the only value that carries a written note.
+  OTHER
+}
+
+/// What to do with a brand's hosted logo on a dark surface.
+///
+/// A hosted logo is fixed artwork — nothing can recolour it — and which
+/// treatment it needs depends on how the mark is drawn, which no code here can
+/// see. All three of these are correct for some real logo and wrong for others,
+/// so the choice belongs to whoever is looking at it.
+enum LogoTreatment {
+  /// Silhouette anything with transparency, plate anything without. Right for
+  /// most marks; the two below are the escape hatches for when it is not.
+  AUTO
+  /// Repaint the artwork white. Right for a single-colour mark, and ruinous for
+  /// one with internal contrast — IKEA's blue-on-yellow and JBL's type on a
+  /// filled square both flatten into one solid blob.
+  INVERT
+  /// Keep every colour and put a light chip behind it. The safe answer, and a
+  /// visible one: a pale card in a dark interface.
+  PLATE
+  /// Leave it alone. What a logo already legible on dark wants — a colourful
+  /// mark usually reads fine as it is, and anything done to it is damage.
+  NONE
+  /// Load the CDN's own dark-background artwork instead, by swapping
+  /// `/theme/dark/` for `/theme/light/` in the URL, and silhouette that.
+  ///
+  /// The right answer for a mark that has to be white *and* legible, which
+  /// `INVERT` alone cannot deliver: recolouring a filled shape floods its
+  /// lettering into the fill, whereas the publisher's dark-background version
+  /// keeps the letters knocked out. The filter is still applied on top, because
+  /// that version is not always white either — IKEA's keeps its yellow
+  /// lettering — and repainting already-white artwork white changes nothing.
+  ///
+  /// Opt-in per brand because the counterpart is not always there: an asset
+  /// named by id (`/theme/dark/idEPzHEXKA.svg`) has no sibling at the guessed
+  /// address, and that failing silently for every brand at once is exactly what
+  /// went wrong when this was the global default.
+  VARIANT
+}
+
+/// A social network the shop can be followed on.
+///
+/// An enum rather than a free string because the platform decides four things
+/// the database cannot: which mark is drawn beside the link, which hosts the
+/// URL is allowed to point at, how a bare handle is expanded into one, and what
+/// colour the icon lights up on hover. All four live in `lib/social/catalogue`,
+/// keyed by exactly these members — so a value here with no entry there is a
+/// build error rather than a blank icon.
+///
+/// Only the networks the shop actually uses are listed. That is a deliberate
+/// change from carrying a member for every network anyone might want: `CUSTOM`
+/// now covers the whole long tail properly — own name, own logo, own colour —
+/// so a built-in for LinkedIn or Reddit bought nothing that a custom link does
+/// not, and every one of them was a logo in the dropdown for an account that
+/// did not exist.
+enum SocialPlatform {
+  INSTAGRAM
+  FACEBOOK
+  X
+  TIKTOK
+  YOUTUBE
+
+  /// A link the admin defines entirely: any address, their own label, their own
+  /// pasted mark in `SocialLink.iconSvg`, their own hover colour.
+  ///
+  /// This is what makes trimming the list above safe rather than lossy. A shop
+  /// wanting Mastodon, Substack, Bluesky — or LinkedIn, which used to be a
+  /// member here — adds one of these and pastes the logo.
+  CUSTOM
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  /// Null for accounts that only sign in through an OAuth provider.
+  passwordHash  String?
+  role          Role      @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  products      Product[]
+  notifications Notification[]
+  orders        Order[]
+  cart          Cart?
+  wishlist      WishlistItem[]
+  reviews       Review[]
+  reviewLikes   ReviewLike[]
+  reviewReplies ReviewReply[]
+  resetTokens   PasswordResetToken[]
+  /// Stock changes this account made by hand. See StockAdjustment.
+  stockChanges  StockAdjustment[]
+  /// Price changes this account made by hand. See PriceChange.
+  priceChanges  PriceChange[]
+
+  @@index([role])
+}
+
+model WishlistItem {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  /// A product is either on a user's wishlist or not — never listed twice.
+  @@unique([userId, productId])
+  @@index([userId, createdAt])
+}
+
+model Notification {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type        NotificationType @default(SYSTEM)
+  title       String
+  description String
+  /// Optional deep link, e.g. the order or product the notice is about.
+  href        String?
+  read        Boolean          @default(false)
+
+  createdAt DateTime @default(now())
+
+  // Drives the unread badge query.
+  @@index([userId, read])
+  @@index([userId, createdAt])
+}
+
+/// A single-use handle proving control of an account's mailbox.
+///
+/// Ours, not Auth.js's: `VerificationToken` below belongs to the adapter and
+/// carries the shape its email/magic-link flow expects. Sharing one table would
+/// mean a token minted for one purpose could be spent on the other.
+///
+/// The emailed token is never stored — only its SHA-256 — so a database read
+/// cannot be replayed into a password reset. That is also why there is no
+/// unique index on `userId`: issuing a second link must not be blocked by the
+/// first, and the older rows are cleared when one is spent.
+model PasswordResetToken {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Hex-encoded SHA-256 of the token in the link. Unique so redeeming one is
+  /// a single indexed read, and so two tokens can never collide silently.
+  tokenHash String @unique
+
+  expiresAt DateTime
+  /// Stamped the moment the token is spent, so a link cannot be used twice.
+  /// Kept rather than deleted: a reset that is questioned later leaves a trace.
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  /// Drives both the per-account throttle and the sweep of a user's other
+  /// tokens when one is redeemed.
+  @@index([userId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Auth.js adapter models. Shapes are dictated by @auth/prisma-adapter.
+// ---------------------------------------------------------------------------
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------------------------------------------------------------------------
+// Domain models
+// ---------------------------------------------------------------------------
+
+/// A node in the catalogue tree. Self-nesting rather than a fixed
+/// Category/Subcategory pair, so "Laptops → Workstations" costs the same as
+/// "Laptops → Workstations → 16-inch" if that is ever wanted.
+///
+/// Products hang off the most specific node that fits; filtering by an
+/// ancestor gathers its descendants (see lib/categories/tree).
+model Category {
+  id   String @id @default(cuid())
+  name String @unique
+  slug String @unique
+
+  /// Null for a top-level category.
+  parentId String?
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  /// Deleting a parent promotes its children to top level rather than
+  /// cascading — losing a whole branch to one click is never what was meant.
+  children Category[] @relation("CategoryTree")
+
+  /// Display headline for the category's section on the storefront, split the
+  /// same way the home hero is: a plain lead-in and an accent set in the
+  /// display serif. "Serious machines for" + "serious work."
+  ///
+  /// Both null falls back to "Shop <name>", so a new category still renders.
+  tagline       String?
+  taglineAccent String?
+
+  products Product[]
+  banners  PromoBanner[]
+
+  createdAt DateTime @default(now())
+
+  @@index([parentId])
+}
+
+/// Manufacturer. Deliberately not nested under Category — a brand routinely
+/// spans several of them, so it is a separate axis you can filter on.
+model Brand {
+  id   String  @id @default(cuid())
+  name String  @unique
+  slug String  @unique
+  /// Optional logo, shown beside the name in listings.
+  logo String?
+
+  /// How this logo is treated on a dark surface. See `LogoTreatment`.
+  logoTreatment LogoTreatment @default(AUTO)
+
+  /// Optional vector mark, stored as SVG *markup* rather than a file URL.
+  ///
+  /// Inlined into the page so it can inherit `currentColor` and stay crisp at
+  /// any size. Never written here unsanitized — every path into this column
+  /// goes through lib/brands/svg, which is the boundary that makes inlining
+  /// safe. See that module for why markup beats a served .svg file.
+  iconSvg String?
+
+  products Product[]
+
+  createdAt DateTime @default(now())
+}
+
+model Product {
+  id String @id @default(cuid())
+
+  name                String
+  slug                String   @unique
+  description         String
+  /// Primary image shown in listings and as the gallery's first frame.
+  image               String?
+  /// Additional image URLs. Postgres scalar list — order is preserved.
+  gallery             String[]
+  /// Stored in minor units (cents) to avoid floating point rounding on money.
+  priceCents          Int
+  /// What this used to cost, when it is on sale. Null means it is not.
+  ///
+  /// The direction here is the whole design. `priceCents` stays the price
+  /// actually charged, always — putting something on sale means lowering it
+  /// and recording the old figure here, not adding a second price that every
+  /// reader has to remember to prefer. Nothing in the cart, the checkout
+  /// transaction or an order line changes as a result, and the catalogue can
+  /// still sort and filter on `priceCents` in the database, because it is still
+  /// the real one.
+  ///
+  /// "On sale" is therefore a derived, time-independent fact:
+  /// `compareAtPriceCents > priceCents`. See lib/products/sale.
+  compareAtPriceCents Int?
+  stock               Int      @default(0)
+  published           Boolean  @default(false)
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  brandId String?
+  brand   Brand?  @relation(fields: [brandId], references: [id], onDelete: SetNull)
+
+  createdById String?
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  colors       ProductColor[]
+  specs        ProductSpec[]
+  variants     ProductVariant[]
+  featured     FeaturedProduct?
+  flashSales   FlashSaleItem[]
+  cartItems    CartItem[]
+  orderItems   OrderItem[]
+  wishlistedBy WishlistItem[]
+  reviews      Review[]
+  adjustments  StockAdjustment[]
+  priceChanges PriceChange[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([published])
+  @@index([createdById])
+  @@index([categoryId])
+  @@index([brandId])
+}
+
+/// A spec label shared across products, e.g. "RAM" or "Switch type".
+///
+/// A row rather than a string on ProductSpec, because everything here is a
+/// property of the *label* rather than of one product's answer to it: whether
+/// it is offered as a filter, what unit its values carry, where it sits on the
+/// page. Storing those per product would let two laptops disagree about
+/// whether RAM is filterable.
+///
+/// It also keeps the filter vocabulary from fragmenting. Free-text labels turn
+/// "RAM", "Ram" and "Memory" into three facets that each match a third of the
+/// catalogue; matching on `key` means they converge on one.
+model SpecDefinition {
+  id    String @id @default(cuid())
+  label String @unique
+  /// Slug used in filter query strings and to match labels case-insensitively.
+  key   String @unique
+
+  /// Appended to values for display, e.g. "GB". Values are stored without it,
+  /// so "16" and "16GB" cannot become two facets for the same amount.
+  unit String?
+
+  /// Whether the catalogue offers this label as a filter. Off for specs whose
+  /// value is unique per product — a "Weight" facet where every option matches
+  /// exactly one product is noise, not navigation.
+  filterable Boolean @default(true)
+
+  /// Section heading on the product page. Null groups it into an unheaded set
+  /// shown first, the same way PromoBanner.categoryId does.
+  group String?
+
+  /// Material Symbols ligature shown beside the label, e.g. "memory".
+  /// Null falls back to a neutral glyph, so an unset icon never leaves a hole.
+  icon String?
+
+  /// Ascending display position, shared by every product. Deliberately global:
+  /// RAM should sit above Weight on every laptop, not wherever each one's
+  /// editor happened to type it.
+  sortOrder Int @default(0)
+
+  specs          ProductSpec[]
+  variantOptions ProductVariantOption[]
+
+  createdAt DateTime @default(now())
+
+  @@index([filterable, sortOrder])
+}
+
+/// One product's answer to a spec label.
+model ProductSpec {
+  id String @id @default(cuid())
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  definitionId String
+  definition   SpecDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+
+  /// As typed, e.g. "16" or "Gateron Brown". Shown to shoppers.
+  value    String
+  /// Normalized for grouping and URLs, e.g. "16gb" for both "16GB" and "16 GB".
+  /// Filtering matches on this; display always uses `value`.
+  valueKey String
+
+  /// A product answers each label once.
+  @@unique([productId, definitionId])
+  /// Drives the facet counts on the catalogue.
+  @@index([definitionId, valueKey])
+}
+
+/// A product chosen for the home page showcase.
+///
+/// A curated list rather than a `featured` flag on Product, for the same
+/// reason promo banners are their own model: which products are promoted, and
+/// in what order, is one editorial decision with its own lifecycle. A flag
+/// would scatter it across every product's edit form and leave the ordering
+/// with nowhere to live.
+model FeaturedProduct {
+  id String @id @default(cuid())
+
+  /// One entry per product — featuring something twice is never meant.
+  productId String  @unique
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  /// Ascending display position, owned by the admin list's reordering.
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([sortOrder])
+}
+
+/// One purchasable configuration of a product, e.g. "16 GB / 512 GB".
+///
+/// Price and stock live here rather than on Product because that is what
+/// makes a variant a variant: an 8/256 machine and a 16/512 machine are
+/// different things to buy, at different prices, running out independently.
+///
+/// Variants are optional. A product with none keeps using its own
+/// `priceCents` and `stock`, which is exactly how every product behaved
+/// before this existed — a lamp has nothing to configure and should not be
+/// made to carry a phantom variant to say so.
+model ProductVariant {
+  id String @id @default(cuid())
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  /// Optional stock-keeping unit, unique across the shop when set.
+  sku String? @unique
+
+  priceCents          Int
+  /// What this configuration used to cost. Same contract as the product's —
+  /// see the note there. A configurable product goes on sale one row at a
+  /// time, because that is also how it is priced.
+  compareAtPriceCents Int?
+  stock               Int  @default(0)
+
+  /// Optional photo of this configuration. Falls back to the product's.
+  image String?
+
+  sortOrder Int @default(0)
+
+  options      ProductVariantOption[]
+  adjustments  StockAdjustment[]
+  priceChanges PriceChange[]
+
+  createdAt DateTime @default(now())
+
+  @@index([productId, sortOrder])
+}
+
+/// One axis of a variant, e.g. RAM = 16.
+///
+/// Reuses SpecDefinition rather than inventing a second vocabulary, so "RAM"
+/// means the same thing whether it varies on this product or is fixed on the
+/// next one — and so a shopper filtering by RAM matches both.
+///
+/// Which labels vary is a property of the *product*, not of the label: RAM
+/// varies on a laptop and is fixed on a desktop. The set of axes is therefore
+/// derived from the options a product's variants actually carry, not declared
+/// anywhere — see lib/products/variants.
+model ProductVariantOption {
+  id String @id @default(cuid())
+
+  variantId String
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  definitionId String
+  definition   SpecDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+
+  /// As shown to shoppers, e.g. "16". The unit comes from the definition.
+  value    String
+  /// Normalized for filtering, exactly as ProductSpec.valueKey is.
+  valueKey String
+
+  /// A variant answers each axis once.
+  @@unique([variantId, definitionId])
+  @@index([definitionId, valueKey])
+}
+
+/// A colourway a product is sold in.
+///
+/// A row rather than a bare hex string, because a shopper picks "Midnight
+/// Black", not "#1b1b1f" — and because each colourway needs its own photo so
+/// selecting one can actually show the product in it.
+model ProductColor {
+  id String @id @default(cuid())
+
+  /// Shown to shoppers and stored on the order line, e.g. "Midnight Black".
+  name    String
+  /// Swatch fill, e.g. "#1b1b1f".
+  hex     String
+  /// Primary shot of this colourway — what the viewer jumps to when the colour
+  /// is picked. Falls back to the product's own image when null.
+  image   String?
+  /// Further shots of this same colourway. When a colour has any, picking it
+  /// replaces the whole strip rather than only the main image, so the gallery
+  /// shows one product in one finish instead of a mixed set.
+  gallery String[]
+
+  sortOrder Int @default(0)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  /// One entry per colour name per product.
+  @@unique([productId, name])
+  @@index([productId, sortOrder])
+}
+
+// ---------------------------------------------------------------------------
+// Inventory
+// ---------------------------------------------------------------------------
+
+/// Why a stock level was changed by hand.
+///
+/// A required field on every adjustment, and the reason the ledger is worth
+/// keeping at all: "stock went from 3 to 40" is a number anyone can read off
+/// the product row, while "a delivery arrived" and "the shelf was recounted"
+/// are different facts about the same number, and only one of them means more
+/// units exist.
+enum StockChangeReason {
+  /// A delivery arrived.
+  RECEIVED
+  /// The shelf was counted and disagreed with the database.
+  RECOUNT
+  /// Units exist but cannot be sold.
+  DAMAGED
+  /// Units cannot be found.
+  LOST
+  /// Came back outside a cancelled order — which restocks itself.
+  RETURNED
+  OTHER
+}
+
+/// One deliberate change to a stock level, and who made it.
+///
+/// Deliberately **only the manual ones**. Selling and cancelling move stock
+/// too, inside the checkout and order transactions, and neither writes here:
+/// those movements are already recorded, in full, as orders — a second copy in
+/// a different table is one more thing that can disagree with the first. This
+/// answers a narrower question, the one the orders table cannot: who typed a
+/// new number in, and what they said they were doing.
+///
+/// It follows that consecutive rows for the same unit are not a continuous
+/// ledger. `stockBefore` and `stockAfter` describe the level either side of
+/// *this* change; sales in between are why one row's `stockAfter` need not
+/// equal the next row's `stockBefore`. Recording both anyway is what makes a
+/// row readable years later without replaying every order ever placed.
+model StockAdjustment {
+  id String @id @default(cuid())
+
+  /// Always set, even for a variant adjustment, so "everything that happened to
+  /// this product" is one query rather than a union.
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  /// The configuration whose stock moved, or null when the product itself owns
+  /// the units. Mirrors how checkout claims them — see lib/actions/cart.
+  variantId String?
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  /// Signed change in units: positive added, negative removed.
+  delta       Int
+  stockBefore Int
+  stockAfter  Int
+
+  reason StockChangeReason
+  /// Free text, e.g. a supplier or a delivery note number.
+  note   String?
+
+  /// Who made it. Nullable and SetNull rather than Cascade: deleting an admin
+  /// must not delete the record that stock was changed, only who by.
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([productId, createdAt])
+  @@index([variantId, createdAt])
+  @@index([reason, createdAt])
+}
+
+/// One deliberate change to a price, and who made it.
+///
+/// The sibling of `StockAdjustment`, and for the same reason: a price is a
+/// number anyone can read off the product row, but *when it changed, to what,
+/// and who decided* cannot be recovered from that row at all. An order records
+/// what a shopper paid; nothing else records what the shop was asking on a
+/// Tuesday in March.
+///
+/// Like the stock ledger, it holds **only the manual changes**. Flash sales
+/// move prices too — they rewrite `Product.priceCents` when they open and put
+/// it back when they close — and they do not write here. Those movements are
+/// already fully described by the sale and its `priceSnapshot`, and a second
+/// copy would be one more thing that can disagree with the first. This answers
+/// the narrower question the flash sale cannot: who typed a new price in.
+///
+/// There is no reason enum, unlike the stock ledger, and the asymmetry is
+/// deliberate. A stock reason is load-bearing — "went from 3 to 40" does not
+/// say whether forty units exist, and `RECEIVED` versus `RECOUNT` is the
+/// difference. A price change has no such ambiguity: the number moved because
+/// somebody moved it. The optional note carries the why for the cases that
+/// want one, without inventing a taxonomy of them.
+model PriceChange {
+  id String @id @default(cuid())
+
+  /// Always set, even for a variant's price, so "everything that happened to
+  /// this product" stays one query. Mirrors StockAdjustment.
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  /// The configuration whose price moved, or null when the product itself
+  /// carries the price. The row that actually charges — see lib/cart/service.
+  variantId String?
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  /// Both sides, in minor units. Stored rather than a delta for the reason the
+  /// stock ledger stores levels: a delta cannot be read back without replaying
+  /// everything before it, and these two can be read years later on their own.
+  fromCents Int
+  toCents   Int
+
+  /// Free text, e.g. "supplier raised cost" or a competitor's URL.
+  note String?
+
+  /// Who made it. Nullable and SetNull rather than Cascade: deleting an admin
+  /// must not delete the record that a price changed, only who by.
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([productId, createdAt])
+  @@index([variantId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Merchandising
+// ---------------------------------------------------------------------------
+
+/// A promotional tile on the storefront. Deliberately generic — it holds its
+/// own copy, image and destination, and has no relation to Product or
+/// Category, so marketing can point one anywhere without a schema change.
+model PromoBanner {
+  id String @id @default(cuid())
+
+  imageUrl String
+  heading  String
+  subtext  String?
+  ctaLabel String
+  /// Either an in-app path ("/products?category=audio") or an http(s) URL.
+  ctaLink  String
+
+  /// Which category's section this banner appears under on the storefront.
+  /// Null groups it into an unheaded set at the end.
+  ///
+  /// Grouping only — the banner still carries its own copy, image and
+  /// destination, and PromoCard never sees this field.
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  /// Ascending display position. Ties fall back to createdAt.
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  /// Optional schedule. Null on either side means "unbounded in that
+  /// direction", so a banner with neither is simply always on.
+  startsAt DateTime?
+  endsAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// The storefront reads active banners in display order on every render.
+  @@index([isActive, sortOrder])
+  @@index([categoryId])
+}
+
+/// Operator configuration that belongs to the shop rather than to a product.
+///
+/// A singleton: exactly one row, keyed by a fixed id rather than by a
+/// key/value table. The fixed id is what makes reading it a single indexed
+/// lookup and writing it an upsert, with no "which row is the real one?"
+/// question — and unlike key/value pairs, every field stays typed.
+///
+/// Values here take precedence over the matching environment variables, which
+/// remain as a fallback so a deployment configured before this existed keeps
+/// working. See `lib/settings/service`.
+model StoreSettings {
+  /// Fixed, so there can only ever be one row. See `SETTINGS_ID`.
+  id String @id @default("singleton")
+
+  /// Which currency every money column in this database is denominated in.
+  ///
+  /// Not a display preference — the app reads that from
+  /// `NEXT_PUBLIC_SHOP_CURRENCY`, because prices are formatted in client
+  /// components that cannot await a query. This is the *ledger*: it records
+  /// what the stored integers already mean.
+  ///
+  /// Its whole job is to make the conversion script refuse to run twice.
+  /// Converting a catalogue is `price × rate`, and a second run turns
+  /// Rs 10,700 into Rs 1,519,400 with no error and no symptom beyond prices
+  /// that are simply wrong. The script asserts this equals the currency it is
+  /// converting *from*, and moves it inside the same transaction as the
+  /// prices — so a repeat run finds nothing to do and says so.
+  ///
+  /// Defaults to USD because that is what every row held before this column
+  /// existed.
+  currency String @default("USD")
+
+  /// Full international form, as typed — punctuation is stripped on use, not
+  /// on save, so the admin sees back exactly what they entered.
+  whatsappNumber String?
+
+  /// Turns the buttons off without losing the number, the same way a discount
+  /// code is switched off rather than deleted.
+  whatsappEnabled Boolean @default(true)
+
+  /// Shown under the button, e.g. "Typically replies within an hour" or
+  /// "Mon–Fri, 9am–6pm". Sets an expectation the shop can actually meet.
+  whatsappNote String?
+
+  /// Whether checkout offers collection from the shop.
+  ///
+  /// Off by default, because most shops running this have no counter to
+  /// collect from and offering one that does not exist is worse than not
+  /// offering it. Switched on rather than inferred from the address being
+  /// filled in, so a shop can take collection down for a week — a refit, a
+  /// holiday — without losing what it typed. Same reasoning as
+  /// `whatsappEnabled`.
+  pickupEnabled Boolean @default(false)
+
+  /// Where to come, as free text over several lines.
+  ///
+  /// Free text rather than the structured columns an order carries, because
+  /// nothing parses it: it is read by a person who is about to walk there. A
+  /// structured form would demand a country and a postcode for an address whose
+  /// whole audience already knows which town they are in.
+  ///
+  /// Checkout will not offer collection until this is filled in, however
+  /// `pickupEnabled` is set — "collect in store" with no store named is not an
+  /// option anyone can act on.
+  pickupAddress String?
+
+  /// When the counter is open, e.g. "Sun–Fri, 10am–7pm". Free text, same
+  /// reasoning. Optional: a shop that would rather say it in the address block
+  /// can.
+  pickupHours String?
+
+  /// Shown once collection is chosen, e.g. "Bring your order number and photo
+  /// ID". The one place to put a condition the shop needs the customer to know
+  /// *before* they commit, rather than in an email afterwards.
+  pickupNote String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// One question and its answer, for the storefront's FAQ section.
+///
+/// `answer` is plain text, deliberately. Rendering admin-authored HTML would
+/// make this column a stored-XSS surface and would need a sanitizer as careful
+/// as the one guarding `Brand.iconSvg`; plain text with `white-space:
+/// pre-line` gives paragraphs without any of that. If rich answers are ever
+/// wanted, the sanitizer comes first.
+model Faq {
+  id String @id @default(cuid())
+
+  question String
+  answer   String
+
+  /// Hidden without being deleted — the same reasoning as `ReviewStatus`.
+  /// An answer being reworked should stop showing, not vanish from the record.
+  published Boolean @default(true)
+
+  /// Ascending display position. Ties fall back to createdAt.
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// The storefront reads published entries in display order on every render.
+  @@index([published, sortOrder])
+}
+
+/// One place the shop can be followed, for the home page's follow bar.
+///
+/// Deliberately a table rather than a column per network on `StoreSettings`.
+/// The bar is a *list*: which networks appear, and in what order, is the thing
+/// the admin is choosing, and fifteen nullable columns could express neither
+/// ordering nor "this one, but hidden for now".
+model SocialLink {
+  id String @id @default(cuid())
+
+  /// Decides the mark drawn and the hosts `url` may point at.
+  platform SocialPlatform
+
+  /// The full address, always — a handle typed into the form is expanded
+  /// before it is stored, so nothing downstream has to know the difference
+  /// between "@shop" and a profile URL.
+  url String
+
+  /// What is announced to a screen reader and shown on hover, when the
+  /// platform's own name is not the useful thing to say — "@ecomgear", or
+  /// "Support server". Falls back to the platform name.
+  label String?
+
+  /// Hidden without being deleted, the same way an FAQ answer being reworked
+  /// stops showing rather than vanishing. A seasonal account is switched off,
+  /// not retyped next year.
+  published Boolean @default(true)
+
+  /// Ascending display position. Ties fall back to createdAt.
+  sortOrder Int @default(0)
+
+  /// What the icon lights up to on hover, as `#rrggbb`.
+  ///
+  /// Null means "whatever the catalogue says this platform's colour is", which
+  /// is the answer almost every row wants — so the column stores an *override*
+  /// rather than a copy. A shop that never opens the picker gets Instagram
+  /// pink and YouTube red for free, and if a brand refreshes its colour every
+  /// link that never overrode it follows along.
+  ///
+  /// Required for CUSTOM in practice rather than by the schema: the catalogue's
+  /// fallback for a custom link is the app's own primary, which is a reasonable
+  /// thing to leave it as.
+  hoverColor String?
+
+  /// The mark for a CUSTOM link, as sanitized SVG. Null for every other
+  /// platform, whose mark comes from the catalogue.
+  ///
+  /// Sanitized by `lib/brands/svg` before it is written — the same boundary
+  /// that guards `Brand.iconSvg`, for the same reason: this markup is inlined
+  /// into the home page, so it is a script-execution surface unless something
+  /// rebuilds it from an allowlist. `SocialIcon` renders it through `BrandIcon`
+  /// so there is exactly one component in the codebase that inlines admin SVG.
+  iconSvg String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// The home page reads published links in display order on every render.
+  @@index([published, sortOrder])
+}
+
+// ---------------------------------------------------------------------------
+// Cart
+// ---------------------------------------------------------------------------
+
+model Cart {
+  id String @id @default(cuid())
+
+  /// Owner, once there is one. Null for a cart that belongs to a browser
+  /// rather than an account — Postgres allows many NULLs in a unique index, so
+  /// guest carts do not collide while signed-in users still get exactly one.
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Opaque handle stored in an httpOnly cookie, identifying a guest's cart.
+  /// Cleared when the cart is claimed at sign-in.
+  token String? @unique
+
+  /// A code the shopper has applied, held here rather than in a cookie so it
+  /// survives moving between the cart and checkout and follows a guest cart
+  /// when it is claimed at sign-in. Stored, never trusted: the amount it is
+  /// worth is recomputed on every render and again at checkout.
+  discountCode String?
+
+  items CartItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CartItem {
+  id String @id @default(cuid())
+
+  cartId String
+  cart   Cart   @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  quantity Int    @default(1)
+  /// Chosen colour *name*, or "" when the product offers no choice. Empty
+  /// string rather than null because a compound unique cannot span a nullable
+  /// column.
+  color    String @default("")
+  /// Swatch fill copied alongside the name, so the line still renders its
+  /// colour after the product's colourways have been edited.
+  colorHex String @default("")
+
+  /// Chosen ProductVariant, or "" when the product has none. Empty string for
+  /// the same reason `color` uses one: Postgres treats NULLs as distinct, so a
+  /// nullable column in the unique below would stop it deduplicating lines for
+  /// variant-less products. Not a foreign key for the same reason `color` is
+  /// not — it is validated in the action against the product's own variants.
+  variantId    String @default("")
+  /// "16 GB / 512 GB", copied at add-to-cart time so the line still describes
+  /// itself after the variant has been renamed or removed.
+  variantLabel String @default("")
+
+  createdAt DateTime @default(now())
+
+  /// The same product in a different colour or configuration is its own line.
+  @@unique([cartId, productId, variantId, color])
+  @@index([cartId])
+}
+
+// ---------------------------------------------------------------------------
+// Orders
+// ---------------------------------------------------------------------------
+
+model Order {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  status        OrderStatus @default(PENDING)
+  /// Goods plus delivery — what was actually charged.
+  totalCents    Int
+  /// Delivery charge as quoted at checkout, snapshotted so a later change to
+  /// the rate cannot rewrite what a past order cost.
+  shippingCents Int         @default(0)
+
+  /// Delivered, or collected from the shop.
+  ///
+  /// Defaults to DELIVERY, which is what every order placed before this column
+  /// existed was — so the backfill is the default and no migration is needed.
+  fulfilment FulfilmentMethod @default(DELIVERY)
+
+  /// Where it is going, and who it is for.
+  ///
+  /// Snapshotted onto the order for the same reason the line items snapshot
+  /// name and price: an order is a record of what happened. If this pointed at
+  /// a saved address, editing that address would silently rewrite where every
+  /// past order was sent.
+  ///
+  /// Nullable because orders placed before checkout collected an address
+  /// genuinely have none — an empty string would claim otherwise.
+  ///
+  /// **On a PICKUP order the address lines are null and `shippingName` /
+  /// `shippingPhone` are the collector's.** Those two are not really about
+  /// shipping — they are who the order is for and how to reach them, which is
+  /// needed either way — so a pickup order reuses them rather than carrying a
+  /// parallel `pickupName` that would sit null on every delivery. The address
+  /// lines being null is what distinguishes the two, and `fulfilment` says so
+  /// outright.
+  shippingName     String?
+  shippingLine1    String?
+  shippingLine2    String?
+  shippingCity     String?
+  shippingRegion   String?
+  shippingPostcode String?
+  shippingCountry  String?
+  shippingPhone    String?
+
+  /// The code used, kept as a relation so redemptions can be counted and a
+  /// one-per-customer rule can be enforced by query.
+  discountCodeId String?
+  discountCode   DiscountCode? @relation(fields: [discountCodeId], references: [id], onDelete: SetNull)
+  /// The code as typed and the money it took off, both snapshotted. Same
+  /// reasoning as the line prices: an order is a record of what happened, and
+  /// editing or deleting the code later must not rewrite it. This is also what
+  /// keeps the arithmetic on an old receipt adding up once `discountCodeId`
+  /// has been nulled by a deletion.
+  discountLabel  String?
+  discountCents  Int           @default(0)
+
+  /// Why this order was cancelled, and the note behind an `OTHER`.
+  ///
+  /// Both null until it is cancelled — a pending order has no reason, and an
+  /// empty string would claim it was cancelled for no stated one. Written in
+  /// the same transaction as the move to `CANCELLED` (see `moveStatus`), so a
+  /// cancelled order with no reason is not a row this table can produce.
+  ///
+  /// `cancelNote` is only ever set alongside `OTHER`; every other reason is
+  /// fully described by the enum, and storing a stray note against one would
+  /// leave two sources for the same answer.
+  cancelReason OrderCancelReason?
+  cancelNote   String?
+
+  items OrderItem[]
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([discountCodeId])
+  /// Answers "what did we lose, and why" without scanning the table.
+  @@index([status, cancelReason])
+}
+
+/// A code a shopper types to take money off.
+///
+/// Every limit here is checked twice: once when the code is applied, so the
+/// cart can explain itself, and again inside the checkout transaction, because
+/// between those two moments a code can expire, be deactivated, or be used up
+/// by somebody else.
+model DiscountCode {
+  id String @id @default(cuid())
+
+  /// Stored uppercased so "save10" and "SAVE10" are the same code. Matching is
+  /// therefore an exact lookup rather than a case-insensitive scan.
+  code String @unique
+
+  kind  DiscountKind
+  /// Percentage (1–100) or minor units, according to `kind`.
+  value Int
+
+  /// Floor on the goods subtotal before this applies. 0 means no floor.
+  minSubtotalCents Int  @default(0)
+  /// Ceiling on what a percentage code can take off. Null for no ceiling —
+  /// meaningless for FIXED, which is its own ceiling.
+  maxDiscountCents Int?
+
+  /// Optional window. Null at either end means open-ended in that direction.
+  startsAt DateTime?
+  endsAt   DateTime?
+
+  /// Total redemptions allowed across everyone; null for unlimited.
+  maxRedemptions Int?
+  /// Counter, incremented inside the checkout transaction so two simultaneous
+  /// orders cannot both take the last one.
+  redemptions    Int  @default(0)
+
+  /// Whether one customer may use it more than once.
+  oncePerCustomer Boolean @default(true)
+
+  /// The off switch, separate from the date window: withdrawing a code early
+  /// should not mean rewriting its end date and losing what it was.
+  active Boolean @default(true)
+
+  orders Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active])
+}
+
+/// A shopper's verdict on a product.
+///
+/// Writing one requires having placed at least one completed order — an
+/// account-level bar, not a per-product one, so a fresh throwaway account
+/// cannot review anything but a real customer is not limited to the handful of
+/// things they happen to have bought here. Whether they bought *this* is
+/// recorded separately, below.
+model Review {
+  id String @id @default(cuid())
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// 1 to 5. Constrained in the action rather than the database, in the same
+  /// place every other bound in this schema is enforced.
+  rating Int
+  /// Optional headline. The body is what people actually read.
+  title  String?
+  body   String
+
+  /// Did this author buy this product here? Decided at write time by looking
+  /// for a paid or shipped order line, and stored rather than joined on every
+  /// read — an order can be cancelled or a product deleted later, and the badge
+  /// should reflect what was true when the review was written.
+  verified Boolean @default(false)
+
+  status ReviewStatus @default(PUBLISHED)
+
+  media   ReviewMedia[]
+  likes   ReviewLike[]
+  replies ReviewReply[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// One verdict per person per product. Changing your mind edits the review
+  /// you already wrote rather than adding a second one.
+  @@unique([userId, productId])
+  /// Backs the product page's list, newest first.
+  @@index([productId, status, createdAt])
+}
+
+/// A photo or clip attached to a review.
+///
+/// A row rather than a scalar list on Review, because the two kinds need
+/// telling apart and the order they were added in has to survive an edit.
+model ReviewMedia {
+  id String @id @default(cuid())
+
+  reviewId String
+  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  /// Always a path this app generated under /uploads/. Validated against that
+  /// shape on the way in — a review must not be able to embed an arbitrary URL.
+  url  String
+  kind ReviewMediaKind
+
+  /// The order the author arranged them in.
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([reviewId, sortOrder])
+}
+
+/// One person finding one review helpful.
+///
+/// A join row rather than a counter column on Review. A counter cannot answer
+/// "have *I* already liked this", so the heart would have no state to draw, and
+/// a bare integer is incrementable twice by the same person — the row's
+/// composite key is what makes a second like impossible rather than merely
+/// discouraged.
+///
+/// The count is read with `_count` on the relation, which is an indexed
+/// aggregate over a handful of rows; the same reasoning as the rating averages
+/// in `lib/reviews/service`.
+model ReviewLike {
+  reviewId String
+  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  /// One like per person per review, enforced here rather than in the action.
+  @@id([reviewId, userId])
+  @@index([userId])
+}
+
+/// An answer to a review — from another shopper, or from the shop.
+///
+/// Flat rather than a tree: a reply cannot itself be replied to. Threads are a
+/// different feature with different problems (depth limits, collapsing,
+/// orphaned branches), and a product page wants a question answered, not a
+/// forum.
+model ReviewReply {
+  id String @id @default(cuid())
+
+  reviewId String
+  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  body String
+
+  /// Did this author buy the product they are replying about? Snapshotted at
+  /// write time for exactly the reason `Review.verified` is — see that field.
+  verified Boolean @default(false)
+
+  /// Moderatable on the same terms as a review. Replies are public writing by
+  /// strangers; anything true of a review's need for a hidden state is true
+  /// here too.
+  status ReviewStatus @default(PUBLISHED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([reviewId, status, createdAt])
+  @@index([userId])
+}
+
+model OrderItem {
+  id String @id @default(cuid())
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  /// Nulled if the product is later deleted — the snapshot below survives.
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  /// Name and price are copied at purchase time so history cannot be rewritten
+  /// by editing or deleting the product afterwards.
+  name       String
+  priceCents Int
+  quantity   Int
+  /// Colour name as sold, plus its swatch — both snapshotted for the same
+  /// reason as the name and price above.
+  color      String?
+  colorHex   String?
+  /// Configuration as sold, e.g. "16 GB / 512 GB". Snapshotted rather than
+  /// referenced so editing or deleting a variant cannot rewrite history.
+  variant    String?
+  /// Which variant the units were taken from, kept alongside the label above.
+  /// Cancelling an order has to return stock to the exact configuration it
+  /// came from, and a display label cannot be matched back to one reliably.
+  ///
+  /// Not a foreign key, for the same reason `color` is not: the variant may be
+  /// deleted later, and an order line must outlive it.
+  variantId  String?
+
+  @@index([orderId])
+}
+
+/// A time-boxed sale that actually moves prices.
+///
+/// The distinction from the existing sale feature matters. A *sale* is a
+/// standing fact about one product — `compareAtPriceCents > priceCents`, set by
+/// hand on the product form, with no dates attached. A *flash sale* is an event:
+/// it opens, it rewrites the prices of everything in it, it closes, and the
+/// prices go back. `lib/flash/service` is the only thing that performs those
+/// writes.
+///
+/// Crucially it writes `Product.priceCents` (and every variant's) rather than
+/// computing a discount at read time. That is what keeps the shelf and the till
+/// in agreement: the cart prices a line from `priceCents`, checkout snapshots
+/// `priceCents` onto the order, and the catalogue sorts and range-filters on
+/// `priceCents` inside Postgres. A price that existed only in a render would
+/// desync all three. See lib/products/sale for the same argument at length.
+model FlashSale {
+  id   String @id @default(cuid())
+  name String
+
+  /// Whole percent off, applied to whatever each product cost when the sale
+  /// opened. Capped below 100 because a free product is a bug, not a promotion.
+  percentOff Int
+
+  startsAt DateTime
+  endsAt   DateTime
+
+  /// The off switch, separate from the date window — pulling a sale early
+  /// should not mean rewriting its end date and losing what it was. Mirrors
+  /// DiscountCode.active for the same reason.
+  active Boolean @default(true)
+
+  /// When the price writes were actually performed, or null while they are not
+  /// in effect.
+  ///
+  /// This is the state machine, not a log line. "Should this be live?" is
+  /// derived from the window and `active`; this records whether the world has
+  /// been made to match yet. Reconciling is therefore idempotent, and a sale
+  /// switched off and on again inside its window simply reverts and reapplies.
+  appliedAt DateTime?
+
+  items FlashSaleItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active, startsAt])
+  @@index([appliedAt])
+}
+
+/// One product in a flash sale, plus everything needed to undo it.
+model FlashSaleItem {
+  id String @id @default(cuid())
+
+  flashSaleId String
+  flashSale   FlashSale @relation(fields: [flashSaleId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  /// What this item's prices were before the sale opened, and what was written
+  /// over them. Null until the sale goes live; cleared when it closes.
+  ///
+  /// A JSON snapshot rather than columns because a product is priced in more
+  /// than one place: its own row, and one row per variant — and the cart charges
+  /// `variant.priceCents` whenever a variant is chosen, so writing only the
+  /// product row would leave the till on the old price. The shape is
+  /// `PriceSnapshot` in lib/flash/pricing, which owns reading and writing it.
+  ///
+  /// Recording what was *written* as well as what was there before is what makes
+  /// the restore safe: a row whose price no longer matches what this sale wrote
+  /// was changed by an admin mid-flash, and putting the old figure back would
+  /// silently undo their edit. See `restorePlan`.
+  priceSnapshot Json?
+
+  createdAt DateTime @default(now())
+
+  /// A product cannot be in the same flash sale twice.
+  @@unique([flashSaleId, productId])
+  @@index([productId])
+}

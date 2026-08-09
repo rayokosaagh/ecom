@@ -22,7 +22,7 @@
 
 # misc
 .DS_Store
-*.pem
+Thumbs.db
 
 # debug
 npm-debug.log*
@@ -30,8 +30,36 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# ---------------------------------------------------------------------------
+# Secrets — never commit these.
+# ---------------------------------------------------------------------------
+# Real environment files, including .env.local / .env.production.
+.env
+.env.*
+# ...but the documented template must stay tracked.
+!.env.example
+
+# Auth.js writes AUTH_SECRET here when you run `npx auth secret`.
+.auth
+
+# Keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+id_rsa*
+# Service-account credentials
+**/*service-account*.json
+**/*credentials*.json
+gha-creds-*.json
+
+# Database dumps and local database files
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+/prisma-dev-backup*
 
 # vercel
 .vercel
@@ -39,3 +67,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ---------------------------------------------------------------------------
+# Generated code — recreated by `prisma generate` (runs on postinstall).
+# ---------------------------------------------------------------------------
+/src/generated/
+
+# Uploaded product images — user content, not source. Keep the directory so a
+# fresh clone has somewhere to write.
+/public/uploads/*
+!/public/uploads/.gitkeep

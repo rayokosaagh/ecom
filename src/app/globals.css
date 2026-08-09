@@ -1,0 +1,1268 @@
+@import "tailwindcss";
+@import "material-symbols/outlined.css";
+
+/*
+ * Material Design 3 tokens, generated from primary #0B57D0 (Google Blue).
+ * Reference: m3.material.io/styles/color/roles
+ *
+ * Tailwind v4 is configured in CSS, not tailwind.config.ts. Everything in the
+ * @theme block below becomes a utility automatically: --color-primary gives
+ * bg-primary / text-primary / border-primary, --radius-md gives rounded-md,
+ * --shadow-elevation-1 gives shadow-elevation-1, and so on.
+ */
+
+@theme {
+  /* --- Light scheme ------------------------------------------------- */
+  --color-primary: #0b57d0;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #d3e3fd;
+  --color-on-primary-container: #041e49;
+
+  --color-secondary: #00639b;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #c2e7ff;
+  --color-on-secondary-container: #001d35;
+
+  --color-tertiary: #146c2e;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #a6f5b6;
+  --color-on-tertiary-container: #002106;
+
+  --color-error: #b3261e;
+  --color-on-error: #ffffff;
+  --color-error-container: #f9dedc;
+  --color-on-error-container: #410e0b;
+
+  /* --- WhatsApp -----------------------------------------------------
+   *
+   * A brand colour rather than a scheme one, so it is stated here instead of
+   * being approximated from the palette: the button is a promise about which
+   * app is going to open, and a green that is merely near enough undermines it.
+   *
+   * `--color-whatsapp` is the *readable* green, used for outlined buttons —
+   * text and border on the page's own surface. WhatsApp's #25D366 scores 1.94:1
+   * against this scheme's surface, which is unreadable, so light mode uses a
+   * darkened green at 4.91:1 and the dark scheme takes the brand colour itself
+   * at 8.66:1.
+   *
+   * `--color-whatsapp-fill` is the brand green as a *background*, which is the
+   * one place it belongs untouched. It is fixed in both schemes, paired with a
+   * fixed dark green at 6.22:1 — so the pairing holds whichever way the theme
+   * flips. */
+  --color-whatsapp: #128040;
+  --color-whatsapp-fill: #25d366;
+  --color-on-whatsapp-fill: #0b3d20;
+
+  --color-surface: #fdfcff;
+  --color-on-surface: #1b1b1f;
+  --color-surface-variant: #e1e2ec;
+  --color-on-surface-variant: #44474f;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f5f4f9;
+  --color-surface-container: #efedf3;
+  --color-surface-container-high: #e9e7ee;
+  --color-surface-container-highest: #e3e2e8;
+
+  --color-outline: #74777f;
+  --color-outline-variant: #c4c6d0;
+  --color-inverse-surface: #303034;
+  --color-inverse-on-surface: #f2f0f4;
+  --color-scrim: #000000;
+
+  /* --- Data visualisation ---------------------------------------------
+   *
+   * A chart's colours answer to different rules than the UI's, so they are
+   * their own tokens rather than borrowed scheme roles. Two of those rules
+   * decided every value here:
+   *
+   *  - A mark must clear 3:1 against the surface it is drawn on, and sit in a
+   *    lightness band wide enough to stay a colour rather than collapse toward
+   *    the background. `--color-primary` passes in light mode and is the accent
+   *    unchanged; its dark counterpart #a8c7fa does not — at L 0.83 and chroma
+   *    0.08 it is a pale wash, fine as a button face and far too weak as a
+   *    line. So the dark accent is its own step.
+   *  - Order status is an *ordered* scale, not a set of identities: pending →
+   *    paid → shipped is a journey, and colouring it with three unrelated hues
+   *    would throw that away. It gets one hue in three steps, so the progress
+   *    is visible in the colour itself. Cancelled leaves the ramp entirely,
+   *    because it is not a further stage — it is the exit.
+   *
+   * Steps run faint → strong in both schemes: `--color-chart-step-1` is always
+   * the one nearest the surface. That means the ramp inverts between light and
+   * dark, which is the point — "further along is more prominent" has to survive
+   * the theme flip, and a fixed set of hexes cannot do that.
+   *
+   * Every value was checked rather than judged: lightness band, chroma floor
+   * and contrast for the accent, and monotone lightness with visible step gaps
+   * for the ramp, against this scheme's own surfaces (#fdfcff / #131316). */
+  --color-chart-accent: #0b57d0;
+  /* The previous period, and anything else that is context rather than
+   * subject. Grey on purpose: one hue plus grey is how a chart says "this
+   * series is the story" without spending a second colour on it. */
+  --color-chart-muted: #74777f;
+  /* Hairline grid, one step off the surface — present, never read. */
+  --color-chart-grid: #e1e2ec;
+  --color-chart-step-1: #86b6ef;
+  --color-chart-step-2: #3987e5;
+  --color-chart-step-3: #184f95;
+  /* Reserved for state, never for a series: cancelled orders, and the
+   * direction of a trend. Always shipped with an icon or a sign beside them,
+   * so the meaning never rests on the colour alone. */
+  --color-chart-critical: #d03b3b;
+  --color-chart-up: #006300;
+  --color-chart-down: #b3261e;
+
+  /* --- Shape scale --------------------------------------------------- */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 28px;
+
+  /* --- Elevation ------------------------------------------------------
+   * M3 elevation is a pair of shadows: a tight key light plus a diffuse
+   * ambient light. Kept low-opacity so surfaces read as layered, not heavy. */
+  --shadow-elevation-1: 0 1px 2px 0 rgb(0 0 0 / 0.3), 0 1px 3px 1px rgb(0 0 0 / 0.15);
+  --shadow-elevation-2: 0 1px 2px 0 rgb(0 0 0 / 0.3), 0 2px 6px 2px rgb(0 0 0 / 0.15);
+  --shadow-elevation-3: 0 4px 8px 3px rgb(0 0 0 / 0.15), 0 1px 3px 0 rgb(0 0 0 / 0.3);
+  --shadow-elevation-4: 0 6px 10px 4px rgb(0 0 0 / 0.15), 0 2px 3px 0 rgb(0 0 0 / 0.3);
+  --shadow-elevation-5: 0 8px 12px 6px rgb(0 0 0 / 0.15), 0 4px 4px 0 rgb(0 0 0 / 0.3);
+
+  /* --- Typography ------------------------------------------------------
+   * Google Sans is proprietary and not served by Google Fonts, so Roboto —
+   * Google's published fallback for it — is loaded via next/font in layout.tsx. */
+  --font-sans: var(--font-roboto), "Google Sans", Roboto, system-ui, sans-serif;
+  /* Accent serif for display headlines — generates the `font-display` utility. */
+  --font-display: var(--font-serif-display), Georgia, serif;
+
+  /* --- Motion -------------------------------------------------------- */
+  /* M3 motion easing. `emphasized` was previously a duplicate of `standard`,
+   * which quietly flattened every entrance in the app to the same curve. This
+   * is M3's emphasized *decelerate*: fast to leave, slow to arrive, which is
+   * what gives an entering element its late unhurried settle and is most of
+   * the difference between motion that reads as designed and motion that reads
+   * as merely timed.
+   *
+   * The accelerate counterpart used to be absent, on the grounds that nothing
+   * animated on the way out — App Router unmounts the outgoing page before a
+   * route-level exit could run. That is still true of *pages*, but not of rows:
+   * deleting a record removes an element from a list this app controls, and an
+   * element leaving should gather speed as it goes, which is the mirror of the
+   * decelerate above. */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+
+  /* M3's duration scale, named as the spec names it so a value can be chosen by
+   * what it is for rather than by taste. Short is for a control answering a
+   * press; medium for something entering or leaving within a view; long for a
+   * change that restructures what is on screen. */
+  --duration-short2: 100ms;
+  --duration-short4: 200ms;
+  --duration-medium1: 250ms;
+  --duration-medium2: 300ms;
+  --duration-medium4: 400ms;
+  --duration-long2: 500ms;
+}
+
+/*
+ * Dark palette.
+ *
+ * The colours live here exactly once, as --dark-* properties. The two blocks
+ * after them map those onto the --color-* tokens the utilities actually read:
+ *   1. an explicit `data-theme="dark"` choice, and
+ *   2. no stored choice, with the OS asking for dark.
+ * A media query cannot share a selector list with a plain rule, so the mapping
+ * is written twice — but a colour is still only ever edited in one place.
+ *
+ * These MUST be plain custom properties, not a nested `@theme`. Tailwind v4
+ * resolves every @theme block at build time and flattens them together, so a
+ * "conditional" @theme is not conditional at all — it would overwrite the
+ * light palette for everyone. Redefining the same variable names works because
+ * the generated utilities reference var(--color-*) at runtime, so every
+ * utility flips automatically and components never need a `dark:` class.
+ */
+:root {
+  --dark-primary: #a8c7fa;
+  --dark-on-primary: #062e6f;
+  --dark-primary-container: #0842a0;
+  --dark-on-primary-container: #d3e3fd;
+
+  --dark-secondary: #7fcfff;
+  --dark-on-secondary: #003355;
+  --dark-secondary-container: #004a77;
+  --dark-on-secondary-container: #c2e7ff;
+
+  --dark-tertiary: #6dd58c;
+  --dark-on-tertiary: #0a3818;
+  --dark-tertiary-container: #0f5223;
+  --dark-on-tertiary-container: #c4eed0;
+
+  --dark-error: #f2b8b5;
+  --dark-on-error: #601410;
+  --dark-error-container: #8c1d18;
+  --dark-on-error-container: #f9dedc;
+
+  /* On a dark surface the brand green is readable on its own — 8.66:1 — so the
+   * darkened light-mode variant is not needed and would only mute it. Only the
+   * outlined colour flips; the fill is brand-fixed in both schemes. */
+  --dark-whatsapp: #25d366;
+
+  --dark-surface: #131316;
+  --dark-on-surface: #e4e2e6;
+  --dark-surface-variant: #44474f;
+  --dark-on-surface-variant: #c4c6d0;
+  --dark-surface-container-lowest: #0e0e11;
+  --dark-surface-container-low: #1b1b1f;
+  --dark-surface-container: #1f1f23;
+  --dark-surface-container-high: #2a2a2e;
+  --dark-surface-container-highest: #353539;
+
+  --dark-outline: #8e9099;
+  --dark-outline-variant: #44474f;
+  --dark-inverse-surface: #e4e2e6;
+  --dark-inverse-on-surface: #303034;
+
+  /* Chart colours for the dark surface — selected against it, not flipped from
+   * the light values. See the note beside the light set for why the accent is
+   * not `--dark-primary`, and why the ramp runs the other way. */
+  --dark-chart-accent: #3987e5;
+  --dark-chart-muted: #8e9099;
+  --dark-chart-grid: #2a2a2e;
+  --dark-chart-step-1: #256abf;
+  --dark-chart-step-2: #5598e7;
+  --dark-chart-step-3: #b7d3f6;
+  --dark-chart-critical: #e66767;
+  --dark-chart-up: #6dd58c;
+  --dark-chart-down: #f2b8b5;
+
+  /*
+   * Spotlight behind a featured product: a stage, and a lamp standing on it.
+   *
+   * Three constraints, each arrived at by getting it wrong first.
+   *
+   *  - A glow is a direction, not a hue. It has to be *lighter* than whatever
+   *    it falls on. Tinting with the primary blue (#0b57d0) in light mode made
+   *    a smudge, because that blue is far darker than the surface behind it.
+   *  - One gradient is a wash, not a spotlight. It takes a hot core, a
+   *    falloff, and darkness at the edges — brightness is relative, so the
+   *    surround is what makes the middle read as lit.
+   *  - Colour belongs to the room, not to the lamp. Putting blue in the light
+   *    itself tinted the product and the panel became blue haze. So the stage
+   *    carries the colour and the lamp stays neutral; the blue then reads as
+   *    where the product is standing rather than as a filter laid over it.
+   *
+   * `--stage-*` is a faint vertical wash across the whole panel. It has to
+   * stay faint: it is scenery, and the moment it competes with the light there
+   * is no light left, only a blue rectangle.
+   *
+   * Alphas are baked into each value because the two schemes need very
+   * different strengths, and one shared opacity could not serve both.
+   */
+  --stage-top: rgb(222 233 250 / 0.85);
+  --stage-bottom: rgb(238 240 246 / 0.85);
+
+  /* Neutral, so nothing it falls on changes hue. `--spotlight-core` is the
+   * lamp itself — the part the product mostly hides; `--spotlight` is the
+   * glow it throws past the silhouette. */
+  --spotlight-core: rgb(255 255 255 / 1);
+  --spotlight: rgb(255 255 255 / 0.85);
+  /* The surround — and in light mode it has to stay almost nothing.
+   *
+   * This is the correction that took longest to arrive at, because it is only
+   * visible on the page rather than in the panel. Darkening the surround is
+   * what a stage needs, and it is right in the dark scheme. But this page is
+   * white end to end — white hero, white cards, white footer — and a panel
+   * with weighted corners does not read as a lit room beside them. It reads
+   * as a dirty photograph: at 0.38 this was the one grubby rectangle on an
+   * otherwise clean page.
+   *
+   * So light mode reads the backlight as *bloom*, not as contrast. The middle
+   * blows out past the page's own white; the edges only settle enough to give
+   * the panel a soft corner. Brightness is still relative — the difference is
+   * which side of the page it is measured against. */
+  --spotlight-vignette: rgb(28 38 66 / 0.09);
+  /* The colour of the light, cast wide around the glow — at the outer reach,
+   * where it reads as the colour of the room rather than as a filter over the
+   * product. A whisper here: on a white stage, anything more is a stain. */
+  --spotlight-tint: rgb(11 87 208 / 0.05);
+
+  /* The halo that belongs to the product rather than to the panel. See
+   * `.product-glow`. Weak on purpose — it is spread over a 46px blur, and any
+   * more turns the haze back into an outline. */
+  --product-glow: rgb(255 255 255 / 0.62);
+  /* What it stands on. Cool and soft — a cast shadow, not a drop shadow. */
+  --product-cast: rgb(19 28 51 / 0.22);
+
+  /* Dark scheme: same arrangement, far more range to play with. The stage is
+   * a deep blue-black and the lamp a cool white. */
+  --dark-stage-top: rgb(24 33 56 / 0.85);
+  --dark-stage-bottom: rgb(16 18 26 / 0.85);
+  --dark-spotlight-core: rgb(222 236 255 / 0.34);
+  --dark-spotlight: rgb(170 200 255 / 0.16);
+  --dark-spotlight-vignette: rgb(0 0 0 / 0.72);
+  --dark-spotlight-tint: rgb(96 148 255 / 0.16);
+  /* Lower than light mode's: a pale product on a dark panel shows every bit
+   * of this, and it was reading as neon at anything stronger. */
+  --dark-product-glow: rgb(178 208 255 / 0.16);
+  --dark-product-cast: rgb(0 0 0 / 0.55);
+}
+
+/* 1. Explicit dark choice, rendered by the server from the theme cookie. */
+:root[data-theme="dark"] {
+  --color-primary: var(--dark-primary);
+  --color-on-primary: var(--dark-on-primary);
+  --color-primary-container: var(--dark-primary-container);
+  --color-on-primary-container: var(--dark-on-primary-container);
+  --color-secondary: var(--dark-secondary);
+  --color-on-secondary: var(--dark-on-secondary);
+  --color-secondary-container: var(--dark-secondary-container);
+  --color-on-secondary-container: var(--dark-on-secondary-container);
+  --color-tertiary: var(--dark-tertiary);
+  --color-on-tertiary: var(--dark-on-tertiary);
+  --color-tertiary-container: var(--dark-tertiary-container);
+  --color-on-tertiary-container: var(--dark-on-tertiary-container);
+  --color-error: var(--dark-error);
+  --color-on-error: var(--dark-on-error);
+  --color-error-container: var(--dark-error-container);
+  --color-on-error-container: var(--dark-on-error-container);
+  --color-whatsapp: var(--dark-whatsapp);
+  --color-surface: var(--dark-surface);
+  --color-on-surface: var(--dark-on-surface);
+  --color-surface-variant: var(--dark-surface-variant);
+  --color-on-surface-variant: var(--dark-on-surface-variant);
+  --color-surface-container-lowest: var(--dark-surface-container-lowest);
+  --color-surface-container-low: var(--dark-surface-container-low);
+  --color-surface-container: var(--dark-surface-container);
+  --color-surface-container-high: var(--dark-surface-container-high);
+  --color-surface-container-highest: var(--dark-surface-container-highest);
+  --color-outline: var(--dark-outline);
+  --color-outline-variant: var(--dark-outline-variant);
+  --color-inverse-surface: var(--dark-inverse-surface);
+  --color-inverse-on-surface: var(--dark-inverse-on-surface);
+  --color-chart-accent: var(--dark-chart-accent);
+  --color-chart-muted: var(--dark-chart-muted);
+  --color-chart-grid: var(--dark-chart-grid);
+  --color-chart-step-1: var(--dark-chart-step-1);
+  --color-chart-step-2: var(--dark-chart-step-2);
+  --color-chart-step-3: var(--dark-chart-step-3);
+  --color-chart-critical: var(--dark-chart-critical);
+  --color-chart-up: var(--dark-chart-up);
+  --color-chart-down: var(--dark-chart-down);
+  --spotlight-core: var(--dark-spotlight-core);
+  --spotlight: var(--dark-spotlight);
+  --spotlight-vignette: var(--dark-spotlight-vignette);
+  --spotlight-tint: var(--dark-spotlight-tint);
+  --product-glow: var(--dark-product-glow);
+  --product-cast: var(--dark-product-cast);
+}
+
+/* Swap to the publisher's white artwork — see `LogoTreatment.VARIANT`. */
+:root[data-theme="dark"] .brand-logo-light {
+  display: none;
+}
+:root[data-theme="dark"] .brand-logo-dark {
+  display: block;
+}
+
+/* Repaint a single-colour mark white — see `lib/brands/logo-format`. */
+:root[data-theme="dark"] .brand-logo-invert {
+  filter: brightness(0) invert(1);
+}
+/* Or keep its colours on a light chip, for a mark the filter would flatten. */
+:root[data-theme="dark"] .brand-logo-chip {
+  background-color: #f4f4f6;
+}
+
+/* 2. "System": no attribute is rendered, so follow the OS. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --color-primary: var(--dark-primary);
+    --color-on-primary: var(--dark-on-primary);
+    --color-primary-container: var(--dark-primary-container);
+    --color-on-primary-container: var(--dark-on-primary-container);
+    --color-secondary: var(--dark-secondary);
+    --color-on-secondary: var(--dark-on-secondary);
+    --color-secondary-container: var(--dark-secondary-container);
+    --color-on-secondary-container: var(--dark-on-secondary-container);
+    --color-tertiary: var(--dark-tertiary);
+    --color-on-tertiary: var(--dark-on-tertiary);
+    --color-tertiary-container: var(--dark-tertiary-container);
+    --color-on-tertiary-container: var(--dark-on-tertiary-container);
+    --color-error: var(--dark-error);
+    --color-on-error: var(--dark-on-error);
+    --color-error-container: var(--dark-error-container);
+    --color-on-error-container: var(--dark-on-error-container);
+    --color-whatsapp: var(--dark-whatsapp);
+    --color-surface: var(--dark-surface);
+    --color-on-surface: var(--dark-on-surface);
+    --color-surface-variant: var(--dark-surface-variant);
+    --color-on-surface-variant: var(--dark-on-surface-variant);
+    --color-surface-container-lowest: var(--dark-surface-container-lowest);
+    --color-surface-container-low: var(--dark-surface-container-low);
+    --color-surface-container: var(--dark-surface-container);
+    --color-surface-container-high: var(--dark-surface-container-high);
+    --color-surface-container-highest: var(--dark-surface-container-highest);
+    --color-outline: var(--dark-outline);
+    --color-outline-variant: var(--dark-outline-variant);
+    --color-inverse-surface: var(--dark-inverse-surface);
+    --color-inverse-on-surface: var(--dark-inverse-on-surface);
+    --color-chart-accent: var(--dark-chart-accent);
+    --color-chart-muted: var(--dark-chart-muted);
+    --color-chart-grid: var(--dark-chart-grid);
+    --color-chart-step-1: var(--dark-chart-step-1);
+    --color-chart-step-2: var(--dark-chart-step-2);
+    --color-chart-step-3: var(--dark-chart-step-3);
+    --color-chart-critical: var(--dark-chart-critical);
+    --color-chart-up: var(--dark-chart-up);
+    --color-chart-down: var(--dark-chart-down);
+    --spotlight-core: var(--dark-spotlight-core);
+    --spotlight: var(--dark-spotlight);
+    --spotlight-vignette: var(--dark-spotlight-vignette);
+    --spotlight-tint: var(--dark-spotlight-tint);
+    --product-glow: var(--dark-product-glow);
+      --product-cast: var(--dark-product-cast);
+  }
+
+  /* Swap to the publisher's white artwork — see `LogoTreatment.VARIANT`. */
+  :root:not([data-theme]) .brand-logo-light {
+    display: none;
+  }
+  :root:not([data-theme]) .brand-logo-dark {
+    display: block;
+  }
+
+  /* Repaint a single-colour mark white — see `lib/brands/logo-format`. */
+  :root:not([data-theme]) .brand-logo-invert {
+    filter: brightness(0) invert(1);
+  }
+  /* Or keep its colours on a light chip, for a mark the filter would flatten. */
+  :root:not([data-theme]) .brand-logo-chip {
+    background-color: #f4f4f6;
+  }
+
+}
+
+/*
+ * Tells the browser which scheme is active so native UI — form controls,
+ * scrollbars, the caret — matches the app instead of staying light.
+ */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* "System" again — keep native UI in step with the OS. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+  }
+}
+
+/* Where the spotlight is pointing.
+ *
+ * Registered rather than left as plain custom properties for one reason: an
+ * unregistered property has no type, so the browser cannot interpolate it and
+ * every transition on it is a jump. Typed as a percentage, the light can glide
+ * back to rest when the pointer leaves instead of snapping.
+ *
+ * `inherits: true` because the gradients live on `.spotlight`'s pseudo-elements
+ * and the handler writes to `.spotlight` itself. The initial values are the
+ * resting position, so a panel nobody has pointed at — and every panel on a
+ * touch device, where the handler never runs — still lights correctly from the
+ * stylesheet alone. `--spot-y` sits at the product's mass, not the panel's
+ * middle: the lamp stands *behind* the product, so it has to be where the
+ * product is or the silhouette misses it. */
+@property --spot-x {
+  syntax: "<percentage>";
+  inherits: true;
+  initial-value: 50%;
+}
+
+@property --spot-y {
+  syntax: "<percentage>";
+  inherits: true;
+  initial-value: 46%;
+}
+
+@layer base {
+  * {
+    /* M3 uses the primary colour for focus rings throughout. */
+    outline-color: var(--color-primary);
+  }
+
+  html {
+    /*
+     * The navbar is `sticky top-0` and 4rem tall, so anything scrolled to by an
+     * anchor or by focus lands underneath it. `#reviews-heading` on the product
+     * page is the one that shows it: tapping "read the reviews" put the heading
+     * behind the bar, so the section appeared to start mid-sentence. The extra
+     * 1rem is breathing room rather than a flush fit.
+     */
+    scroll-padding-top: 5rem;
+
+    /*
+     * Stop iOS inflating body text when a phone is turned to landscape. It
+     * rescales only some elements, so a layout tuned in portrait comes apart:
+     * headings stay put while the paragraph under them grows into its
+     * neighbour.
+     */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-surface);
+    color: var(--color-on-surface);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    /*
+     * A wide child cannot silently make the whole page pan sideways. Sections
+     * that genuinely scroll horizontally — the brand rail, the compare dock —
+     * do it in their own `overflow-x-auto` container.
+     *
+     * `clip`, emphatically not `hidden`. `hidden` makes the body a scroll
+     * container, and every `position: sticky` descendant then sticks to *it*
+     * rather than to the viewport — which would silently unstick the navbar,
+     * the cart and checkout summaries, and the compare table's frozen first
+     * column. `clip` does not create a scroll container, so they keep working.
+     */
+    overflow-x: clip;
+  }
+
+  /*
+   * iOS Safari zooms the viewport in when a focused form control's text is
+   * smaller than 16px, and it does not zoom back out afterwards — the shopper
+   * is left on a page that has to be pinched back into place, usually mid-way
+   * through checkout.
+   *
+   * Most fields here are built from `ui/TextField`, which is already 16px. The
+   * hand-rolled ones — the admin forms, the discount box in the cart, the review
+   * form — are `text-sm` for density, and they are the ones that trigger it.
+   * Raising the floor for coarse pointers only means the desktop keeps its
+   * denser type, since a mouse never causes the zoom.
+   *
+   * Checkboxes and radios are exempt: font-size does not size them, and the
+   * declaration would only fight whatever the component set.
+   */
+  @media (pointer: coarse) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    textarea,
+    select {
+      font-size: 16px;
+    }
+  }
+
+  /* Material Symbols default to the filled-at-0 optical axis. */
+  .material-symbols-outlined {
+    font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+    user-select: none;
+  }
+}
+
+@layer utilities {
+  /*
+   * Hosted brand logos in dark mode.
+   *
+   * Two treatments, applied per brand — see `lib/brands/logo-format` for why
+   * neither can be the only one. Both are dark-mode only: light mode leaves
+   * every logo exactly as its owner drew it.
+   */
+  /* Two files, one shown per scheme — see `LogoTreatment.VARIANT`. Light is
+   * the default because the scheme is; the dark scopes below flip it. */
+  .brand-logo-light {
+    display: block;
+  }
+  .brand-logo-dark {
+    display: none;
+  }
+
+  .brand-logo-invert,
+  .brand-logo-chip {
+    transition:
+      filter 200ms var(--ease-standard),
+      background-color 200ms var(--ease-standard);
+  }
+
+  /*
+   * Brand rail: a row that carries itself right to left, forever.
+   *
+   * The loop is done by rendering the tiles twice and translating the track
+   * exactly one copy's width (-50%). At the moment the animation restarts, the
+   * second copy is sitting precisely where the first began, so the seam is
+   * invisible — there is no jump to hide because nothing moved. The only
+   * requirement is that one copy be at least as wide as the viewport, or a gap
+   * opens at the tail before the loop comes round.
+   *
+   * The mask fades both ends so tiles arrive and leave rather than being
+   * sliced off at a hard edge.
+   */
+  .brand-rail-viewport {
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 6%,
+      #000 94%,
+      transparent
+    );
+    mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+  }
+
+  .brand-rail {
+    display: flex;
+    width: max-content;
+    animation: brand-rail var(--brand-rail-duration, 60s) linear infinite;
+  }
+
+  @keyframes brand-rail {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  /*
+   * It stops when anyone is actually trying to use it.
+   *
+   * Not a nicety: every tile is a link, and a link that slides out from under
+   * the cursor is a link nobody can click. Hover covers the pointer, and
+   * `focus-within` covers the keyboard — tabbing into a moving rail would
+   * otherwise chase focus off the screen.
+   *
+   * Scoped to the group rather than to each row, so touching either one holds
+   * both. Per-row it left the other still travelling beside a frozen rail,
+   * which reads as one of the two having broken rather than as the section
+   * waiting for you — and the row you were not pointing at is still the row you
+   * were about to look at next.
+   */
+  .brand-rails:hover .brand-rail,
+  .brand-rails:focus-within .brand-rail {
+    animation-play-state: paused;
+  }
+
+  /* State layer: M3 renders hover/press as a translucent overlay of the
+   * content colour rather than a different background colour. */
+  .state-layer {
+    position: relative;
+    isolation: isolate;
+  }
+  .state-layer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-color: currentColor;
+    opacity: 0;
+    transition: opacity 200ms var(--ease-standard);
+    pointer-events: none;
+    z-index: -1;
+  }
+  .state-layer:hover::after {
+    opacity: 0.08;
+  }
+  .state-layer:focus-visible::after {
+    opacity: 0.12;
+  }
+  .state-layer:active::after {
+    opacity: 0.12;
+  }
+}
+
+/* Entrance animation for hero content. The global reduced-motion rule below
+ * zeroes these durations, so no per-element handling is needed. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Cross-fade for a swapped image, e.g. the product gallery changing colourway.
+ * The global reduced-motion rule below zeroes its duration too. */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Route transition, replayed by app/template.tsx on every navigation.
+ *
+ * Two layers, and the split is forced by a real constraint. The outer wrapper
+ * fades on opacity *only*: a `transform` there would make it the containing
+ * block for `position: fixed` descendants and strand the dashboard's mobile
+ * drawer (Sidebar uses `fixed inset-y-0`) mid-screen for the length of the
+ * animation.
+ *
+ * The movement therefore lands on `main`, which in every layout here is a
+ * sibling of the fixed chrome rather than its ancestor — so it can translate
+ * freely. That constraint turns out to be the better design anyway: the top
+ * bar and the drawer stay put while only the content travels, which is how a
+ * navigation reads in an application rather than a document. */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* The content itself: a short rise with a barely-there scale. The scale is
+ * what separates "fades in" from "arrives" — at 0.99 it is not legible as
+ * zoom, only as depth. */
+@keyframes content-enter {
+  from {
+    opacity: 0;
+    /* Kept small on purpose. The home hero already carries its own 18px
+     * `rise`, and the two compound — a larger offset here turns that into a
+     * lurch rather than a layered arrival. */
+    transform: translate3d(0, 10px, 0) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Sweep across a loading placeholder. Runs on a child overlay rather than the
+ * box itself so the skeleton keeps its own background. */
+@keyframes shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* Drains the time left on the featured carousel's current panel. Scale rather
+ * than width so it runs on the compositor, and linear rather than eased because
+ * it is reporting a clock — an eased bar would misreport how long is left. */
+@keyframes carousel-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* A record arriving in a list. Rises and fades in on the decelerate curve, so
+ * it settles rather than snaps. */
+@keyframes row-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
+ * A record leaving a list.
+ *
+ * The row does not merely fade: it collapses its own height, so the rows below
+ * close the gap in the same movement rather than jumping up once it is gone.
+ * `grid-template-rows: 0fr → 1fr` is what makes that animatable without
+ * measuring anything — a fixed `max-height` would have to guess, and guessing
+ * high makes the collapse start late on short rows and never finish on tall
+ * ones.
+ *
+ * Accelerate, not decelerate: something on its way out should be gathering
+ * speed as it leaves, which is the opposite of an entrance.
+ */
+@keyframes row-exit {
+  from {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+
+@layer utilities {
+  /*
+   * The accent word in a two-tone heading — the italic serif half of "Featured
+   * picks", "Latest arrivals", "Shop by brand".
+   *
+   * One class rather than the ten-utility string this used to be, repeated at
+   * every call site: the hero, the catalogue, the compare page and the promo
+   * banners each carried their own copy, and a heading added later got the
+   * plain version simply because the string was too long to notice missing.
+   *
+   * `padding-bottom` is not decoration. `background-clip: text` clips to the
+   * glyph box, and the descenders on the serif italic — the p in "picks", the
+   * y in "everyday" — reach below it, so without the extra quarter-rem they
+   * are sliced flat.
+   */
+  .accent-word {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 400;
+    /* Primary into secondary — one cool family rather than two hues meeting.
+     * Blue-to-green read as two colours competing across a short word, and its
+     * midpoint fell into a muddy teal-grey exactly where the middle letters
+     * sit. Adjacent hues make the same span read as a sheen on the letters. */
+    background-image: linear-gradient(
+      to right,
+      var(--color-primary),
+      var(--color-secondary)
+    );
+    background-clip: text;
+    color: transparent;
+    padding-bottom: 0.25rem;
+  }
+
+  .animate-rise {
+    animation: rise 0.7s var(--ease-emphasized) both;
+  }
+
+  .animate-row-enter {
+    animation: row-enter var(--duration-medium2) var(--ease-emphasized) both;
+  }
+
+  /*
+   * The wrapper the exit animates. `grid` with one row is the trick that lets
+   * the height collapse: the child sits in a `1fr` track that shrinks to `0fr`,
+   * and `min-height: 0` + `overflow: hidden` on the child let it actually be
+   * squeezed instead of setting its own floor.
+   */
+  .row-leaving {
+    display: grid;
+    grid-template-rows: 1fr;
+    animation: row-exit var(--duration-short4) var(--ease-emphasized-accelerate)
+      both;
+  }
+  .row-leaving > * {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* The wrapper fade is quick — it is acknowledgement, not choreography, and
+   * anything longer sits between the click and the content. */
+  .animate-page-enter {
+    animation: page-enter 180ms var(--ease-standard) both;
+  }
+
+  /* The content follows a beat later and takes longer over it. Overlapping the
+   * two is what makes the sequence read as one movement instead of two: the
+   * page is already fading up as the content begins to rise. */
+  .animate-page-enter main {
+    animation: content-enter 400ms var(--ease-emphasized) 60ms both;
+  }
+
+  /* Grids settle in after the frame has arrived. Delays are small and capped —
+   * past a handful of steps a stagger stops reading as choreography and starts
+   * reading as the page being slow. */
+  .stagger > * {
+    animation: content-enter 420ms var(--ease-emphasized) both;
+  }
+  .stagger > *:nth-child(1) {
+    animation-delay: 160ms;
+  }
+  .stagger > *:nth-child(2) {
+    animation-delay: 200ms;
+  }
+  .stagger > *:nth-child(3) {
+    animation-delay: 240ms;
+  }
+  .stagger > *:nth-child(4) {
+    animation-delay: 280ms;
+  }
+  .stagger > *:nth-child(5) {
+    animation-delay: 320ms;
+  }
+  .stagger > *:nth-child(6) {
+    animation-delay: 360ms;
+  }
+  .stagger > *:nth-child(n + 7) {
+    animation-delay: 400ms;
+  }
+  /* Pointer-following tilt. The angles are written to these properties from a
+   * pointer handler rather than through React state — see components/ui/Tilt.
+   *
+   * The transition is short and always on: it smooths the follow into a glide
+   * instead of a jitter, and it is also what eases the card back to flat on
+   * leave, so the handler only has to write zeroes. */
+  /* The slide is applied before the rotations on purpose: after them it would
+   * run along the tilted plane, so the subject would drift in the direction it
+   * is already leaning and the two would compound into a lurch. Ahead of them
+   * it stays screen-aligned and reads as one movement. Zero by default, so
+   * every caller that does not ask for it is unaffected. */
+  .tilt {
+    transform: perspective(900px)
+      translate3d(var(--tilt-shift-x, 0px), var(--tilt-shift-y, 0px), 0)
+      rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+    transition: transform 150ms var(--ease-standard);
+  }
+
+  /* Two hard guards, in CSS rather than only in the handler.
+   *
+   * Reduced motion is the important one: the global rule further down zeroes
+   * animation and transition *durations*, which does nothing to a transform
+   * that tracks a pointer continuously. Without this, someone who asked for no
+   * motion would still get a card that pitches around under the cursor.
+   *
+   * The coarse-pointer guard stops a tap leaving the card frozen at whatever
+   * angle the finger lifted at. */
+  @media (prefers-reduced-motion: reduce), (hover: none), (pointer: coarse) {
+    .tilt {
+      transform: none;
+    }
+  }
+
+  /* Soft pool of light behind a featured product.
+   *
+   * Colour comes from `--spotlight`, which flips per scheme — see the note on
+   * that token for why a tint of the brand colour could not work in both. Sat
+   * high and centred, because light that reads as lighting comes from above
+   * the subject rather than from behind its middle.
+   *
+   * `z-index: 0` is load-bearing: the image sits in a transformed wrapper,
+   * which paints in the positioned layer, and without an explicit index this
+   * pseudo-element would land on top of the product it is meant to be behind. */
+  /* A pool of light with a product standing in it.
+   *
+   * Three layers, because one gradient can only ever be a wash:
+   *   ::before  the light — a hot core inside a wide falloff, plus a cool
+   *             cast at the rim so it has a colour rather than being grey,
+   *             and an elliptical pool at the foot to ground the product;
+   *   ::after   the surround — darkened corners. This is the layer that was
+   *             missing, and it does most of the work: brightness is relative,
+   *             so what sells the middle as *lit* is the edges being not-lit.
+   *
+   * `--spot-y` sits above centre because a product photographed in a box has
+   * its mass low; lighting the geometric middle lights the empty air above it.
+   *
+   * No color-mix anywhere: the alpha lives in each token, which also spares
+   * these rules the @supports fallback a mixed colour would need. */
+  .spotlight {
+    /* Keeps the two layers compositing against each other rather than against
+       whatever the card is stacked over. */
+    isolation: isolate;
+    /* The follow. `--spot-ease` is short while the pointer is moving — the
+       handler already writes one value per frame, so this only takes the edge
+       off — and long on the way out, so the lamp swings back to rest rather
+       than teleporting. Both are set by components/ui/Spotlight; the fallback
+       covers the frames before it has written anything. */
+    transition:
+      --spot-x var(--spot-ease, 120ms) var(--ease-standard),
+      --spot-y var(--spot-ease, 120ms) var(--ease-standard);
+  }
+
+  /* Same two guards the tilt carries, for the same reasons: no pointer-tracked
+     motion for anyone who asked for none, and no light left stranded off-centre
+     where a finger last touched. The resting position comes from the registered
+     initial values, so this is a true no-op rather than an unlit panel. */
+  @media (prefers-reduced-motion: reduce), (hover: none), (pointer: coarse) {
+    .spotlight {
+      --spot-x: 50%;
+      --spot-y: 46%;
+      transition: none;
+    }
+  }
+
+  .spotlight::before,
+  .spotlight::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  /* A backlight: the lamp stands *behind* the product, and what reaches the
+     eye is its light bleeding around the silhouette. The layering is the whole
+     trick — the hot core sits at the product's own position (`--spot-y` is the
+     product's mass, not the panel's middle) and the product paints over it at
+     z-10, so the brightest pixels are exactly the ones it hides. What survives
+     is a rim of light around its edges, which is what "lit from behind" looks
+     like — no drawn outline, just occlusion doing the work.
+
+     Three ellipses rather than one with colour stops: a stop inside a gradient
+     draws a visible ring (a halo sticker, not a glow), where nested layers —
+     hot core, glow body, wide colour cast — fade past each other smoothly. */
+  .spotlight::before {
+    z-index: 0;
+    /* Deliberately empty of light.
+
+       There used to be a pool of spill here, on the theory that a backlight
+       lands on the wall behind the subject. It does — but this layer is
+       centred on the *panel* while the product is wherever its photographer
+       left it. Centred spill behind a centred laptop looked right; behind the
+       headphones, which sit right of centre and fill the frame, the same pool
+       surfaced to their left as a detached blue smudge. There is no position
+       for it that is correct for every photo, and the alpha channel already
+       knows exactly where the product is — so the light lives entirely on the
+       image now (`.product-glow`) and this layer only carries the vignette
+       below. */
+    background: none;
+    animation: spotlight-breathe 7s var(--ease-standard) infinite alternate;
+  }
+
+  .spotlight::after {
+    /* Above the spill, below the product — the product sits at z-10. */
+    z-index: 1;
+    /* Barely a vignette now: enough to keep the panel's corners from being
+       the flattest thing in the frame, and no more. */
+    background: radial-gradient(
+      90% 90% at var(--spot-x) var(--spot-y),
+      transparent 55%,
+      var(--spotlight-vignette) 100%
+    );
+  }
+
+  /* The light that is actually on the product.
+   *
+   * `drop-shadow` reads the image's alpha channel, so this halo traces the
+   * real outline — a laptop's corners, a headphone's curve, the gap under a
+   * lamp's shade — where a radial gradient behind the image can only ever
+   * draw an ellipse and hope the silhouette roughly agrees with it. On a
+   * catalogue of cut-outs on transparency, that difference is the whole
+   * effect: the light belongs to the object rather than to the box it is in.
+   *
+   * One wide bloom and the cast shadow — no tight rim pass. A short-blur
+   * drop-shadow traces the alpha at *constant width*, which is not what light
+   * does: on a pale product against a dark panel it came out as uniform neon
+   * piping around the silhouette, an outer-glow sticker rather than a lit
+   * object. Real edge light varies with the surface's angle, which no filter
+   * can know, so the honest move is to stop implying it. What is left is a
+   * broad, weak haze that only says "there is light back there".
+   *
+   * The blur is wide on purpose: at this radius the falloff is gradual enough
+   * that the eye reads atmosphere instead of an outline. Anything under about
+   * 20px starts to draw the shape again.
+   *
+   * Filters cost real paint time on a large image, so this is two shadows and
+   * sits on the one image the page shows at this size, never on a grid.
+   *
+   * The offset is where the pointer-following went once the panel stopped
+   * carrying it. A glow nudged toward the cursor puts the light on the side
+   * the viewer is "standing", which is the same thing the tilt is already
+   * saying — and unlike a pool on the panel, an offset is correct wherever
+   * the product happens to sit in its frame. Small: past about 20px the halo
+   * detaches from the silhouette and becomes a shadow of the wrong colour. */
+  .product-glow {
+    filter: drop-shadow(
+        var(--glow-dx, 0px) var(--glow-dy, 0px) 46px var(--product-glow)
+      )
+      drop-shadow(0 16px 18px var(--product-cast));
+    transition: filter var(--spot-ease, 120ms) var(--ease-standard);
+  }
+
+  @media (prefers-reduced-motion: reduce), (hover: none), (pointer: coarse) {
+    .product-glow {
+      --glow-dx: 0px;
+      --glow-dy: 0px;
+      transition: none;
+    }
+  }
+
+  /* Barely there and very slow: enough that the light feels alive rather than
+   * printed, not enough to notice as motion. Opacity only, now that the layer
+   * is a cone — scaling it would swing the apex and read as the fixture
+   * swaying on its mount. Zeroed with everything else under
+   * prefers-reduced-motion. */
+  @keyframes spotlight-breathe {
+    from {
+      opacity: 0.88;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* Reveal-on-scroll. Bare classes on their own do nothing at all — the
+   * animation is attached only inside the @supports block below, so the
+   * unsupported path is "content is simply there" rather than "content is
+   * hidden and never arrives".
+   *
+   * The three variants are one effect at staggered offsets: heading, then
+   * product, then copy. Each element carries its own view timeline, so the
+   * offsets are expressed as ranges rather than delays — a delay would be
+   * wrong here, because progress is position, not time. */
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+  }
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in oklab, currentColor 9%, transparent),
+      transparent
+    );
+    animation: shimmer 1.6s var(--ease-standard) infinite;
+  }
+  .rise-2 {
+    animation-delay: 120ms;
+  }
+  .rise-3 {
+    animation-delay: 240ms;
+  }
+  .rise-4 {
+    animation-delay: 360ms;
+  }
+}
+
+/* Reveal on scroll, driven by components/ui/Reveal.
+ *
+ * Attribute-driven rather than `animation-timeline: view()`. The scroll
+ * timeline is the better mechanism — compositor-driven, no JavaScript — but it
+ * is Chromium and very recent Safari only, so elsewhere the effect never
+ * appeared at all.
+ *
+ * Neither state is the default: an element with no `data-reveal` is simply
+ * visible. The attribute is only ever set by the component after it mounts,
+ * which is what keeps the server-rendered page readable without JavaScript. */
+[data-reveal="pending"] {
+  opacity: 0;
+  transform: translate3d(0, 32px, 0);
+}
+
+[data-reveal="shown"] {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 700ms var(--ease-emphasized),
+    transform 700ms var(--ease-emphasized);
+}
+
+/*
+ * A stagger inside a section that has not been revealed yet.
+ *
+ * `.stagger` starts on mount, so within a section still held at `opacity: 0`
+ * it runs its whole cadence unseen and is long finished by the time anyone
+ * scrolls down to it — the grid then simply appears, and the choreography is
+ * spent on nobody. Holding the children paused until the reveal lands is what
+ * makes the two compose: the section rises, and the cards deal out into it as
+ * it arrives.
+ *
+ * Removing the attribute resumes the animation from where it was held, which
+ * is exactly the frame it started on.
+ */
+[data-reveal="pending"] .stagger > * {
+  animation-play-state: paused;
+}
+
+/* Raffle-ticket order cards.
+ *
+ * The two notches are punched with a mask rather than drawn with two circles
+ * filled in the page colour. A filled circle only looks like a hole while the
+ * background behind it stays the same shade — it breaks the moment the card
+ * sits on a different surface, or the theme flips. A mask removes the pixels,
+ * so the hole is real and the page shows through whatever is behind it.
+ *
+ * `--tear` is where the perforation sits, measured from the bottom, and the
+ * component sets it to match the height of the stub. */
+.ticket {
+  --notch: 13px;
+  --tear: 5.25rem;
+
+  -webkit-mask-image:
+    radial-gradient(
+      circle var(--notch) at left 0 bottom var(--tear),
+      transparent 98%,
+      #000 100%
+    ),
+    radial-gradient(
+      circle var(--notch) at right 0 bottom var(--tear),
+      transparent 98%,
+      #000 100%
+    );
+  mask-image:
+    radial-gradient(
+      circle var(--notch) at left 0 bottom var(--tear),
+      transparent 98%,
+      #000 100%
+    ),
+    radial-gradient(
+      circle var(--notch) at right 0 bottom var(--tear),
+      transparent 98%,
+      #000 100%
+    );
+  /* Both masks are opaque everywhere except their own circle, so intersecting
+     them punches both holes. Compositing them any other way punches neither. */
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+
+/* The perforation itself. Inset past the notches at both ends so the dashes
+   stop where the holes begin instead of running into them. */
+.ticket-perforation {
+  height: 1px;
+  margin-inline: calc(var(--notch) + 0.25rem);
+  background-image: linear-gradient(
+    to right,
+    var(--color-outline-variant) 0 6px,
+    transparent 6px 12px
+  );
+  background-size: 12px 1px;
+  background-repeat: repeat-x;
+}
+
+/* Decorative barcode. Widths come from the order id, so a given order always
+   draws the same bars — random ones would reshuffle on every render. */
+.ticket-barcode {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 1.75rem;
+}
+
+.ticket-barcode span {
+  display: block;
+  height: 100%;
+  background-color: currentColor;
+  border-radius: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  /*
+   * The blanket rule above cannot serve the brand rail, and would break it.
+   *
+   * Collapsing the duration to 0.01ms does not stop this animation — it
+   * completes it, instantly, leaving the track parked at translateX(-50%) with
+   * the first half of the brands scrolled off to the left and unreachable.
+   * "No motion" has to mean the rail never moves at all, so the animation is
+   * removed outright and the viewport becomes an ordinary horizontal scroller,
+   * which the reader drives at their own pace.
+   */
+  .brand-rail {
+    animation: none !important;
+    transform: none !important;
+  }
+  .brand-rail-viewport {
+    overflow-x: auto;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}
