@@ -36,11 +36,43 @@ yarn-error.log*
 # Real environment files, including .env.local / .env.production.
 .env
 .env.*
-# ...but the documented template must stay tracked.
-!.env.example
+# The two rules above only match a *leading* dot — `prod.env` and `local.env`
+# match neither, and are exactly what someone reaches for when juggling two
+# deployments.
+*.env
+
+# `.env.example` is deliberately NOT re-included here.
+#
+# It holds only placeholders and is the usual thing to commit, but this project
+# keeps it local: `.env.*` already covers it, so there is no negation. The
+# variables it documents are listed in README.md instead, which is what a fresh
+# clone reads — keep the two in step when adding one.
+
+# direnv. Holds `export` lines, so it is an environment file wearing a
+# different name.
+.envrc
 
 # Auth.js writes AUTH_SECRET here when you run `npx auth secret`.
 .auth
+
+# npm registry auth tokens live here as `//registry…:_authToken=`. A token-free
+# .npmrc is a perfectly ordinary thing to commit — force-add it (`git add -f`)
+# if this project ever grows one.
+.npmrc
+
+# VS Code's Local History extension snapshots every file it sees into the
+# workspace, .env included. Ignoring the directory is what stops a copy of the
+# secrets walking around the rule above.
+.history/
+
+# Cloud CLI credentials, if one is ever run with the project as its home.
+.aws/
+.gcloud/
+.azure/
+
+# Anything deliberately named as such.
+/secrets/
+*.secrets.*
 
 # Keys and certificates
 *.pem
@@ -48,18 +80,37 @@ yarn-error.log*
 *.p12
 *.pfx
 *.crt
+*.cer
+*.der
+*.jks
+*.keystore
+# Apple push/sign-in keys, and anything armoured by GPG.
+*.p8
+*.asc
+*.gpg
 id_rsa*
+id_ed25519*
 # Service-account credentials
 **/*service-account*.json
 **/*credentials*.json
 gha-creds-*.json
 
-# Database dumps and local database files
+# Database dumps and local database files.
+#
+# A dump is as sensitive as the database it came from — customer addresses,
+# order history and password hashes, in one file that looks like source.
 *.sql
 *.sqlite
 *.sqlite3
 *.db
+*.dump
+*.bak
 /prisma-dev-backup*
+
+# Machine-local agent settings: local permission allowlists and absolute paths
+# from one person's disk. The shared `settings.json` beside it stays tracked.
+.claude/settings.local.json
+.claude/*.local.json
 
 # vercel
 .vercel
@@ -77,3 +128,24 @@ next-env.d.ts
 # fresh clone has somewhere to write.
 /public/uploads/*
 !/public/uploads/.gitkeep
+
+# ---------------------------------------------------------------------------
+# Vendored AI-assistant skills — reinstalled, not committed.
+# ---------------------------------------------------------------------------
+# Prisma's own reference docs, fetched by `npx @prisma/cli agent install` from
+# the `prisma/skills` repo. Not this project's code, and nothing imports them.
+#
+# `.agents/skills` holds the real files; `.claude/skills` and `.windsurf/skills`
+# are per-tool mirrors of it. On Windows those mirrors are symlinks that git
+# resolves and copies, so committing all three stored the same 69 files three
+# times — 207 files of third-party documentation.
+#
+# `skills-lock.json` stays tracked, and is what makes them reproducible: it
+# records the source and a content hash per skill. Restore them on a fresh
+# clone with:
+#
+#   npx @prisma/cli agent install
+#
+.agents/skills/
+.claude/skills/
+.windsurf/skills/

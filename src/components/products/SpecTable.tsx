@@ -1,5 +1,6 @@
 import { Icon } from "@/components/ui/Icon";
 import { formatSpecValue } from "@/lib/specs/keys";
+import { cn } from "@/lib/cn";
 
 export interface SpecTableRow {
   label: string;
@@ -24,6 +25,23 @@ const HIGHLIGHT_COUNT = 4;
 
 /** Below this the strip is not worth the space; the table alone reads fine. */
 const MIN_ROWS_FOR_HIGHLIGHTS = 5;
+
+/**
+ * Past this many characters a value stops being a value and starts being a
+ * sentence, and it gets the full width with its label above it.
+ *
+ * Almost every spec in the catalogue is short — "32 GB", "OLED", "2560x1600",
+ * and the longest *label* is eighteen characters. But a handful are written as
+ * prose: "MagSafe charger, Apple Watch charger, Qi-certified wireless chargers,
+ * or USB-C" is seventy-eight. Held in a label-width column inside a two-up
+ * layout, that wraps to four or five ragged lines against a label occupying
+ * one. Given the row to itself it reads as the sentence it is.
+ *
+ * Forty is where the two shapes actually part in this catalogue: the longest
+ * genuine value ("NVIDIA GeForce RTX 4070", 23) sits well below it, and every
+ * entry above it is written with commas and conjunctions.
+ */
+const PROSE_VALUE_LENGTH = 40;
 
 /**
  * A product's specifications.
@@ -82,12 +100,17 @@ export function SpecTable({ rows }: { rows: SpecTableRow[] }) {
                 size={20}
                 className="text-primary"
               />
-              {/* Two lines before clipping: a GPU name is long, and cutting it
-                  to "NVIDIA GeForce RTX…" defeats the point of the tile. */}
-              <p className="text-on-surface mt-4 line-clamp-2 text-base leading-snug font-medium">
+              {/* Three lines before clipping, and wrapping on words rather than
+                  anywhere: "NVIDIA GeForce RTX 4070" is 23 characters and the
+                  two-line clamp cut it in half on a narrow tile, which is the
+                  one thing a headline tile must not do. */}
+              <p className="text-on-surface mt-4 line-clamp-3 text-base leading-snug font-medium text-pretty break-words">
                 {formatSpecValue(row.value, row.unit)}
               </p>
-              <p className="text-on-surface-variant mt-1 truncate text-xs">
+              {/* Wraps rather than truncates. Labels run to 18 characters
+                  ("Operating system", "Battery capacity") and a tile reading
+                  "Operating sys…" has lost the only thing naming the value. */}
+              <p className="text-on-surface-variant mt-1 text-xs leading-snug text-pretty">
                 {row.label}
               </p>
             </li>
@@ -107,7 +130,12 @@ export function SpecTable({ rows }: { rows: SpecTableRow[] }) {
             key={group.name ?? "__ungrouped"}
             className="mb-9 break-inside-avoid"
           >
-            <h3 className="text-on-surface-variant flex items-center gap-2 text-xs font-medium tracking-[0.18em] uppercase">
+            {/* Sentence case, not micro-caps. Uppercase at 0.18em tracking is
+                the least legible setting on the page, and these headings are
+                what a reader scans to find the section they want — the icon and
+                the rule already separate a heading from the rows under it, so
+                the letterforms do not have to. */}
+            <h3 className="text-on-surface border-outline-variant/70 flex items-center gap-2 border-b pb-2 text-sm font-semibold">
               <Icon name={group.icon} size={16} className="text-primary" />
               {group.name ?? "Overview"}
             </h3>
@@ -115,20 +143,44 @@ export function SpecTable({ rows }: { rows: SpecTableRow[] }) {
             {/* No per-row glyphs. One icon per section is orientation; one per
                 line was twenty-two marks competing with the values they were
                 meant to introduce. */}
-            <dl className="divide-outline-variant/50 mt-3 divide-y">
-              {group.rows.map((row) => (
-                <div
-                  key={row.label}
-                  className="grid grid-cols-[minmax(0,11rem)_minmax(0,1fr)] items-baseline gap-6 py-3"
-                >
-                  <dt className="text-on-surface-variant min-w-0 text-sm">
-                    {row.label}
-                  </dt>
-                  <dd className="text-on-surface min-w-0 text-sm font-medium">
-                    {formatSpecValue(row.value, row.unit)}
-                  </dd>
-                </div>
-              ))}
+            <dl className="divide-outline-variant/50 mt-1 divide-y">
+              {group.rows.map((row) => {
+                const value = formatSpecValue(row.value, row.unit);
+                const prose = value.length > PROSE_VALUE_LENGTH;
+
+                return (
+                  <div
+                    key={row.label}
+                    /* Stacked on a phone, two columns from `sm` — except for a
+                       prose value, which stays stacked at every width.
+
+                       The label column is 9rem because the longest label in the
+                       catalogue is 18 characters and nothing is served by
+                       reserving more: this list sits inside a two-up column
+                       layout, so every rem given to the label is taken from the
+                       value beside it. At the old 11rem and gap-6 the long
+                       values wrapped to five lines.
+
+                       Baseline alignment, so a value that still wraps starts
+                       level with its label rather than floating above it. */
+                    className={cn(
+                      "grid grid-cols-1 gap-x-4 gap-y-0.5 py-3",
+                      !prose &&
+                        "sm:grid-cols-[minmax(0,9rem)_minmax(0,1fr)] sm:items-baseline",
+                    )}
+                  >
+                    <dt className="text-on-surface-variant min-w-0 text-sm text-pretty">
+                      {row.label}
+                    </dt>
+                    {/* `break-words` for the value that has no spaces to wrap
+                        at — a resolution or a part number — which would
+                        otherwise push the column wider than its share. */}
+                    <dd className="text-on-surface min-w-0 text-sm leading-relaxed font-medium text-pretty break-words">
+                      {value}
+                    </dd>
+                  </div>
+                );
+              })}
             </dl>
           </div>
         ))}

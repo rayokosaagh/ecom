@@ -6,9 +6,8 @@ Tailwind v4 on Material Design 3 tokens.
 A record of what changed, why, what was tried and rejected, and how to operate the
 parts that now need operating.
 
-At time of writing: lint clean, 213 automated checks passing. Typecheck and the
-production build are red on `src/lib/social/catalogue.ts`, which is mid-refactor in a
-parallel session — nothing in this report depends on it.
+At time of writing: typecheck, lint and production build clean; 213 automated checks
+passing.
 
 ---
 
