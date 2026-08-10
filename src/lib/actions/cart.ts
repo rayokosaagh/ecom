@@ -11,10 +11,12 @@ import { getCart } from "@/lib/cart/service";
 import { notifyAdmins, notifyUser } from "@/lib/notifications/service";
 import { sendOrderEmailSafely } from "@/lib/orders/email";
 import { formatPrice } from "@/lib/products/format";
-import { describeVariant, type VariantView } from "@/lib/products/variants";
+import { describeVariant } from "@/lib/products/variants";
+import { VARIANT_SELECT, toVariantView } from "@/lib/cart/variants";
 import { deliveryChargeFor, pickupAvailable } from "@/lib/checkout/fulfilment";
 import { evaluateDiscount, normalizeCode } from "@/lib/discounts/service";
 import { parseFulfilment } from "@/lib/checkout/validation";
+import { rememberAddress } from "@/lib/actions/addresses";
 import { getStoreSettings } from "@/lib/settings/service";
 import {
   FulfilmentMethod,
@@ -33,60 +35,6 @@ export type CheckoutState = {
 };
 
 const MAX_QUANTITY = 99;
-
-/**
- * Shape a Prisma variant row into the view the helpers work with.
- *
- * The definition's sort order rides along so a configuration always describes
- * itself in the same order — "16 GB / 512 GB", never "512 GB / 16 GB".
- */
-const VARIANT_SELECT = {
-  id: true,
-  sku: true,
-  priceCents: true,
-  stock: true,
-  image: true,
-  options: {
-    select: {
-      definitionId: true,
-      value: true,
-      valueKey: true,
-      definition: { select: { label: true, unit: true, sortOrder: true } },
-    },
-  },
-} as const;
-
-type VariantRow = {
-  id: string;
-  sku: string | null;
-  priceCents: number;
-  stock: number;
-  image: string | null;
-  options: {
-    definitionId: string;
-    value: string;
-    valueKey: string;
-    definition: { label: string; unit: string | null; sortOrder: number };
-  }[];
-};
-
-function toVariantView(variant: VariantRow): VariantView {
-  return {
-    id: variant.id,
-    sku: variant.sku,
-    priceCents: variant.priceCents,
-    stock: variant.stock,
-    image: variant.image,
-    options: variant.options.map((option) => ({
-      definitionId: option.definitionId,
-      label: option.definition.label,
-      unit: option.definition.unit,
-      sortOrder: option.definition.sortOrder,
-      value: option.value,
-      valueKey: option.valueKey,
-    })),
-  };
-}
 
 /**
  * What one cart line costs and how many are left, resolved once so every
@@ -574,6 +522,23 @@ export async function checkout(
     return {
       message: "That code was claimed by someone else a moment ago. Try again.",
     };
+  }
+
+  /**
+   * Keep the address, if the shopper asked and it was a new one.
+   *
+   * After the commit and inside `after`, for the same reason the email is:
+   * the order exists, and the address book is a convenience that must never be
+   * able to fail a sale. The checkbox only renders on the "use a different
+   * address" branch — see `CheckoutForm` — so a shopper who picked a saved
+   * address never lands here and nothing is duplicated.
+   */
+  if (
+    fulfilment.data.method === FulfilmentMethod.DELIVERY &&
+    formData.get("saveAddress") === "on"
+  ) {
+    const address = fulfilment.data.address;
+    after(() => rememberAddress(user.id, address));
   }
 
   /**

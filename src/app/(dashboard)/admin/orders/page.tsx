@@ -17,6 +17,7 @@ const STATUSES = [
   OrderStatus.PENDING,
   OrderStatus.PAID,
   OrderStatus.SHIPPED,
+  OrderStatus.DELIVERED,
   OrderStatus.CANCELLED,
 ] as const;
 

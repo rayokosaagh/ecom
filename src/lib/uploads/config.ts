@@ -2,6 +2,16 @@
 
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5 MB
 
+/**
+ * Tighter cap for a profile picture.
+ *
+ * Avatars are the one image path open to every signed-in account rather than
+ * to administrators, so the ceiling is lower on purpose. Nothing is lost by it:
+ * the largest an avatar is ever drawn is 96px, which 2 MB covers many times
+ * over even before the browser scales it down.
+ */
+export const MAX_AVATAR_BYTES = 2 * 1024 * 1024; // 2 MB
+
 /** Extension is derived from the sniffed type, never from the client filename. */
 export const ACCEPTED_IMAGE_TYPES = {
   "image/jpeg": "jpg",

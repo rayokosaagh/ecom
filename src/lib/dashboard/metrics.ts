@@ -27,7 +27,14 @@ import {
  * what "orders" means to the person asking. The two disagreeing is expected;
  * the tiles name which is which.
  */
-export const REVENUE_STATUSES = [OrderStatus.PAID, OrderStatus.SHIPPED] as const;
+export const REVENUE_STATUSES = [
+  OrderStatus.PAID,
+  OrderStatus.SHIPPED,
+  // Delivered is money the shop kept, so leaving it out would make revenue
+  // *fall* as orders completed — the one direction a sales figure must never
+  // move for a good reason.
+  OrderStatus.DELIVERED,
+] as const;
 
 /**
  * At or below this, a published product is worth flagging.
@@ -82,6 +89,7 @@ function pipeline(rows: OrderRow[]): PipelineCounts {
     [OrderStatus.PENDING]: 0,
     [OrderStatus.PAID]: 0,
     [OrderStatus.SHIPPED]: 0,
+    [OrderStatus.DELIVERED]: 0,
     [OrderStatus.CANCELLED]: 0,
   };
   for (const row of rows) counts[row.status] += 1;

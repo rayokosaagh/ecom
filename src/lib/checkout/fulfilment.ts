@@ -54,6 +54,10 @@ export interface FulfilmentLabels {
   shipped: string;
   /** The admin's button for moving it there. */
   markShipped: string;
+  /** What `DELIVERED` means for this order. */
+  delivered: string;
+  /** The admin's button for moving it there. */
+  markDelivered: string;
   /** The icon that goes with it. */
   icon: string;
   /** Heads the address block on the receipt. */
@@ -66,6 +70,8 @@ const LABELS: Record<FulfilmentMethod, FulfilmentLabels> = {
     charge: "Delivery",
     shipped: "Shipped",
     markShipped: "Mark shipped",
+    delivered: "Delivered",
+    markDelivered: "Mark delivered",
     icon: "local_shipping",
     destination: "Delivering to",
   },
@@ -77,6 +83,11 @@ const LABELS: Record<FulfilmentMethod, FulfilmentLabels> = {
     // number that does not exist.
     shipped: "Collected",
     markShipped: "Mark collected",
+    // Not "Delivered", and not "Collected" a second time. Nothing was
+    // delivered, and the order is already marked collected one step earlier —
+    // so the final state says only that the shop is finished with it.
+    delivered: "Completed",
+    markDelivered: "Mark completed",
     icon: "storefront",
     destination: "Collect from",
   },

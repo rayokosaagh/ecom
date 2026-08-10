@@ -24,6 +24,13 @@ const LOOK: Record<OrderStatus, { label: string; icon: string; className: string
     icon: "local_shipping",
     className: "bg-tertiary-container text-on-tertiary-container",
   },
+  // The finished state, and the only one that reads as done rather than as
+  // in-flight — so it takes the primary container while shipped keeps tertiary.
+  DELIVERED: {
+    label: "Delivered",
+    icon: "task_alt",
+    className: "bg-primary-container text-on-primary-container",
+  },
   CANCELLED: {
     label: "Cancelled",
     icon: "cancel",
@@ -50,10 +57,16 @@ export function OrderStatusBadge({
   const look = LOOK[status];
 
   // "Shipped" on an order the customer is coming to collect sends them looking
-  // for a tracking number that will never exist. Only the wording and the glyph
-  // change — the status, and everything computed from it, is untouched.
-  const shipped = status === "SHIPPED" && fulfilment;
-  const labels = shipped ? fulfilmentLabels(fulfilment) : null;
+  // for a tracking number that will never exist, and "Delivered" claims a
+  // journey that never happened. Only the wording and the glyph change — the
+  // status, and everything computed from it, is untouched.
+  const travelling = (status === "SHIPPED" || status === "DELIVERED") && fulfilment;
+  const labels = travelling ? fulfilmentLabels(fulfilment) : null;
+  const wording = labels
+    ? status === "SHIPPED"
+      ? labels.shipped
+      : labels.delivered
+    : null;
 
   return (
     <span
@@ -63,8 +76,13 @@ export function OrderStatusBadge({
         className,
       )}
     >
-      <Icon name={labels?.icon ?? look.icon} size={14} />
-      {labels?.shipped ?? look.label}
+      {/* The finished state keeps its own tick rather than borrowing the
+          fulfilment glyph — a van on a completed order reads as in transit. */}
+      <Icon
+        name={status === "DELIVERED" ? look.icon : (labels?.icon ?? look.icon)}
+        size={14}
+      />
+      {wording ?? look.label}
     </span>
   );
 }

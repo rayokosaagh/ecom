@@ -25,7 +25,7 @@ export type ShippingInput = {
   phone: string | null;
 };
 
-const LIMITS = {
+export const LIMITS = {
   name: 80,
   line1: 120,
   line2: 120,
@@ -36,11 +36,26 @@ const LIMITS = {
   phone: 32,
 } as const;
 
-export function parseShipping(formData: FormData): Validated<ShippingInput> {
+/**
+ * The address rules, once, for both places that collect one.
+ *
+ * Checkout submits `shippingName`, `shippingLine1` and so on; the address book
+ * submits `addressName`, `addressLine1`. The prefix is the only difference
+ * between them, so it is a parameter rather than a reason to write these eight
+ * fields out twice — two copies would drift, and the whole point of the book is
+ * that a saved address is accepted by checkout without further argument.
+ *
+ * Errors are keyed by the bare field name (`line1`, not `shippingLine1`), which
+ * is what both forms already look their messages up under.
+ */
+export function parseAddressFields(
+  formData: FormData,
+  prefix: string,
+): Validated<ShippingInput> {
   const errors: Record<string, string> = {};
 
   const read = (field: keyof typeof LIMITS) =>
-    String(formData.get(`shipping${field[0].toUpperCase()}${field.slice(1)}`) ?? "").trim();
+    String(formData.get(`${prefix}${field[0].toUpperCase()}${field.slice(1)}`) ?? "").trim();
 
   const name = read("name");
   const line1 = read("line1");
@@ -89,6 +104,11 @@ export function parseShipping(formData: FormData): Validated<ShippingInput> {
       phone: phone || null,
     },
   };
+}
+
+/** The delivery address as checkout submits it. */
+export function parseShipping(formData: FormData): Validated<ShippingInput> {
+  return parseAddressFields(formData, "shipping");
 }
 
 /**

@@ -22,6 +22,9 @@ function revalidateProductViews(slug: string) {
   revalidatePath("/products", "layout");
   revalidatePath("/");
   revalidatePath("/admin/reviews");
+  // Recently purchased shows the author their own verdict, so writing one has
+  // to move that card from "Write a review" to the stars.
+  revalidatePath("/profile");
 }
 
 /**

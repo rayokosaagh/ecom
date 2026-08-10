@@ -1,7 +1,8 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
-import { OrderStatus, ReviewStatus } from "@/generated/prisma/enums";
+import { PURCHASED_STATUSES } from "@/lib/orders/purchases";
+import { ReviewStatus } from "@/generated/prisma/enums";
 
 /**
  * Reading reviews and the ratings derived from them.
@@ -13,15 +14,6 @@ import { OrderStatus, ReviewStatus } from "@/generated/prisma/enums";
  * over a handful of rows per product; the cost is not the problem worth
  * solving.
  */
-
-/**
- * Orders that count as a completed purchase.
- *
- * Pending is not one — an unpaid order is an intention, and letting it qualify
- * would mean anyone could place one, review, and never pay. Cancelled is not
- * one either, for the obvious reason.
- */
-const PURCHASED_STATUSES = [OrderStatus.PAID, OrderStatus.SHIPPED];
 
 export type RatingSummary = {
   average: number;
@@ -207,7 +199,7 @@ export async function getReviewEligibility(productId: string, userId?: string) {
  */
 export async function hasAnyOrder(userId: string): Promise<boolean> {
   const order = await prisma.order.findFirst({
-    where: { userId, status: { in: PURCHASED_STATUSES } },
+    where: { userId, status: { in: [...PURCHASED_STATUSES] } },
     select: { id: true },
   });
   return Boolean(order);
@@ -219,7 +211,7 @@ export async function hasPurchased(
   userId: string,
 ): Promise<boolean> {
   const line = await prisma.orderItem.findFirst({
-    where: { productId, order: { userId, status: { in: PURCHASED_STATUSES } } },
+    where: { productId, order: { userId, status: { in: [...PURCHASED_STATUSES] } } },
     select: { id: true },
   });
   return Boolean(line);

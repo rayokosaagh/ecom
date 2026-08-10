@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { Icon } from "@/components/ui/Icon";
 import { Card, CardContent } from "@/components/ui/Card";
+import { AvatarField } from "@/components/users/AvatarField";
 import { updateProfile, changePassword, type UserFormState } from "@/lib/actions/users";
 import { PASSWORD_MIN_LENGTH } from "@/lib/auth/validation";
 
@@ -44,6 +45,13 @@ export function ProfileDetailsForm({
 }) {
   const [state, formAction, pending] = useActionState(updateProfile, INITIAL);
 
+  // The picture is state rather than an uncontrolled input because uploading
+  // has to redraw the preview immediately — the value arrives from the server
+  // action, not from anything the user typed.
+  const [image, setImage] = useState(user.image ?? "");
+
+  const initial = (user.name ?? user.email).charAt(0).toUpperCase();
+
   return (
     <Card variant="outlined">
       <CardContent>
@@ -51,6 +59,14 @@ export function ProfileDetailsForm({
           <h3 className="text-on-surface text-sm font-medium">Your details</h3>
 
           <Feedback state={state} />
+
+          <AvatarField
+            name="image"
+            value={image}
+            onChange={setImage}
+            fallback={initial}
+            error={state.errors?.image}
+          />
 
           <TextField
             label="Name"
@@ -71,15 +87,6 @@ export function ProfileDetailsForm({
             autoComplete="email"
             error={state.errors?.email}
             required
-          />
-
-          <TextField
-            label="Avatar image URL"
-            name="image"
-            type="url"
-            defaultValue={user.image ?? ""}
-            leadingIcon="image"
-            error={state.errors?.image}
           />
 
           <Button type="submit" loading={pending} icon="save">

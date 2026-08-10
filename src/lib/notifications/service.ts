@@ -10,8 +10,42 @@ export type NewNotification = {
   href?: string;
 };
 
-/** Raise a notification for one user. */
+/**
+ * Which preference column governs each kind of notice.
+ *
+ * ACCOUNT is deliberately absent, and so has no switch: those are things like a
+ * password having been changed or a role having moved, which a customer does
+ * not get to opt out of being told. A security notice nobody may decline is the
+ * point of a security notice.
+ */
+const PREFERENCE: Partial<Record<NotificationType, "notifyOrders" | "notifyStock" | "notifyNews">> = {
+  [NotificationType.ORDER]: "notifyOrders",
+  [NotificationType.STOCK]: "notifyStock",
+  [NotificationType.SYSTEM]: "notifyNews",
+};
+
+/**
+ * Raise a notification for one user, if they want that kind.
+ *
+ * Checked here rather than at each call site: there are a dozen places that
+ * raise a notice, and a preference honoured by eleven of them is not a
+ * preference. Returns null when the notice was declined, which callers ignore —
+ * none of them does anything with the row.
+ */
 export async function notifyUser(userId: string, input: NewNotification) {
+  const column = PREFERENCE[input.type];
+
+  if (column) {
+    // All three read at once and indexed here, rather than a computed `select`
+    // key — Prisma types a dynamic key as the union of every column, which
+    // defeats the point of asking for one.
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { notifyOrders: true, notifyStock: true, notifyNews: true },
+    });
+    if (user && !user[column]) return null;
+  }
+
   return prisma.notification.create({ data: { userId, ...input } });
 }
 

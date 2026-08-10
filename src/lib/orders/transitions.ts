@@ -15,7 +15,11 @@ import { OrderStatus } from "@/generated/prisma/enums";
 const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   [OrderStatus.PENDING]: [OrderStatus.PAID, OrderStatus.CANCELLED],
   [OrderStatus.PAID]: [OrderStatus.SHIPPED, OrderStatus.CANCELLED],
-  [OrderStatus.SHIPPED]: [],
+  // Shipped is no longer the end of the road, but it is still one-way: an order
+  // that has left the building cannot be cancelled, because that would restore
+  // stock which is in a van. Delivery is the only thing left that can happen.
+  [OrderStatus.SHIPPED]: [OrderStatus.DELIVERED],
+  [OrderStatus.DELIVERED]: [],
   [OrderStatus.CANCELLED]: [],
 };
 

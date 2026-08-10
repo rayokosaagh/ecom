@@ -9,7 +9,11 @@ import { parseCredentials } from "@/lib/auth/validation";
 import { claimGuestCart } from "@/lib/cart/merge";
 import { clearCartToken, readCartToken } from "@/lib/cart/cookie";
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+// `unstable_update` is how a server action pushes a profile edit into the JWT.
+// Still prefixed in Auth.js v5 beta; it is the only supported way to refresh a
+// token in place, and the alternative — reading the user from the database on
+// every request — is exactly what the token exists to avoid.
+export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   ...authConfig,
   // The adapter is not used for Credentials sessions, but keeping it wired up
   // means adding an OAuth provider later needs no schema or config changes.
@@ -32,6 +36,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // the failure indistinguishable, so this cannot be used to enumerate
         // which email addresses have accounts.
         if (!user?.passwordHash) return null;
+
+        // A closed account is a tombstone that still owns its orders. Its
+        // password hash is already cleared, so this is belt and braces — but
+        // the row is the thing that says the account is gone, and the check
+        // should read from it rather than from a side effect of closing.
+        if (user.closedAt) return null;
 
         const valid = await verifyPassword(parsed.data.password, user.passwordHash);
         if (!valid) return null;

@@ -51,6 +51,16 @@ enum OrderStatus {
   PENDING
   PAID
   SHIPPED
+  /// Arrived, or collected from the counter.
+  ///
+  /// The end of the journey rather than a synonym for SHIPPED: "gone from the
+  /// warehouse" and "in the customer's hands" are different facts, and only the
+  /// second one answers "where is my order". Terminal — see `allowedTransitions`.
+  ///
+  /// Added after orders already existed, so nothing is backfilled into it: every
+  /// historical order keeps the status it had, and the shop marks new ones
+  /// delivered as they land.
+  DELIVERED
   CANCELLED
 }
 
@@ -212,6 +222,32 @@ model User {
   /// Null for accounts that only sign in through an OAuth provider.
   passwordHash  String?
   role          Role      @default(USER)
+
+  /// Which notices this account wants. Defaults are on: somebody who has just
+  /// bought something expects to hear what happened to it, and an opt-out they
+  /// never asked for reads as the shop having lost the order.
+  ///
+  /// `notifyOrders` covers the ORDER type — the only one a customer cannot
+  /// sensibly be without, which is why it gates in-app notices but never the
+  /// receipt email. `notifyStock` is the back-in-stock kind; `notifyNews` is
+  /// everything the shop sends because it wants to rather than because
+  /// something happened.
+  notifyOrders  Boolean   @default(true)
+  notifyStock   Boolean   @default(true)
+  notifyNews    Boolean   @default(true)
+  /// Order emails, separately from the in-app bell. The two are different
+  /// channels and a customer may reasonably want one and not the other.
+  notifyEmails  Boolean   @default(true)
+
+  /// When this account was closed by its owner, and null while it is open.
+  ///
+  /// A closed account is anonymised in place rather than deleted: `Order.userId`
+  /// cascades, so deleting the row would take the shop's sales records with it
+  /// and make past revenue figures disagree with the receipts customers already
+  /// hold. The personal data is scrubbed by `deleteAccount`; what remains is a
+  /// tombstone that owns the orders and cannot be signed into.
+  closedAt      DateTime?
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -221,6 +257,8 @@ model User {
   notifications Notification[]
   orders        Order[]
   cart          Cart?
+  /// Saved delivery addresses. Never referenced by an order — see Address.
+  addresses     Address[]
   wishlist      WishlistItem[]
   reviews       Review[]
   reviewLikes   ReviewLike[]
@@ -992,6 +1030,55 @@ model SocialLink {
 
   /// The home page reads published links in display order on every render.
   @@index([published, sortOrder])
+}
+
+// ---------------------------------------------------------------------------
+// Address book
+// ---------------------------------------------------------------------------
+
+/// An address a shopper has saved to reuse.
+///
+/// **This is a convenience, never a record.** An order still copies every line
+/// onto itself at checkout — see the note on `Order` — so editing or deleting
+/// an address here cannot rewrite where a past order was sent. The two are
+/// deliberately unrelated: no foreign key points from `Order` at this table,
+/// because one would make a past delivery mutable.
+///
+/// It replaces the older trick of prefilling checkout from whichever order last
+/// carried an address. That guessed well for somebody with one address and
+/// badly for anybody with two, and it had nowhere to put a name for either.
+model Address {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// What the shopper calls it — "Home", "Mum's", "Office". Optional, because
+  /// somebody with one address has no need to name it.
+  label String?
+
+  /// The same fields checkout collects, and validated by the same rules. See
+  /// `parseAddressFields`, which both this and the checkout form go through.
+  name     String
+  line1    String
+  line2    String?
+  city     String
+  region   String?
+  postcode String
+  country  String
+  phone    String?
+
+  /// Preselected at checkout. Held as a flag per row rather than a pointer on
+  /// User so that deleting an address cannot leave the account pointing at a
+  /// row that is gone; `setDefaultAddress` clears the others in the same
+  /// transaction, which is what keeps at most one true.
+  isDefault Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// The book, newest first — the one query this table exists to answer.
+  @@index([userId, createdAt])
 }
 
 // ---------------------------------------------------------------------------

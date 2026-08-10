@@ -198,9 +198,14 @@ export function OrderStatusActions({
                   {pending && (
                     <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                   )}
+                  {/* Both travelling states read differently for a collection
+                      order, so both defer to the fulfilment labels rather than
+                      the flat table. */}
                   {next === Status.SHIPPED
                     ? fulfilmentLabels(fulfilment).markShipped
-                    : (LABEL[next] ?? next)}
+                    : next === Status.DELIVERED
+                      ? fulfilmentLabels(fulfilment).markDelivered
+                      : (LABEL[next] ?? next)}
                 </button>
               );
             })}

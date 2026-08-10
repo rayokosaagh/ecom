@@ -9,6 +9,7 @@ import { hasAnyOrder } from "@/lib/reviews/service";
 import {
   ACCEPTED_IMAGE_TYPES,
   ACCEPTED_VIDEO_TYPES,
+  MAX_AVATAR_BYTES,
   MAX_UPLOAD_BYTES,
   MAX_VIDEO_BYTES,
   UPLOAD_URL_PREFIX,
@@ -172,6 +173,48 @@ export async function uploadReviewMedia(formData: FormData): Promise<UploadResul
 }
 
 /**
+ * The image half of an upload, minus the question of who is allowed to do it.
+ *
+ * Shared so the admin path and the avatar path cannot drift on the part that
+ * matters — which bytes are accepted and what extension they are written
+ * under. The two differ only in their gate and their ceiling, and both of
+ * those stay with the caller, where they can be read.
+ *
+ * The size is checked twice: once on what the browser declares, so an
+ * oversized file is refused before its bytes are pulled into memory, and again
+ * on what actually arrived, because the declared size is no more trustworthy
+ * than the declared type.
+ */
+async function acceptImage(
+  value: FormDataEntryValue | null,
+  limit: number,
+): Promise<UploadResult> {
+  if (!(value instanceof File) || value.size === 0) {
+    return { ok: false, error: "No file selected." };
+  }
+
+  const tooBig = (size: number): UploadResult => ({
+    ok: false,
+    error: `That file is ${formatBytes(size)} — the limit is ${formatBytes(limit)}.`,
+  });
+
+  if (value.size > limit) return tooBig(value.size);
+
+  const buffer = Buffer.from(await value.arrayBuffer());
+  if (buffer.length > limit) return tooBig(buffer.length);
+
+  const detected = sniffImageType(buffer);
+  if (!detected) {
+    return {
+      ok: false,
+      error: "That does not look like a supported image (JPEG, PNG, WebP, GIF or AVIF).",
+    };
+  }
+
+  return { ok: true, url: await store(buffer, ACCEPTED_IMAGE_TYPES[detected]) };
+}
+
+/**
  * Store an uploaded image and return the URL to reference it by.
  *
  * Admin-only. Files are written to `public/uploads`, which means they are
@@ -181,30 +224,29 @@ export async function uploadReviewMedia(formData: FormData): Promise<UploadResul
  */
 export async function uploadImage(formData: FormData): Promise<UploadResult> {
   await requireAdmin();
+  return acceptImage(formData.get("file"), MAX_UPLOAD_BYTES);
+}
 
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) {
-    return { ok: false, error: "No file selected." };
-  }
-
-  if (file.size > MAX_UPLOAD_BYTES) {
-    return {
-      ok: false,
-      error: `That file is ${formatBytes(file.size)} — the limit is ${formatBytes(
-        MAX_UPLOAD_BYTES,
-      )}.`,
-    };
-  }
-
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const detected = sniffImageType(buffer);
-
-  if (!detected) {
-    return {
-      ok: false,
-      error: "That does not look like a supported image (JPEG, PNG, WebP, GIF or AVIF).",
-    };
-  }
-
-  return { ok: true, url: await store(buffer, ACCEPTED_IMAGE_TYPES[detected]) };
+/**
+ * Store a profile picture for whoever is signed in.
+ *
+ * A separate action from `uploadImage` rather than a relaxed gate on it: that
+ * one is admin-only, and the difference between "an administrator may write a
+ * file to the public directory" and "anyone with an account may" is worth
+ * being able to see at the call site.
+ *
+ * The URL is returned, not saved — `updateProfile` is what writes it to the
+ * account, and it re-checks the value it is given. An upload that the shopper
+ * abandons without saving is therefore just an orphaned file, not a change to
+ * anything.
+ *
+ * Like the other two paths, this does not bound total disk use per account:
+ * every file is capped individually, but somebody could still replace their
+ * avatar repeatedly, and the file it replaced is left behind. On a real
+ * deployment this belongs behind object storage with a quota and a lifecycle
+ * rule rather than the local filesystem.
+ */
+export async function uploadAvatar(formData: FormData): Promise<UploadResult> {
+  await requireUser();
+  return acceptImage(formData.get("file"), MAX_AVATAR_BYTES);
 }

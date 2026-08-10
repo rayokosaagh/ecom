@@ -35,6 +35,8 @@ export interface NavbarUser {
   name: string | null;
   email: string;
   image?: string | null;
+  /** Decides which account-menu rows are shown; absent reads as a customer. */
+  role?: "USER" | "ADMIN";
 }
 
 export interface NavbarProps {
@@ -121,6 +123,58 @@ function CountBadge({
       {count > 9 ? "9+" : count}
     </motion.span>
   );
+}
+
+/**
+ * The account picture, or the initial standing in for one.
+ *
+ * A plain <img> rather than next/image: the address is whatever the account
+ * saved — an uploaded file or a pasted https URL — and next/image would need
+ * every host anyone might use listed in `remotePatterns`. `object-cover` on a
+ * round frame is what keeps a non-square photo from being squashed into it.
+ */
+function Avatar({ user, className }: { user: NavbarUser; className: string }) {
+  const initial = (user.name ?? user.email).charAt(0).toUpperCase();
+
+  return (
+    <span
+      className={cn(
+        "bg-primary-container text-on-primary-container grid shrink-0 place-items-center",
+        "overflow-hidden rounded-full font-medium",
+        className,
+      )}
+    >
+      {user.image ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img src={user.image} alt="" className="size-full object-cover" />
+      ) : (
+        <span aria-hidden>{initial}</span>
+      )}
+    </span>
+  );
+}
+
+/**
+ * What the account menu offers, by role.
+ *
+ * Everyone gets their account and their orders. The console rows are admin-only
+ * — /dashboard now sends a customer to /profile and /dashboard/settings has
+ * always bounced them to /forbidden, so offering either was a menu entry that
+ * could not do what it said.
+ */
+function accountMenu(role: NavbarUser["role"]) {
+  const mine = [
+    { href: "/profile", label: "Profile", icon: "person" },
+    { href: "/orders", label: "Orders", icon: "receipt_long" },
+  ];
+
+  if (role !== "ADMIN") return mine;
+
+  return [
+    { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+    ...mine,
+    { href: "/dashboard/settings", label: "Settings", icon: "settings" },
+  ];
 }
 
 /** Shared enter/exit for every floating panel: short fade + scale. */
@@ -433,9 +487,7 @@ export function Navbar({
                 onClick={() => setMenu(menu === "avatar" ? null : "avatar")}
                 className="hover:bg-on-surface/[0.08] flex items-center gap-1 rounded-full py-1 pr-1 pl-1 transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-95"
               >
-                <span className="bg-primary-container text-on-primary-container grid size-8 place-items-center rounded-full text-xs font-medium">
-                  {(user.name ?? user.email).charAt(0).toUpperCase()}
-                </span>
+                <Avatar user={user} className="size-8 text-xs" />
                 <motion.span
                   animate={{ rotate: menu === "avatar" ? 180 : 0 }}
                   transition={reduceMotion ? { duration: 0 } : { duration: 0.2 }}
@@ -454,21 +506,20 @@ export function Navbar({
                     aria-label="Account"
                     className="bg-surface-container-high shadow-elevation-2 absolute right-0 mt-2 w-64 origin-top-right overflow-hidden rounded-xl"
                   >
-                    <div className="border-outline-variant border-b px-4 py-3">
-                      <p className="text-on-surface truncate text-sm font-medium">
-                        {user.name ?? "Account"}
-                      </p>
-                      <p className="text-on-surface-variant truncate text-xs">
-                        {user.email}
-                      </p>
+                    <div className="border-outline-variant flex items-center gap-3 border-b px-4 py-3">
+                      <Avatar user={user} className="size-10 text-sm" />
+                      <div className="min-w-0">
+                        <p className="text-on-surface truncate text-sm font-medium">
+                          {user.name ?? "Account"}
+                        </p>
+                        <p className="text-on-surface-variant truncate text-xs">
+                          {user.email}
+                        </p>
+                      </div>
                     </div>
 
                     <div className="p-1">
-                      {[
-                        { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
-                        { href: "/profile", label: "Profile", icon: "person" },
-                        { href: "/dashboard/settings", label: "Settings", icon: "settings" },
-                      ].map((entry) => (
+                      {accountMenu(user.role).map((entry) => (
                         <Link
                           key={entry.href}
                           href={entry.href}

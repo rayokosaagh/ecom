@@ -33,6 +33,10 @@ const CUSTOMER_NOTICE: Partial<Record<OrderStatus, { title: string; body: string
     title: "Order shipped",
     body: "Your order is on its way.",
   },
+  [OrderStatus.DELIVERED]: {
+    title: "Order delivered",
+    body: "Your order has arrived. Tell us what you thought of it.",
+  },
   [OrderStatus.CANCELLED]: {
     title: "Order cancelled",
     body: "Your order was cancelled. Anything paid will be refunded.",

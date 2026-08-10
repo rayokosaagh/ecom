@@ -1,22 +1,22 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 import { FilterPills } from "@/components/admin/FilterPills";
 import { BarList } from "@/components/charts/BarList";
 import { ChartCard, Legend } from "@/components/charts/ChartCard";
 import { StackedBar } from "@/components/charts/StackedBar";
-import { TrendChart, type TrendPoint } from "@/components/charts/TrendChart";
+import { TrendChart } from "@/components/charts/TrendChart";
 import { InventoryCard } from "@/components/dashboard/InventoryCard";
 import { RecentOrders } from "@/components/dashboard/RecentOrders";
 import { StatTile } from "@/components/dashboard/StatTile";
 import { pipelineSegments } from "@/components/dashboard/pipeline";
+import { trendPoints, trendTable } from "@/components/dashboard/trend";
 import { requireUser } from "@/lib/auth/dal";
-import { getAdminOverview, getCustomerOverview } from "@/lib/dashboard/metrics";
+import { getAdminOverview } from "@/lib/dashboard/metrics";
 import {
   RANGE_DAYS,
   RANGE_PARAM,
   formatCompactMoney,
-  formatDayFull,
-  formatDayLabel,
   parseRange,
   type RangeDays,
 } from "@/lib/dashboard/range";
@@ -24,29 +24,6 @@ import { formatPrice } from "@/lib/products/format";
 import { Role } from "@/generated/prisma/enums";
 
 export const metadata: Metadata = { title: "Overview · Ecom" };
-
-/** Points for a trend chart: the value, plus both forms of its date. */
-function trendPoints(days: Date[], series: number[]): TrendPoint[] {
-  return days.map((day, i) => ({
-    label: formatDayLabel(day),
-    full: formatDayFull(day),
-    value: series[i] ?? 0,
-  }));
-}
-
-/** The chart's numbers as text, for the table every chart card carries. */
-function trendTable(
-  days: Date[],
-  series: number[],
-  previous: number[],
-  format: (value: number) => string,
-) {
-  return days.map((day, i) => [
-    formatDayFull(day),
-    format(series[i] ?? 0),
-    format(previous[i] ?? 0),
-  ]);
-}
 
 /**
  * The window control.
@@ -73,40 +50,43 @@ function RangeFilter({ range }: { range: RangeDays }) {
   );
 }
 
+/**
+ * The store's books.
+ *
+ * Customers used to land here too, on a version of the page scoped to their
+ * own account. That reading now lives on /profile, in the storefront's chrome
+ * rather than the console's, so a shopper is sent there instead of being shown
+ * an admin sidebar to find their own orders in.
+ *
+ * The redirect is a courtesy, not the boundary — nothing on this page is
+ * fetched before it, and the pages beneath /dashboard each hold their own gate.
+ */
 export default async function DashboardPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = await requireUser();
+  if (user.role !== Role.ADMIN) redirect("/profile");
+
   const params = await searchParams;
   const range = parseRange(params[RANGE_PARAM]);
-
-  const greeting = (
-    <div>
-      <h2 className="text-on-surface text-2xl font-normal">
-        Welcome back{user.name ? `, ${user.name.split(" ")[0]}` : ""}
-      </h2>
-      <p className="text-on-surface-variant mt-1 text-sm">
-        {user.role === Role.ADMIN
-          ? `How the store has done over the last ${range} days.`
-          : `Your account over the last ${range} days.`}
-      </p>
-    </div>
-  );
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        {greeting}
+        <div>
+          <h2 className="text-on-surface text-2xl font-normal">
+            Welcome back{user.name ? `, ${user.name.split(" ")[0]}` : ""}
+          </h2>
+          <p className="text-on-surface-variant mt-1 text-sm">
+            How the store has done over the last {range} days.
+          </p>
+        </div>
         <RangeFilter range={range} />
       </div>
 
-      {user.role === Role.ADMIN ? (
-        <StoreOverview range={range} />
-      ) : (
-        <AccountOverview userId={user.id} range={range} />
-      )}
+      <StoreOverview range={range} />
     </div>
   );
 }
@@ -236,110 +216,6 @@ async function StoreOverview({ range }: { range: RangeDays }) {
           orders={data.recent}
           href="/admin/orders"
           emptyMessage="No orders yet."
-        />
-      </div>
-    </>
-  );
-}
-
-/**
- * The same page for a customer.
- *
- * The overview is reachable by every signed-in account, so it shows the shop's
- * numbers to an admin and the reader's own to everyone else. The two are not
- * the same page with figures hidden — they are different queries, scoped by
- * user id in `getCustomerOverview`.
- */
-async function AccountOverview({ userId, range }: { userId: string; range: RangeDays }) {
-  const data = await getCustomerOverview(userId, range);
-
-  return (
-    <>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatTile
-          label="Spent"
-          value={formatCompactMoney(data.spend.total)}
-          delta={data.spend.delta}
-          trend={data.spend.series}
-          icon="payments"
-        />
-        <StatTile
-          label="Orders placed"
-          value={data.placed.total.toLocaleString("en-US")}
-          delta={data.placed.delta}
-          trend={data.placed.series}
-          icon="receipt_long"
-        />
-        <StatTile
-          label="Wishlist"
-          value={data.wishlist.toLocaleString("en-US")}
-          delta={null}
-          icon="favorite"
-          noteWhenNoDelta="All time"
-        />
-        <StatTile
-          label="Reviews written"
-          value={data.reviews.toLocaleString("en-US")}
-          delta={null}
-          icon="reviews"
-          noteWhenNoDelta="All time"
-        />
-      </div>
-
-      <ChartCard
-        title="Your spending"
-        description={`Paid and shipped orders. ${formatPrice(data.lifetime.spentCents)} across ${data.lifetime.orders} order${data.lifetime.orders === 1 ? "" : "s"} all time.`}
-        aside={
-          <Legend
-            entries={[
-              { label: "This period", color: "var(--color-chart-accent)", shape: "line" },
-              { label: `Previous ${range} days`, color: "var(--color-chart-muted)", shape: "line" },
-            ]}
-          />
-        }
-        table={{
-          caption: `Spending by day, with the previous ${range} days for comparison`,
-          columns: ["Day", "Spent", "Previous"],
-          rows: trendTable(
-            data.days,
-            data.spend.series,
-            data.spend.previousSeries,
-            formatPrice,
-          ),
-        }}
-      >
-        <TrendChart
-          points={trendPoints(data.days, data.spend.series)}
-          comparison={data.spend.previousSeries}
-          format="money"
-          seriesLabel="Spending"
-          comparisonLabel={`Previous ${range} days`}
-        />
-      </ChartCard>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ChartCard
-          title="Your orders"
-          description={`Everything you placed in the last ${range} days, by state.`}
-          table={{
-            caption: "Your orders by status",
-            columns: ["Status", "Orders"],
-            rows: pipelineSegments(data.pipeline).map((segment) => [
-              segment.label,
-              segment.value.toLocaleString("en-US"),
-            ]),
-          }}
-        >
-          <StackedBar
-            segments={pipelineSegments(data.pipeline)}
-            emptyMessage="You have not ordered in this period."
-          />
-        </ChartCard>
-
-        <RecentOrders
-          orders={data.recent}
-          href="/orders"
-          emptyMessage="Your orders will appear here."
         />
       </div>
     </>

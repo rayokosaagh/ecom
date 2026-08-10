@@ -5,6 +5,7 @@ import { Navbar } from "@/components/nav/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { CheckoutForm, type ShippingValues } from "@/components/cart/CheckoutForm";
 import { requireUser } from "@/lib/auth/dal";
+import { getAddresses, summarise, toShippingValues } from "@/lib/addresses/service";
 import { getNavData } from "@/lib/nav/data";
 import { getCart } from "@/lib/cart/service";
 import { findCartId } from "@/lib/cart/identity";
@@ -36,10 +37,10 @@ const EMPTY: ShippingValues = {
 /**
  * Prefill from the last order that recorded an address.
  *
- * Deliberately not a saved "default address" on the account: the most recent
- * delivery is the better guess in practice, it needs no extra model, and
- * nothing has to be kept in sync when someone moves — they simply overwrite
- * the fields once and the next order inherits that instead.
+ * The fallback now, not the mechanism. The account's saved addresses come
+ * first — see `getAddresses` — and this covers the shopper who has ordered
+ * before but never saved anything, for whom the previous delivery is still a
+ * far better guess than eight empty fields.
  */
 async function lastUsedAddress(userId: string): Promise<ShippingValues> {
   const previous = await prisma.order.findFirst({
@@ -98,10 +99,32 @@ export default async function CheckoutPage() {
   );
   if (blocked) redirect("/cart");
 
-  const [values, settings] = await Promise.all([
+  const [previous, settings, addresses] = await Promise.all([
     lastUsedAddress(user.id),
     getStoreSettings(),
+    getAddresses(user.id),
   ]);
+
+  /**
+   * The picker's rows, and which one starts selected.
+   *
+   * `getAddresses` returns the default first, so "the first row" and "the
+   * default" are the same thing — but the id is passed explicitly rather than
+   * left implied by the ordering, because that is the sort of coupling that
+   * breaks quietly the day the sort changes.
+   */
+  const pickable = addresses.map((address) => ({
+    id: address.id,
+    label: address.label,
+    summary: summarise(address),
+    values: toShippingValues(address),
+  }));
+
+  const defaultAddress = addresses.find((address) => address.isDefault) ?? addresses[0];
+
+  // With a book, the fields start on the default; without one, on whatever the
+  // last order was sent to.
+  const values = defaultAddress ? toShippingValues(defaultAddress) : previous;
 
   /**
    * Passed as data rather than rendered here.
@@ -186,6 +209,8 @@ export default async function CheckoutPage() {
           pickup={pickup}
           payments={payments}
           sandbox={paymentsAreSandbox()}
+          addresses={pickable}
+          defaultAddressId={defaultAddress?.id ?? null}
         />
       </main>
 

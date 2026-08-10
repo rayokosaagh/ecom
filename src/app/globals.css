@@ -105,6 +105,12 @@
   --color-chart-step-1: #86b6ef;
   --color-chart-step-2: #3987e5;
   --color-chart-step-3: #184f95;
+  /* Fourth step, added with the DELIVERED order status. The ramp was three
+   * because the journey was three; it is four now, and the pipeline bar has to
+   * keep reading as a sequence. Continues the same monotone descent in
+   * lightness with a gap comparable to the ones above it (relative luminance
+   * runs ~0.46 / 0.26 / 0.077 / 0.026), so the steps stay separable. */
+  --color-chart-step-4: #0a2d57;
   /* Reserved for state, never for a series: cancelled orders, and the
    * direction of a trend. Always shipped with an icon or a sign beside them,
    * so the meaning never rests on the colour alone. */
@@ -232,6 +238,9 @@
   --dark-chart-step-1: #256abf;
   --dark-chart-step-2: #5598e7;
   --dark-chart-step-3: #b7d3f6;
+  /* The ramp runs the other way here, so the fourth step is the lightest —
+   * "further along is more prominent" has to survive the theme flip. */
+  --dark-chart-step-4: #e3eefc;
   --dark-chart-critical: #e66767;
   --dark-chart-up: #6dd58c;
   --dark-chart-down: #f2b8b5;
@@ -346,6 +355,7 @@
   --color-chart-step-1: var(--dark-chart-step-1);
   --color-chart-step-2: var(--dark-chart-step-2);
   --color-chart-step-3: var(--dark-chart-step-3);
+  --color-chart-step-4: var(--dark-chart-step-4);
   --color-chart-critical: var(--dark-chart-critical);
   --color-chart-up: var(--dark-chart-up);
   --color-chart-down: var(--dark-chart-down);
@@ -413,6 +423,7 @@
     --color-chart-step-1: var(--dark-chart-step-1);
     --color-chart-step-2: var(--dark-chart-step-2);
     --color-chart-step-3: var(--dark-chart-step-3);
+    --color-chart-step-4: var(--dark-chart-step-4);
     --color-chart-critical: var(--dark-chart-critical);
     --color-chart-up: var(--dark-chart-up);
     --color-chart-down: var(--dark-chart-down);

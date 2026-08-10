@@ -72,7 +72,7 @@ export interface RenderedEmail {
 /**
  * The headline for each kind.
  *
- * `PAID`, `SHIPPED` and `CANCELLED` mirror `CUSTOMER_NOTICE` in
+ * `PAID`, `SHIPPED`, `DELIVERED` and `CANCELLED` mirror `CUSTOMER_NOTICE` in
  * `lib/actions/orders` — the same event, said the same way, so a customer who
  * sees both the in-app notice and the email is not told two different things.
  */
@@ -92,6 +92,10 @@ const HEADLINES: Record<OrderEmailKind, { subject: string; lead: string }> = {
   SHIPPED: {
     subject: "Order shipped",
     lead: "Your order is on its way.",
+  },
+  DELIVERED: {
+    subject: "Order delivered",
+    lead: "Your order has arrived. Tell us what you thought of it.",
   },
   CANCELLED: {
     subject: "Order cancelled",

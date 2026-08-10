@@ -56,6 +56,29 @@ export interface PaymentOption {
   unavailable: string | null;
 }
 
+/** One saved address, as the picker needs it. */
+export interface PickableAddress {
+  id: string;
+  label: string | null;
+  /** The address on one line, for the radio's second row. */
+  summary: string;
+  values: ShippingValues;
+}
+
+/** The radio value standing for "none of these — I'll type one". */
+export const NEW_ADDRESS = "__new__";
+
+const EMPTY_ADDRESS: ShippingValues = {
+  name: "",
+  line1: "",
+  line2: "",
+  city: "",
+  region: "",
+  postcode: "",
+  country: "",
+  phone: "",
+};
+
 const INITIAL: CheckoutState = {};
 
 /**
@@ -81,6 +104,8 @@ export function CheckoutForm({
   pickup,
   payments,
   sandbox,
+  addresses = [],
+  defaultAddressId = null,
 }: {
   values: ShippingValues;
   summary: CheckoutSummaryData;
@@ -90,11 +115,42 @@ export function CheckoutForm({
   payments: PaymentOption[];
   /** Whether the gateways point at their test environments. */
   sandbox: boolean;
+  /** The saved address book, default first. Empty for a shopper with none. */
+  addresses?: PickableAddress[];
+  /** Preselected on load, so the common case needs no interaction at all. */
+  defaultAddressId?: string | null;
 }) {
   const [state, formAction, pending] = useActionState(checkout, INITIAL);
   const [method, setMethod] = useState<FulfilmentMethod>(
     FulfilmentMethod.DELIVERY,
   );
+
+  /**
+   * Which saved address is in the fields, or `NEW_ADDRESS` for typing one.
+   *
+   * The fields below became controlled to make this work: `defaultValue` is
+   * read once at mount, so picking an address would have changed the state and
+   * left every input showing what it was before.
+   */
+  const [picked, setPicked] = useState<string>(
+    defaultAddressId ?? (addresses.length > 0 ? addresses[0].id : NEW_ADDRESS),
+  );
+  const [address, setAddress] = useState<ShippingValues>(values);
+
+  const choose = (id: string) => {
+    setPicked(id);
+    const saved = addresses.find((entry) => entry.id === id);
+    // Choosing "a new address" empties the fields rather than leaving the last
+    // pick in them — a half-overwritten address is how a parcel goes to a
+    // street that does not exist.
+    setAddress(saved ? saved.values : EMPTY_ADDRESS);
+  };
+
+  const field = (key: keyof ShippingValues) => ({
+    value: address[key],
+    onChange: (event: { target: { value: string } }) =>
+      setAddress((current) => ({ ...current, [key]: event.target.value })),
+  });
 
   const usable = payments.filter((option) => option.unavailable === null);
   const [payment, setPayment] = useState<PaymentMethod>(
@@ -244,10 +300,75 @@ export function CheckoutForm({
             <CardContent className="space-y-5">
               <h2 className="text-on-surface text-sm font-medium">Delivery address</h2>
 
+              {addresses.length > 0 && (
+                <fieldset className="space-y-2">
+                  <legend className="sr-only">Choose a saved address</legend>
+
+                  {addresses.map((saved) => (
+                    <label
+                      key={saved.id}
+                      className={cn(
+                        "flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors duration-200",
+                        "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2",
+                        picked === saved.id
+                          ? "border-primary bg-primary-container/40"
+                          : "border-outline-variant hover:bg-on-surface/[0.04]",
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="savedAddress"
+                        value={saved.id}
+                        checked={picked === saved.id}
+                        onChange={() => choose(saved.id)}
+                        className="accent-primary mt-0.5 size-4"
+                      />
+                      <span className="min-w-0">
+                        <span className="text-on-surface block text-sm font-medium">
+                          {saved.label ? `${saved.label} · ` : ""}
+                          {saved.values.name}
+                        </span>
+                        <span className="text-on-surface-variant mt-0.5 block text-xs">
+                          {saved.summary}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+
+                  <label
+                    className={cn(
+                      "flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors duration-200",
+                      "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2",
+                      picked === NEW_ADDRESS
+                        ? "border-primary bg-primary-container/40"
+                        : "border-outline-variant hover:bg-on-surface/[0.04]",
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="savedAddress"
+                      value={NEW_ADDRESS}
+                      checked={picked === NEW_ADDRESS}
+                      onChange={() => choose(NEW_ADDRESS)}
+                      className="accent-primary size-4"
+                    />
+                    <span className="text-on-surface flex items-center gap-1.5 text-sm font-medium">
+                      <Icon name="add_location_alt" size={16} />
+                      Use a different address
+                    </span>
+                  </label>
+                </fieldset>
+              )}
+
+              {/* The fields stay on screen with an address picked rather than
+                  collapsing to a summary: a saved address is a starting point,
+                  and "change the flat number just this once" must not mean
+                  editing the saved one. What is submitted is always what is
+                  visible here. */}
               <TextField
                 label="Full name"
                 name="shippingName"
-                defaultValue={values.name}
+                {...field("name")}
                 error={state.errors?.name}
                 autoComplete="name"
                 maxLength={80}
@@ -257,7 +378,7 @@ export function CheckoutForm({
               <TextField
                 label="Address"
                 name="shippingLine1"
-                defaultValue={values.line1}
+                {...field("line1")}
                 error={state.errors?.line1}
                 autoComplete="address-line1"
                 maxLength={120}
@@ -267,7 +388,7 @@ export function CheckoutForm({
               <TextField
                 label="Apartment, suite, etc."
                 name="shippingLine2"
-                defaultValue={values.line2}
+                {...field("line2")}
                 error={state.errors?.line2}
                 autoComplete="address-line2"
                 maxLength={120}
@@ -278,7 +399,7 @@ export function CheckoutForm({
                 <TextField
                   label="City"
                   name="shippingCity"
-                  defaultValue={values.city}
+                  {...field("city")}
                   error={state.errors?.city}
                   autoComplete="address-level2"
                   maxLength={60}
@@ -287,7 +408,7 @@ export function CheckoutForm({
                 <TextField
                   label="State or region"
                   name="shippingRegion"
-                  defaultValue={values.region}
+                  {...field("region")}
                   error={state.errors?.region}
                   autoComplete="address-level1"
                   maxLength={60}
@@ -299,7 +420,7 @@ export function CheckoutForm({
                 <TextField
                   label="Postcode"
                   name="shippingPostcode"
-                  defaultValue={values.postcode}
+                  {...field("postcode")}
                   error={state.errors?.postcode}
                   autoComplete="postal-code"
                   maxLength={16}
@@ -308,7 +429,7 @@ export function CheckoutForm({
                 <TextField
                   label="Country"
                   name="shippingCountry"
-                  defaultValue={values.country}
+                  {...field("country")}
                   error={state.errors?.country}
                   autoComplete="country-name"
                   maxLength={56}
@@ -320,12 +441,27 @@ export function CheckoutForm({
                 label="Phone"
                 name="shippingPhone"
                 type="tel"
-                defaultValue={values.phone}
+                {...field("phone")}
                 error={state.errors?.phone}
                 autoComplete="tel"
                 maxLength={32}
                 supportingText="Optional — for delivery updates only"
               />
+
+              {/* Only offered on an address that is not already saved. Ticking
+                  it on a pick would either duplicate the row or silently edit
+                  it, and neither is what the words say. */}
+              {picked === NEW_ADDRESS && (
+                <label className="text-on-surface flex items-center gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    name="saveAddress"
+                    defaultChecked
+                    className="accent-primary size-4"
+                  />
+                  Save this address for next time
+                </label>
+              )}
             </CardContent>
           </Card>
         )}

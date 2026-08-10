@@ -12,7 +12,10 @@ import { Role } from "@/generated/prisma/enums";
  */
 const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Home", icon: "home" },
-  { href: "/dashboard", label: "Overview", icon: "dashboard" },
+  // Admin-only because the page is: a customer asking for /dashboard is sent to
+  // /profile, where their own figures live. Listing it for them would be a row
+  // that bounces somewhere else.
+  { href: "/dashboard", label: "Overview", icon: "dashboard", adminOnly: true },
   {
     label: "Catalogue",
     icon: "inventory_2",
@@ -57,6 +60,8 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   { href: "/dashboard/users", label: "Users", icon: "group", adminOnly: true },
+  // Leaves the console for the storefront — an account is a shopper's page,
+  // not an administrative one, even when an administrator is the shopper.
   { href: "/profile", label: "Profile", icon: "account_circle" },
   { href: "/dashboard/settings", label: "Settings", icon: "settings", adminOnly: true },
 ];

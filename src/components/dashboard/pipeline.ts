@@ -35,6 +35,11 @@ const LOOK: Record<OrderStatus, { label: string; icon: string; color: string }> 
     icon: "local_shipping",
     color: "var(--color-chart-step-3)",
   },
+  [OrderStatus.DELIVERED]: {
+    label: "Delivered",
+    icon: "task_alt",
+    color: "var(--color-chart-step-4)",
+  },
   [OrderStatus.CANCELLED]: {
     label: "Cancelled",
     icon: "cancel",
@@ -47,6 +52,7 @@ const ORDER: OrderStatus[] = [
   OrderStatus.PENDING,
   OrderStatus.PAID,
   OrderStatus.SHIPPED,
+  OrderStatus.DELIVERED,
   OrderStatus.CANCELLED,
 ];
 

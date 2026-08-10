@@ -14,12 +14,12 @@ export default async function LoginPage({
   searchParams,
 }: {
   // Next 16: searchParams is a Promise and must be awaited.
-  searchParams: Promise<{ redirectTo?: string; reset?: string }>;
+  searchParams: Promise<{ redirectTo?: string; reset?: string; closed?: string }>;
 }) {
   // Already signed in — no reason to show the form again.
   if (await getCurrentUser()) redirect("/");
 
-  const { redirectTo, reset } = await searchParams;
+  const { redirectTo, reset, closed } = await searchParams;
 
   return (
     <Card className="w-full max-w-[400px]" variant="elevated">
@@ -39,7 +39,12 @@ export default async function LoginPage({
           notice={
             reset === "1"
               ? "Password updated. Sign in with your new password."
-              : undefined
+              : // Set by `deleteAccount`. Landing on the storefront with no
+                // word of what happened would leave someone wondering whether
+                // the button worked.
+                closed === "1"
+                ? "Your account has been closed. Thank you for shopping with us."
+                : undefined
           }
         />
       </CardContent>
