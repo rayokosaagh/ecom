@@ -33,6 +33,7 @@
     "check:inventory": "tsx scripts/check-inventory.ts",
     "check:price": "tsx scripts/check-price.ts",
     "check:fulfilment": "tsx scripts/check-fulfilment.ts",
+    "check:payments": "tsx scripts/check-payments.ts",
     "check:brand-logos": "tsx scripts/check-brand-logos.ts",
     "brands:icons": "tsx scripts/import-brand-icons.ts",
     "seed:taxonomy": "tsx scripts/seed-taxonomy.ts",

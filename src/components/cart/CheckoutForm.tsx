@@ -12,8 +12,11 @@ import {
   type SummaryLine,
 } from "@/components/cart/CheckoutSummary";
 import { checkout, type CheckoutState } from "@/lib/actions/cart";
-import { FulfilmentMethod } from "@/generated/prisma/enums";
+import { FulfilmentMethod, PaymentMethod } from "@/generated/prisma/enums";
 import { fulfilmentLabels } from "@/lib/checkout/fulfilment";
+import { PAYMENT_METHODS } from "@/lib/payments/methods";
+import { PaymentMark } from "@/components/checkout/PaymentMark";
+import { SandboxNotice } from "@/components/checkout/SandboxNotice";
 import { cn } from "@/lib/cn";
 
 export interface ShippingValues {
@@ -43,6 +46,16 @@ export interface CheckoutSummaryData {
   discountLabel: string | null;
 }
 
+/** One payment option, already judged against this basket on the server. */
+export interface PaymentOption {
+  method: PaymentMethod;
+  label: string;
+  blurb: string;
+  icon: string;
+  /** Set when the method exists but cannot be used right now. */
+  unavailable: string | null;
+}
+
 const INITIAL: CheckoutState = {};
 
 /**
@@ -66,18 +79,31 @@ export function CheckoutForm({
   values,
   summary,
   pickup,
+  payments,
+  sandbox,
 }: {
   values: ShippingValues;
   summary: CheckoutSummaryData;
   /** Null when the shop offers no collection — see `pickupAvailable`. */
   pickup: PickupDetails | null;
+  /** Every payment option, in the order they are offered. */
+  payments: PaymentOption[];
+  /** Whether the gateways point at their test environments. */
+  sandbox: boolean;
 }) {
   const [state, formAction, pending] = useActionState(checkout, INITIAL);
   const [method, setMethod] = useState<FulfilmentMethod>(
     FulfilmentMethod.DELIVERY,
   );
 
+  const usable = payments.filter((option) => option.unavailable === null);
+  const [payment, setPayment] = useState<PaymentMethod>(
+    // Never starts on something that cannot be submitted.
+    usable[0]?.method ?? PaymentMethod.COD,
+  );
+
   const collecting = pickup !== null && method === FulfilmentMethod.PICKUP;
+  const payingNow = PAYMENT_METHODS[payment]?.redirects ?? false;
 
   const options = [FulfilmentMethod.DELIVERY, FulfilmentMethod.PICKUP] as const;
 
@@ -303,6 +329,76 @@ export function CheckoutForm({
             </CardContent>
           </Card>
         )}
+
+        <Card variant="outlined">
+          <CardContent className="space-y-4">
+            <h2 className="text-on-surface text-sm font-medium">Payment</h2>
+
+            <fieldset className="space-y-3">
+              <legend className="sr-only">How to pay</legend>
+
+              {payments.map((option) => {
+                const selected = payment === option.method;
+                const disabled = option.unavailable !== null;
+
+                return (
+                  <label
+                    key={option.method}
+                    className={cn(
+                      "flex items-start gap-3 rounded-lg border p-4 transition-colors duration-200",
+                      "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2",
+                      disabled
+                        ? "border-outline-variant cursor-not-allowed opacity-60"
+                        : selected
+                          ? "border-primary bg-primary-container/40 cursor-pointer"
+                          : "border-outline-variant hover:bg-on-surface/[0.04] cursor-pointer",
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value={option.method}
+                      checked={selected}
+                      disabled={disabled}
+                      onChange={() => setPayment(option.method)}
+                      className="accent-primary mt-0.5 size-4"
+                    />
+                    <span className="min-w-0">
+                      <span className="text-on-surface flex items-center gap-2 text-sm font-medium">
+                        <PaymentMark method={option.method} />
+                        {/* Cash on *collection* on a pickup order — the label
+                            follows the fulfilment choice above. */}
+                        {option.method === PaymentMethod.COD && collecting
+                          ? "Cash on collection"
+                          : option.label}
+                      </span>
+                      <span className="text-on-surface-variant mt-0.5 block text-xs">
+                        {/* Says why it cannot be used rather than just
+                            greying out — a disabled control with no reason is
+                            a dead end. */}
+                        {option.unavailable ??
+                          (option.method === PaymentMethod.COD && collecting
+                            ? "Pay when you collect your order"
+                            : option.blurb)}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </fieldset>
+
+            {/* Shown here as well as on the payment page, because Khalti is
+                started server-side and redirects immediately — there is no
+                later screen on which to warn a Khalti payer. */}
+            {sandbox && payingNow && <SandboxNotice method={payment} />}
+
+            {state.errors?.paymentMethod && (
+              <p role="alert" className="text-error text-xs">
+                {state.errors.paymentMethod}
+              </p>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <aside>
@@ -320,11 +416,22 @@ export function CheckoutForm({
               loading={pending}
               className="h-11"
             >
-              {pending ? "Placing order…" : "Place order"}
+              {pending
+                ? payingNow
+                  ? "Taking you to pay…"
+                  : "Placing order…"
+                : payingNow
+                  ? `Pay with ${PAYMENT_METHODS[payment].label}`
+                  : "Place order"}
             </Button>
 
+            {/* Says what pressing it does. A wallet order leaves the site, and
+                being told so beforehand is the difference between a redirect
+                and a surprise. */}
             <p className="text-on-surface-variant text-xs">
-              No payment is taken — this store places orders directly.
+              {payingNow
+                ? `You will be taken to ${PAYMENT_METHODS[payment].label} to pay. Your order is saved first, and is not confirmed until the payment succeeds.`
+                : "No payment is taken now — you pay when the order reaches you."}
             </p>
 
             <Link

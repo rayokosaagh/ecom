@@ -10,7 +10,15 @@ import { getCart } from "@/lib/cart/service";
 import { findCartId } from "@/lib/cart/identity";
 import { prisma } from "@/lib/prisma";
 import { pickupAvailable } from "@/lib/checkout/fulfilment";
+import { formatPrice } from "@/lib/products/format";
+import { paymentConfigured, paymentsAreSandbox } from "@/lib/payments/config";
+import {
+  PAYMENT_METHODS,
+  PAYMENT_METHOD_ORDER,
+  paymentUnavailable,
+} from "@/lib/payments/methods";
 import { getStoreSettings } from "@/lib/settings/service";
+import { releaseAbandonedOrders } from "@/lib/payments/expiry";
 
 export const metadata: Metadata = { title: "Checkout" };
 
@@ -65,6 +73,17 @@ async function lastUsedAddress(userId: string): Promise<ShippingValues> {
 
 export default async function CheckoutPage() {
   const user = await requireUser();
+
+  /**
+   * Release stock held by abandoned wallet orders before quoting this basket.
+   *
+   * The page below refuses to check out anything whose stock has run short, so
+   * a unit still pledged to an order nobody paid for half an hour ago would
+   * block a sale the shop can actually make — including, most often, the same
+   * shopper's own second attempt at the order that was abandoned.
+   */
+  await releaseAbandonedOrders();
+
   const [nav, cart] = await Promise.all([
     getNavData(),
     getCart(await findCartId(), user.id),
@@ -118,6 +137,40 @@ export default async function CheckoutPage() {
       }
     : null;
 
+  /**
+   * Which payment methods this basket can actually use.
+   *
+   * Judged here, on the server, because the answer depends on merchant keys —
+   * and the form is told *whether* a gateway is configured, never with what.
+   *
+   * Quoted against the delivery total, which is the larger of the two: a basket
+   * that clears Khalti's floor with delivery would otherwise be offered Khalti
+   * and then fall below it the moment the shopper chose collection.
+   */
+  const worstCaseTotal = cart.payableCents;
+  const payments = PAYMENT_METHOD_ORDER.map((method) => {
+    const info = PAYMENT_METHODS[method];
+    const blocked = paymentUnavailable(
+      method,
+      worstCaseTotal,
+      paymentConfigured(method),
+    );
+
+    return {
+      method,
+      label: info.label,
+      blurb: info.blurb,
+      icon: info.icon,
+      unavailable: blocked
+        ? blocked.reason === "not-configured"
+          ? "Not available at the moment"
+          : blocked.reason === "currency"
+            ? `Not available for ${blocked.currency} orders`
+            : `Minimum ${formatPrice(blocked.minMinorUnits)} for this method`
+        : null,
+    };
+  });
+
   return (
     <div className="bg-surface-container-low flex min-h-dvh flex-col">
       <Navbar {...nav} />
@@ -127,7 +180,13 @@ export default async function CheckoutPage() {
           Checkout
         </h1>
 
-        <CheckoutForm values={values} summary={summary} pickup={pickup} />
+        <CheckoutForm
+          values={values}
+          summary={summary}
+          pickup={pickup}
+          payments={payments}
+          sandbox={paymentsAreSandbox()}
+        />
       </main>
 
       <Footer />

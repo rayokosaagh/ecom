@@ -15,6 +15,7 @@ import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/products/format";
 import { getInventory, getStockHistory } from "@/lib/inventory/service";
 import { LOW_STOCK_THRESHOLD, type StockState } from "@/lib/inventory/stock";
+import { releaseAbandonedOrders } from "@/lib/payments/expiry";
 
 export const metadata: Metadata = { title: "Inventory" };
 
@@ -48,6 +49,16 @@ export default async function AdminInventoryPage({
   // The layout checks the session, but layouts do not re-render on every
   // navigation — so the page enforces the admin gate itself.
   await requireAdmin();
+
+  /**
+   * Swept before the levels are read, so this page never reports stock that is
+   * only held by an order nobody is going to pay for.
+   *
+   * This page is where an admin decides whether to reorder. A count kept
+   * artificially low by three abandoned wallet checkouts is exactly the kind of
+   * wrong number that decision gets made on.
+   */
+  await releaseAbandonedOrders();
 
   const params = await searchParams;
   const state = asState(params.state);

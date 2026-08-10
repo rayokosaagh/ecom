@@ -16,7 +16,13 @@ import { deliveryChargeFor, pickupAvailable } from "@/lib/checkout/fulfilment";
 import { evaluateDiscount, normalizeCode } from "@/lib/discounts/service";
 import { parseFulfilment } from "@/lib/checkout/validation";
 import { getStoreSettings } from "@/lib/settings/service";
-import { FulfilmentMethod, NotificationType, OrderStatus } from "@/generated/prisma/enums";
+import {
+  FulfilmentMethod,
+  NotificationType,
+  OrderStatus,
+  PaymentMethod,
+} from "@/generated/prisma/enums";
+import { PAYMENT_METHODS, isPaymentMethod } from "@/lib/payments/methods";
 
 export type CartActionState = { message?: string; success?: string };
 
@@ -350,6 +356,18 @@ export async function checkout(
   const fulfilment = parseFulfilment(formData, pickupAvailable(settings));
   if (!fulfilment.ok) return { errors: fulfilment.errors };
 
+  const paymentRaw = String(formData.get("paymentMethod") ?? "").trim();
+  /**
+   * Falls back to COD, which is what every order placed before this column
+   * existed effectively was: the shop collected the money itself.
+   *
+   * Whether the *basket* qualifies for the chosen wallet is checked below, once
+   * the total is known — Khalti has a floor, and no amount of validating the
+   * form can decide that before the discount has been applied.
+   */
+  const paymentMethod =
+    paymentRaw && isPaymentMethod(paymentRaw) ? paymentRaw : PaymentMethod.COD;
+
   /**
    * The address columns, by method.
    *
@@ -510,6 +528,7 @@ export async function checkout(
         discountCents,
         status: OrderStatus.PENDING,
         fulfilment: fulfilment.data.method,
+        paymentMethod,
         // Copied onto the order, not referenced: editing a saved address later
         // must not rewrite where past orders were sent.
         ...destination,
@@ -602,6 +621,24 @@ export async function checkout(
 
   revalidatePath("/cart");
   revalidatePath("/", "layout");
+
+  /**
+   * Where the customer goes next.
+   *
+   * A wallet order is placed *before* it is paid — PENDING, with its stock
+   * already claimed — and only then sent to the gateway. Creating the order
+   * first is what gives the callback something to find and settle, and what
+   * stops two shoppers being sent off to pay for the same last unit.
+   *
+   * The cost is that an abandoned wallet payment leaves a PENDING order holding
+   * stock, which is the same state an abandoned COD order leaves and is
+   * resolved the same way: the customer or an admin cancels it, and cancelling
+   * puts the units back.
+   */
+  if (PAYMENT_METHODS[paymentMethod].redirects) {
+    redirect(`/checkout/pay/${order.id}`);
+  }
+
   // The receipt, not the list: a confirmation should show what was bought.
   redirect(`/orders/${order.id}?placed=1`);
 }

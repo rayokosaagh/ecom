@@ -3,9 +3,8 @@
 A full-stack e-commerce application — customer storefront and admin dashboard —
 built with Next.js 16, React 19, Prisma 7 and PostgreSQL.
 
-No payment provider is wired in: checkout places orders directly, which is what
-a shop taking payment on delivery or in person actually needs. Adding a provider
-is a change to one action, not to the model.
+Payment is cash on delivery, Khalti, eSewa or connectIPS. Card processing is not wired in —
+the shop is priced for a market where wallets and cash are how people pay.
 
 ---
 
@@ -17,6 +16,7 @@ is a change to one action, not to the model.
 | **Finding things** | Full-text search, brand and category filters, price ranges, sorting, wishlist, and side-by-side compare. |
 | **Cart** | Works signed out. A guest cart is claimed by the account on sign-in rather than discarded. |
 | **Checkout** | Home delivery or free store pickup, discount codes, and a flat delivery rate that is free over a threshold. |
+| **Payment** | Cash on delivery, or pay now with **Khalti**, **eSewa** or **connectIPS**. Wallet orders are placed first and confirmed only by a server-to-server verification — never by the redirect that carries the customer back. |
 | **Sales** | Standing "was / now" pricing, plus **flash sales** — timed events that rewrite real prices when they open and restore them when they close. |
 | **Reviews** | Photo and video attachments, replies and likes, with admin moderation. |
 | **Orders** | Receipts, cancellation with reasons, and email confirmations at every status change. |
@@ -83,6 +83,10 @@ written in `prisma/seed.ts` and therefore public.
 | `ALLOW_PUBLIC_SIGNUP` | no | `"false"` disables `/register`. |
 | `RESEND_API_KEY`&nbsp;/&nbsp;`EMAIL_FROM` | no | Leave both blank and mail is written to the server console instead of sent — the whole flow, links included, works with no provider. |
 | `WHATSAPP_NUMBER` | no | Full international form, e.g. `+44 7911 123456`. Blank renders no chat buttons, which is the intended state for a shop without one. A national number with no country code cannot be detected as wrong and will produce a broken link. |
+| `PAYMENTS_MODE` | no | `live` talks to the real Khalti and eSewa. **Anything else is the sandbox**, which is the default. Explicit rather than inferred from `NODE_ENV`, because a staging deploy is `production` to Node and would otherwise take real money from whoever was testing it. |
+| `KHALTI_SECRET_KEY` | for Khalti | Merchant secret. Unset, Khalti is simply not offered at checkout. |
+| `ESEWA_PRODUCT_CODE`&nbsp;/&nbsp;`ESEWA_SECRET_KEY` | for eSewa live | In sandbox these default to eSewa's published UAT merchant (`EPAYTEST`), so collection works with nothing set. Both are **required** when `PAYMENTS_MODE=live` — without them eSewa is not offered, rather than signing real payments with a public key. |
+| `CONNECTIPS_MERCHANT_ID` `CONNECTIPS_APP_ID` `CONNECTIPS_APP_NAME` `CONNECTIPS_USERNAME` `CONNECTIPS_PASSWORD` `CONNECTIPS_PRIVATE_KEY` | for connectIPS | All six required — there is no public sandbox merchant, so the option stays hidden until they are set. NCHL issues them at onboarding with a `CREDITOR.pfx`; convert it to PEM (`openssl pkcs12 -in CREDITOR.pfx -nocerts -nodes`) for `CONNECTIPS_PRIVATE_KEY`. Redirect URLs are configured at NCHL, not per request. |
 | `SHADOW_DATABASE_URL` | no | Only `prisma migrate` reads it, and this project uses `db push`. |
 
 `.env` is git-ignored, and so is the local `.env.example` template — this table

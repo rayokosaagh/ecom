@@ -15,6 +15,11 @@ const ORDER_SELECT = {
   // Decides what the address block is headed, what SHIPPED is called, and
   // whether the charge line says Delivery or Collection.
   fulfilment: true,
+  paymentMethod: true,
+  // The gateway's own reference, so the shop can reconcile a disputed payment
+  // without going through the database by hand.
+  paymentTxnId: true,
+  paidAt: true,
   shippingName: true,
   shippingLine1: true,
   shippingLine2: true,

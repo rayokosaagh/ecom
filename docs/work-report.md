@@ -6,8 +6,13 @@ Tailwind v4 on Material Design 3 tokens.
 A record of what changed, why, what was tried and rejected, and how to operate the
 parts that now need operating.
 
-At time of writing: typecheck, lint and production build clean; 213 automated checks
-passing.
+At time of writing: typecheck, lint and production build clean; 972 automated checks
+passing across all 22 `check:*` suites.
+
+For a merged account of the 10 August 2026 session — payments, collection orders,
+inventory, social links and the abandoned-basket fix, across both agent sessions that
+worked this repository in parallel — see
+[`2026-08-10-session-report.md`](./2026-08-10-session-report.md).
 
 ---
 
@@ -21,6 +26,7 @@ passing.
 - [5 · Brand navigation](#5--brand-navigation)
 - [6 · Brand logos in dark mode](#6--brand-logos-in-dark-mode)
 - [7 · Inventory management](#7--inventory-management)
+- [8 · The basket vanished at the payment portal](#8--the-basket-vanished-at-the-payment-portal)
 - [Guides & tutorials](#guides--tutorials)
   - [Switching the shop's currency](#switching-the-shops-currency)
   - [Fixing a brand logo that looks wrong in dark mode](#fixing-a-brand-logo-that-looks-wrong-in-dark-mode)
@@ -44,6 +50,7 @@ passing.
 | Brand navigation | New `/brands` page, two-row looping rail on the home page, scroll buttons on the catalogue filter. | Rendered HTML inspected |
 | Brand logos in dark mode | Per-brand treatment setting, after three failed global rules. | 27 checks + rendered HTML matched against the database |
 | Inventory management | New `/admin/inventory`: one row per thing that can run out, adjust in place, every hand-made change recorded with a reason. | 37 checks + rendered HTML as a real admin + a transaction probe against Postgres |
+| Basket vanished at the wallet | Cancelling a payment now unwinds the order and puts the items back in the basket; unpaid orders stop holding stock after 30 minutes. Found and fixed a second bug: payment callbacks were behind the login wall. | 46 new checks + the real callback and sweep driven end to end against Postgres |
 
 ---
 
@@ -432,6 +439,84 @@ skip.
 
 ---
 
+## 8 · The basket vanished at the payment portal
+
+**Reported as:** check out, go to the payment portal, cancel or fail to pay — and the
+product just disappears from the cart.
+
+### Cause
+
+Not random, and not a lost cart. A wallet order is placed *before* it is paid: `checkout`
+creates it PENDING, claims its stock, empties the basket, and only then hands the shopper
+to eSewa, Khalti or connectIPS. That ordering is deliberate and worth keeping — it gives
+the callback something to settle, and it stops two shoppers being sent off to pay for the
+same last unit.
+
+What was missing was everything after "and then they press Cancel". The order survived
+with a **Pay with …** button on its receipt, but the basket was empty, `/cart` said
+nothing about why, and a shopper who closed the tab at the gateway rather than returning
+through the callback had no signpost at all. Meanwhile the order went on holding its
+stock, for ever: nothing in the system ever moved a PENDING order on.
+
+### What it does now
+
+**An explicitly cancelled or failed payment unwinds the order.** `returnOrderToCart` runs
+one transaction that cancels the order (`PAYMENT_FAILED`), returns the units to whichever
+row they were claimed from, puts the lines back in the basket and restores the discount
+code with them. The shopper lands on `/cart`, items in front of them, under a banner
+saying nothing was charged.
+
+**Unpaid wallet orders stop holding stock after 30 minutes.** `releaseAbandonedOrders`
+sweeps them the same way, and tells the customer in the bell. It runs lazily on `/cart`,
+`/checkout` and `/admin/inventory` — the pages where stock is about to be quoted or acted
+on — exactly as `reconcileFlashSales` does, because this project has no cron.
+
+### The three things that keep it safe
+
+**Only a final failure unwinds anything.** `paymentWasAbandoned` is a set of four codes:
+our own `cancelled`, eSewa's `CANCELED`, Khalti's `User canceled` and `Expired`. A status
+that may still settle — `Pending`, `Initiated`, or `unverified`, which means we could not
+reach the gateway to ask — keeps the order and waits. Cancelling those would be guessing
+with somebody's money, and the guess would sell the units to someone else.
+
+**The unwind and the settle cannot both win.** Both are conditional updates from PENDING:
+whoever gets there first moves the order, and the other matches nothing and rolls back. A
+payment settling as the sweep fires leaves the customer with the order they just paid for.
+
+**A payment that arrives after the sweep is not called success.** This is the failure the
+timeout newly makes possible, so `settleOrderPaid` grew a `not-payable` result and the
+customer is told plainly that money moved against a cancelled order and not to pay twice —
+rather than the cheerful "Payment received" the old code would have shown them.
+
+The basket is refilled by `skipDuplicates`, so a shopper who gave up and re-added the same
+thing by hand ends up with one of it, not three.
+
+### Also fixed: callbacks were behind the login wall
+
+Found while testing, and worse than the reported bug. `/api/payments/*` was not a public
+route, so an unauthenticated callback was redirected to `/login` — and that redirect keeps
+only the *pathname*, throwing away the `data` blob or `pidx` that says what happened. The
+payment was then neither settled nor unwound.
+
+A session cookie is normally sent on the way back from the gateway, which is why this had
+not been seen. "Normally" does not cover an expired session, a wallet's in-app browser, or
+paying on a second device — and in those cases a real payment was silently lost. The
+callbacks authenticate by gateway signature and server-to-server lookup, never by session,
+so opening the prefix gives nothing away.
+
+### Caught by the checks
+
+`check:payments` grew 46 cases, most of them about what must *not* happen: every
+still-settling status is asserted to leave the order standing, and Khalti's own
+`isFinalFailure` is cross-checked against the abandon set for all seven documented
+statuses, so the two lists cannot drift apart.
+
+The rest was driven end to end against Postgres — the real eSewa failure URL, the real
+sweep, a real backdated order — asserting the order moved to CANCELLED, the stock came
+back, the lines returned to the basket, and, for a PAID order, that none of that happened.
+
+---
+
 # Guides & tutorials
 
 ## Switching the shop's currency
@@ -605,11 +690,15 @@ believed, and a wrong logo mapping typechecks.
 
 ```bash
 npm run check:dashboard      # 149 — period maths, bucketing, deltas, axes, geometry
+npm run check:payments       # 152 — gateway signatures, amounts, what unwinds an order
 npm run check:brand-logos    #  27 — logo treatment resolution and URL swapping
 npm run check:inventory      #  37 — stock states, adjustment arithmetic, reason lists
 npm run typecheck
 npm run lint
 ```
+
+There are 22 suites in all — `grep '"check:' package.json` lists them, and they run
+clean at 972 checks.
 
 `check:dashboard` also statically renders the chart components and asserts on the real
 DOM: that stacked segments sum to exactly 100%, that no `NaN` or `Infinity` reaches a
@@ -737,6 +826,7 @@ resolves to `none`, and a 404 on the derived file falls back to the stored one.
 | `npm run check:dashboard` | 149 checks over dashboard maths and chart rendering. |
 | `npm run check:brand-logos` | 27 checks over logo treatment resolution. |
 | `npm run check:inventory` | 37 checks over stock classification and adjustment arithmetic. |
+| `npm run check:payments` | 152 checks over gateway messages, amounts and what unwinds an order. |
 
 ## Files added
 
@@ -750,6 +840,7 @@ resolves to `none`, and a 404 on the derived file falls back to the stored one.
 | Shared UI | `src/components/ui/ScrollRail.tsx` |
 | Inventory | `src/lib/inventory/` — `stock.ts` (pure rules), `service.ts` (reads); `src/lib/actions/inventory.ts` (the one write) |
 | Inventory UI | `src/components/inventory/` — `AdjustStock.tsx`, `StockBadge.tsx`, `AdjustmentList.tsx`; `src/app/(dashboard)/admin/inventory/` — `page.tsx`, `history/page.tsx` |
+| Abandoned payments | `src/lib/payments/abandon.ts` (the unwind), `expiry.ts` (the 30-minute sweep) |
 | Scripts | `scripts/` — `backfill-product-slugs.ts`, `convert-currency.ts`, `check-dashboard.ts`, `check-brand-logos.ts`, `check-inventory.ts` |
 
 ## Schema changes
@@ -766,6 +857,11 @@ resolves to `none`, and a 404 on the derived file falls back to the stored one.
   are *not* written here; see [§7](#7--inventory-management).
 - **`StockChangeReason`** — enum `{ RECEIVED RECOUNT DAMAGED LOST RETURNED OTHER }`.
   Required on every adjustment.
+- **`Order.updatedAt`** — the clock the unpaid-order timeout runs on, so reopening the
+  payment page restarts the window instead of continuing an old one. `@default(now())`
+  as well as `@updatedAt`, which is what lets it be added to a table that already has
+  orders — without the default, `db push` refuses and offers only `--force-reset`.
+  Indexed with `status` for the sweep.
 
 ## Environment
 

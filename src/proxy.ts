@@ -29,8 +29,24 @@ const PUBLIC_ROUTES = [
   "/api/search",
 ];
 
-/** Public route trees — these match the prefix and everything beneath it. */
-const PUBLIC_PREFIXES = ["/products", "/sale"];
+/**
+ * Public route trees — these match the prefix and everything beneath it.
+ *
+ * `/api/payments` is where the wallets send a customer back to, and it must not
+ * be behind this wall. The redirect below keeps only the *pathname*, so a
+ * callback that gets bounced to /login arrives there stripped of the `data`
+ * blob or `pidx` that says what happened — the payment is then neither settled
+ * nor unwound, and the order sits pending for something that already finished.
+ * A session cookie is usually sent on the way back and usually hides this;
+ * "usually" covers an expired session, a wallet's in-app browser, or paying on
+ * a second device, and each of those loses a real payment.
+ *
+ * Nothing is given away by opening them. None of the three callbacks reads the
+ * session: each identifies its order from the gateway's own reference and then
+ * asks the gateway, server to server, what actually happened. That check is the
+ * authentication — see the notes in `app/api/payments/*`.
+ */
+const PUBLIC_PREFIXES = ["/products", "/sale", "/api/payments"];
 
 function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_ROUTES.includes(pathname)) return true;

@@ -7,6 +7,8 @@ import { formatPrice } from "@/lib/products/format";
 import { orderReference } from "@/lib/orders/reference";
 import { describeCancellation } from "@/lib/orders/cancellation";
 import { fulfilmentLabels } from "@/lib/checkout/fulfilment";
+import { paymentMethodLabel } from "@/lib/payments/methods";
+import { PaymentMark } from "@/components/checkout/PaymentMark";
 import { FulfilmentMethod } from "@/generated/prisma/enums";
 import type { OrderDetail as Order } from "@/lib/orders/service";
 
@@ -194,7 +196,28 @@ export function OrderDetail({
                 {order.shippingCents === 0 ? "Free" : formatPrice(order.shippingCents)}
               </dd>
             </div>
+
+            {/* How it was paid for, on the receipt itself. A customer checking
+                whether they still owe money should not have to infer it from
+                the status badge. */}
+            <div className="flex justify-between">
+              <dt className="text-on-surface-variant">Payment</dt>
+              <dd className="text-on-surface flex items-center gap-2">
+                <PaymentMark method={order.paymentMethod} />
+                {paymentMethodLabel(order.paymentMethod, order.fulfilment)}
+              </dd>
+            </div>
           </dl>
+
+          {/* The gateway's own reference, once there is one. This is what the
+              shop and the customer quote at each other when a payment is
+              disputed, so it belongs on the copy they both hold. */}
+          {order.paymentTxnId && (
+            <p className="text-on-surface-variant mt-2 text-xs">
+              Payment reference{" "}
+              <span className="text-on-surface font-mono">{order.paymentTxnId}</span>
+            </p>
+          )}
 
           {/* Inside the ticket rather than beside it: where an order is going
               is part of the receipt, not a footnote to it.

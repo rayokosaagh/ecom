@@ -16,15 +16,36 @@ import {
 } from "@/lib/checkout/shipping";
 import { updateCartItem, removeCartItem } from "@/lib/actions/cart";
 import { DiscountField } from "@/components/cart/DiscountField";
+import { cartPaymentOutcome } from "@/lib/payments/outcome";
+import { releaseAbandonedOrders } from "@/lib/payments/expiry";
 
 export const metadata: Metadata = { title: "Cart" };
 
-export default async function CartPage() {
+export default async function CartPage({
+  searchParams,
+}: {
+  // Set by a payment callback that unwound an order back into this basket.
+  searchParams: Promise<{ payment?: string }>;
+}) {
+  /**
+   * Clear out anything that gave up at a wallet before reading the basket.
+   *
+   * First, because a swept order puts its lines back *into this cart* — reading
+   * first would render the basket as it was a moment ago and hide the very items
+   * the sweep just returned. Lazy on render rather than scheduled, the same way
+   * flash sales reconcile; see `releaseAbandonedOrders`.
+   */
+  await releaseAbandonedOrders();
+
+  const query = await searchParams;
+
   // Open to guests. Signing in is deferred to checkout, where an account
   // actually starts being necessary.
   const [user, cartId] = await Promise.all([getCurrentUser(), findCartId()]);
   const [{ items, subtotalCents, discount, discountCents, payableCents }, nav] =
     await Promise.all([getCart(cartId, user?.id), getNavData()]);
+
+  const payment = cartPaymentOutcome(query.payment);
 
   const hasIssue = items.some(
     (item) => item.unavailable || item.availableStock < item.quantity,
@@ -41,6 +62,22 @@ export default async function CartPage() {
 
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
         <h1 className="text-on-surface text-3xl font-normal tracking-tight">Your cart</h1>
+
+        {/* Why the basket looks the way it does, for someone arriving back from
+            a wallet they cancelled at. Without it the items reappearing is as
+            unexplained as them vanishing was. */}
+        {payment && (
+          <div
+            role="status"
+            className="bg-surface-container-highest text-on-surface mt-4 flex items-start gap-3 rounded-xl px-4 py-3"
+          >
+            <Icon name={payment.icon} size={20} />
+            <div>
+              <p className="font-medium">{payment.title}</p>
+              <p className="text-sm">{payment.detail}</p>
+            </div>
+          </div>
+        )}
 
         {items.length === 0 ? (
           <Card variant="outlined" className="mt-8">

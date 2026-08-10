@@ -54,6 +54,36 @@ enum OrderStatus {
   CANCELLED
 }
 
+/// How an order is paid for.
+///
+/// The choice is made once at checkout and decides whether money moves before
+/// the order is confirmed or after it arrives. `COD` needs nothing; the two
+/// wallets both mean "leave the site, come back with a reference we verify".
+///
+/// Deliberately not a `provider` string. Each member here has an entry in
+/// `lib/payments/methods` giving its label, the currency it works in and its
+/// limits — a value with no entry there is a build error rather than a payment
+/// button that leads nowhere.
+enum PaymentMethod {
+  /// Cash on delivery, or on collection for a pickup order. The only method
+  /// that involves no third party and no verification step.
+  COD
+
+  /// Khalti ePayment. Server-initiated, returns a hosted payment URL, verified
+  /// afterwards with a server-to-server lookup on the `pidx`.
+  KHALTI
+
+  /// eSewa ePay v2. A signed browser form POST, verified afterwards against
+  /// the transaction status API.
+  ESEWA
+
+  /// connectIPS, the bank-transfer gateway run by NCHL. A browser form POST
+  /// like eSewa, but signed with an RSA private key from a merchant
+  /// certificate rather than a shared secret, and validated afterwards over
+  /// HTTP Basic auth.
+  CONNECTIPS
+}
+
 /// How an order reaches the customer.
 ///
 /// Two members and no third, deliberately: this is the choice made once at
@@ -1051,6 +1081,37 @@ model Order {
   /// existed was — so the backfill is the default and no migration is needed.
   fulfilment FulfilmentMethod @default(DELIVERY)
 
+  /// How it is being paid for.
+  ///
+  /// Defaults to COD, which is what every order placed before this column
+  /// existed effectively was: the shop collected the money itself.
+  paymentMethod PaymentMethod @default(COD)
+
+  /// The identifier the gateway's callback will arrive carrying.
+  ///
+  /// Khalti's `pidx`, which it mints; or the `transaction_uuid` we mint and
+  /// hand to eSewa. Unique, because it is what the callback route looks the
+  /// order up by — two orders sharing one would let a payment for one settle
+  /// the other.
+  ///
+  /// Null for COD, and null until the payment is initiated. Overwritten when a
+  /// failed payment is retried, so it names the attempt in flight rather than
+  /// the first one ever made.
+  paymentRef String? @unique
+
+  /// The gateway's own transaction id, once it reports one. Kept apart from
+  /// `paymentRef` because it is what the shop quotes when reconciling with the
+  /// gateway, and for eSewa the two are genuinely different values.
+  paymentTxnId String?
+
+  /// When payment was confirmed by a verification we performed — never from a
+  /// redirect's query string alone.
+  ///
+  /// The pairing that matters: `status = PAID` and `paidAt` are written in the
+  /// same transaction, so a paid order always says when. COD orders are marked
+  /// paid by an admin and get a timestamp the same way.
+  paidAt DateTime?
+
   /// Where it is going, and who it is for.
   ///
   /// Snapshotted onto the order for the same reason the line items snapshot
@@ -1106,10 +1167,30 @@ model Order {
 
   createdAt DateTime @default(now())
 
+  /// Last touched — and, for a PENDING wallet order, the clock the unpaid
+  /// timeout runs on.
+  ///
+  /// `createdAt` would be the wrong one. Opening the payment page writes a
+  /// fresh `paymentRef`, so a customer who comes back an hour later and clicks
+  /// "Pay with eSewa" is at the *start* of an attempt, not an hour into a dead
+  /// one — timing them out from creation would cancel the order under them
+  /// while the gateway had their card details on screen. See
+  /// `releaseAbandonedOrders`.
+  ///
+  /// `@default(now())` as well as `@updatedAt`, so adding this column to a shop
+  /// that already has orders backfills them rather than demanding the table be
+  /// dropped. The rows it backfills are historical, and for the only ones the
+  /// default could matter to — an already-pending wallet order — it errs the
+  /// safe way: they get one more timeout window instead of being cancelled the
+  /// moment the sweep first runs.
+  updatedAt DateTime @default(now()) @updatedAt
+
   @@index([userId, createdAt])
   @@index([discountCodeId])
   /// Answers "what did we lose, and why" without scanning the table.
   @@index([status, cancelReason])
+  /// The unpaid sweep: pending orders, oldest attempt first.
+  @@index([status, updatedAt])
 }
 
 /// A code a shopper types to take money off.
