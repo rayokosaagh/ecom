@@ -362,11 +362,24 @@ export function FeaturedShowcase({ products }: { products: ShowcaseProduct[] }) 
                             go: `object-contain` fits the artwork to the box,
                             so with no inset the glow would be clipped at the
                             edges it is meant to wrap. */}
+                        {/* The `max-h` is what bounds the panel. `size-full` is
+                            `height: 100%`, but on desktop the stage above is
+                            `aspect-auto` with only a `min-height`, so that
+                            percentage has no definite height to resolve against
+                            and collapses to `auto` — leaving the product's own
+                            intrinsic aspect ratio to set the height of the whole
+                            carousel. A portrait cut-out then pushed every panel
+                            to ~682px, well past the 26rem the stage asks for.
+                            The cap belongs on the image rather than on the stage
+                            because the stage is `overflow-hidden`, which would
+                            crop; `object-contain` fits the artwork instead. It
+                            cannot bind on mobile, where `aspect-[4/3]` already
+                            gives the stage a definite height to fill. */}
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={product.image}
                           alt={product.name}
-                          className="product-glow size-full object-contain p-8 sm:p-12"
+                          className="product-glow size-full max-h-[38rem] object-contain p-8 sm:p-12"
                         />
                       </Tilt>
                       </div>
