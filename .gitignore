@@ -149,3 +149,7 @@ next-env.d.ts
 .agents/skills/
 .claude/skills/
 .windsurf/skills/
+
+# Claude Code — local agent config, not part of the project.
+CLAUDE.md
+.claude/
