@@ -45,10 +45,21 @@ export function Spotlight({
    * every pointer position while still clearly following.
    */
   travel = 0.13,
+  style,
 }: {
   children: ReactNode;
   className?: string;
   travel?: number;
+  /**
+   * Static styles for the panel — currently a custom background wash chosen in
+   * the admin, which cannot be a class because the colour is picked at runtime.
+   *
+   * Safe alongside the pointer handler below even though both touch
+   * `element.style`: that handler only ever calls `setProperty` for the
+   * `--spot-*` and `--glow-*` custom properties, and React only reconciles the
+   * keys present in this object. The two never address the same property.
+   */
+  style?: React.CSSProperties;
 }) {
   const frame = useRef(0);
   const reducedMotion = useRef<MediaQueryList | null>(null);
@@ -78,6 +89,7 @@ export function Spotlight({
   return (
     <div
       className={cn("spotlight", className)}
+      style={style}
       onPointerMove={(event) => {
         if (event.pointerType !== "mouse") return;
 

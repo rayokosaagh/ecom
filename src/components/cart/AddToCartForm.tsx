@@ -33,6 +33,7 @@ export function AddToCartForm({
   stock,
   priceCents,
   variants,
+  secondaryAction,
 }: {
   productId: string;
   slug: string;
@@ -42,6 +43,16 @@ export function AddToCartForm({
   /** Product-level price, used only when there are no variants. */
   priceCents: number;
   variants: VariantView[];
+  /**
+   * Rendered beside the submit button, on the same row.
+   *
+   * A slot rather than the caller stacking something underneath, because "next
+   * to Add to cart" is a position only this component can offer — the submit
+   * button is the last thing in a form the page cannot reach into. The product
+   * page passes the WhatsApp button; anywhere that passes nothing gets the
+   * button on its own exactly as before.
+   */
+  secondaryAction?: React.ReactNode;
 }) {
   const [state, formAction, pending] = useActionState(addToCart, INITIAL);
 
@@ -258,20 +269,32 @@ export function AddToCartForm({
         </div>
       )}
 
-      <Button
-        type="submit"
-        icon="shopping_cart"
-        loading={pending}
-        disabled={soldOut || unsoldCombination}
-      >
-        {unsoldCombination
-          ? "Unavailable"
-          : soldOut
-            ? "Sold out"
-            : pending
-              ? "Adding…"
-              : "Add to cart"}
-      </Button>
+      {/* `items-start`, not `items-center`: the WhatsApp button is a column
+          carrying an optional availability note under it, and centring would
+          lift its anchor out of line with Add to cart by half the note's
+          height. Aligned at the top, the two buttons agree and the note hangs
+          below where it belongs.
+
+          `flex-wrap` so a narrow column stacks them rather than shrinking two
+          buttons until neither reads. */}
+      <div className="flex flex-wrap items-start gap-3">
+        <Button
+          type="submit"
+          icon="shopping_cart"
+          loading={pending}
+          disabled={soldOut || unsoldCombination}
+        >
+          {unsoldCombination
+            ? "Unavailable"
+            : soldOut
+              ? "Sold out"
+              : pending
+                ? "Adding…"
+                : "Add to cart"}
+        </Button>
+
+        {secondaryAction}
+      </div>
 
       {variant && (
         <p className="text-on-surface-variant text-xs">

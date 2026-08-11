@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin, requireUser } from "@/lib/auth/dal";
 import { notifyAdmins, notifyUser } from "@/lib/notifications/service";
 import { sendOrderEmailSafely } from "@/lib/orders/email";
+import { orderThumbnail } from "@/lib/orders/service";
+import { orderReference } from "@/lib/orders/reference";
 import { formatPrice } from "@/lib/products/format";
 import { allowedTransitions, customerCanCancel } from "@/lib/orders/transitions";
 import {
@@ -205,7 +207,207 @@ async function announceToCustomer(
     title: notice.title,
     description: `${notice.body} · ${formatPrice(order.totalCents)}`,
     href: `/orders/${order.id}`,
+    imageUrl: await orderThumbnail(order.id),
   });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Bulk moves                                                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The most orders one request may move.
+ *
+ * A ceiling rather than a page size — the list offers at most 100 at a time, so
+ * nothing legitimate comes close. It is here because a server action is a public
+ * POST endpoint and the array arrives from the client: without it, one request
+ * could walk the entire table.
+ */
+const MAX_BULK = 200;
+
+export type BulkOrderResult = {
+  moved: number;
+  /** Named, not counted: "2 skipped" invites the question this answers. */
+  skipped: { reference: string; why: string }[];
+  message?: string;
+  success?: string;
+};
+
+/**
+ * Why one order in a selection could not make the move.
+ *
+ * Each order is re-checked individually against the transition table rather
+ * than the selection being validated as a block. A selection is made against
+ * the list as it was *rendered*, and by the time the button is pressed another
+ * admin may have shipped one of them — so "they were all pending when I ticked
+ * them" is not a fact the server can accept.
+ */
+function bulkSkipReason(from: OrderStatus, to: OrderStatus): string {
+  if (from === to) return `already ${to.toLowerCase()}`;
+  return `still ${from.toLowerCase()}`;
+}
+
+/**
+ * Move a selection of orders forward.
+ *
+ * Not one transaction. Each order moves in its own, so an order somebody else
+ * touched a second ago is skipped and reported rather than rolling back the
+ * forty that were fine — a bulk action that is all-or-nothing on a live list is
+ * an action that fails whenever the shop is busy.
+ *
+ * Cancelling is not reachable here, for the same reason `updateOrderStatus`
+ * refuses it: it needs a reason. `bulkCancelOrders` is that path.
+ */
+export async function bulkAdvanceOrders(
+  ids: string[],
+  next: OrderStatus,
+): Promise<BulkOrderResult> {
+  await requireAdmin();
+
+  if (next === OrderStatus.CANCELLED) {
+    return { moved: 0, skipped: [], message: "Cancelling needs a reason — use Cancel selected." };
+  }
+
+  const unique = [...new Set(ids)].slice(0, MAX_BULK);
+  if (unique.length === 0) {
+    return { moved: 0, skipped: [], message: "Nothing was selected." };
+  }
+
+  const orders = await prisma.order.findMany({
+    where: { id: { in: unique } },
+    select: {
+      id: true,
+      status: true,
+      userId: true,
+      totalCents: true,
+      items: { select: { productId: true, variantId: true, quantity: true } },
+    },
+  });
+
+  const skipped: BulkOrderResult["skipped"] = [];
+  const movedIds: string[] = [];
+
+  for (const order of orders) {
+    const reference = orderReference(order.id);
+
+    if (!allowedTransitions(order.status).includes(next)) {
+      skipped.push({ reference, why: bulkSkipReason(order.status, next) });
+      continue;
+    }
+
+    const outcome = await moveStatus(order, next);
+    if (outcome === "CONCURRENT_UPDATE") {
+      skipped.push({ reference, why: "changed while you were choosing" });
+      continue;
+    }
+
+    movedIds.push(order.id);
+    await announceToCustomer(order, next);
+  }
+
+  revalidateBulk(movedIds);
+
+  return {
+    moved: movedIds.length,
+    skipped,
+    success: movedIds.length > 0 ? summarise(movedIds.length, next) : undefined,
+    message: movedIds.length === 0 ? `Nothing could be marked ${next.toLowerCase()}.` : undefined,
+  };
+}
+
+/**
+ * Cancel a selection, recording one reason across all of them.
+ *
+ * One reason for the batch is the honest shape: an admin cancelling forty
+ * orders at once is cancelling them *for* something — a supplier fell through,
+ * a fraud pattern — and asking forty times would only teach them to pick the
+ * first option. Where the reasons genuinely differ, the single-order form on
+ * the detail page still exists.
+ */
+export async function bulkCancelOrders(
+  ids: string[],
+  formData: FormData,
+): Promise<BulkOrderResult> {
+  await requireAdmin();
+
+  // Validated before anything is read, let alone moved: a request that names no
+  // reason must change nothing at all.
+  const parsed = parseCancellation(formData, "admin");
+  if (!parsed.ok) {
+    return { moved: 0, skipped: [], message: parsed.errors.reason ?? parsed.errors.note };
+  }
+
+  const unique = [...new Set(ids)].slice(0, MAX_BULK);
+  if (unique.length === 0) {
+    return { moved: 0, skipped: [], message: "Nothing was selected." };
+  }
+
+  const orders = await prisma.order.findMany({
+    where: { id: { in: unique } },
+    select: {
+      id: true,
+      status: true,
+      userId: true,
+      totalCents: true,
+      items: { select: { productId: true, variantId: true, quantity: true } },
+    },
+  });
+
+  const skipped: BulkOrderResult["skipped"] = [];
+  const movedIds: string[] = [];
+
+  for (const order of orders) {
+    const reference = orderReference(order.id);
+
+    if (!allowedTransitions(order.status).includes(OrderStatus.CANCELLED)) {
+      skipped.push({ reference, why: `already ${order.status.toLowerCase()}` });
+      continue;
+    }
+
+    const outcome = await moveStatus(order, OrderStatus.CANCELLED, parsed.data);
+    if (outcome === "CONCURRENT_UPDATE") {
+      skipped.push({ reference, why: "changed while you were choosing" });
+      continue;
+    }
+
+    movedIds.push(order.id);
+    await announceToCustomer(order, OrderStatus.CANCELLED);
+  }
+
+  revalidateBulk(movedIds);
+
+  return {
+    moved: movedIds.length,
+    skipped,
+    success:
+      movedIds.length > 0
+        ? `${movedIds.length} order${movedIds.length === 1 ? "" : "s"} cancelled and stock returned.`
+        : undefined,
+    message: movedIds.length === 0 ? "Nothing could be cancelled." : undefined,
+  };
+}
+
+function summarise(count: number, next: OrderStatus): string {
+  return `${count} order${count === 1 ? "" : "s"} marked ${next.toLowerCase()}.`;
+}
+
+/**
+ * Revalidate once for the batch.
+ *
+ * The list and the storefront are invalidated a single time however many orders
+ * moved; only the per-order receipts need naming individually.
+ */
+function revalidateBulk(ids: string[]) {
+  if (ids.length === 0) return;
+
+  revalidatePath("/admin/orders");
+  revalidatePath("/orders");
+  revalidatePath("/products", "layout");
+
+  for (const id of ids) {
+    revalidatePath(`/admin/orders/${id}`);
+    revalidatePath(`/orders/${id}`);
+  }
 }
 
 /**
@@ -337,6 +539,7 @@ export async function cancelMyOrder(
       order.totalCents,
     )} · ${describeCancellation(parsed.data.reason, parsed.data.note)}`,
     href: `/admin/orders/${order.id}`,
+    imageUrl: await orderThumbnail(order.id),
   });
 
   revalidateOrderViews(id);

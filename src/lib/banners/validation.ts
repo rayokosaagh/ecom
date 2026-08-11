@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { isSafeImageUrl } from "@/lib/products/validation";
+import { isTintValue } from "@/lib/tints";
 
 /**
  * Validation for promo banners.
@@ -87,6 +88,18 @@ export const bannerSchema = z
       .trim()
       .transform((value) => (value === "" ? null : value)),
 
+    /**
+     * Background preset id. Anything not in the palette becomes null rather
+     * than failing the form: this value is interpolated into a `class`
+     * attribute on the storefront, so an unknown id must not survive — and a
+     * retired preset should quietly fall back rather than block an admin from
+     * saving an edit to some unrelated field.
+     */
+    tint: z
+      .string()
+      .trim()
+      .transform((value) => (isTintValue(value) ? value : null)),
+
     isActive: z.boolean(),
     startsAt: optionalDateTime,
     endsAt: optionalDateTime,
@@ -135,6 +148,7 @@ export function parseBanner(
     ctaLabel: String(formData.get("ctaLabel") ?? ""),
     ctaLink,
     categoryId: String(formData.get("categoryId") ?? ""),
+    tint: String(formData.get("tint") ?? ""),
     // An unchecked checkbox submits nothing at all.
     isActive: formData.get("isActive") === "on",
     startsAt: String(formData.get("startsAt") ?? ""),

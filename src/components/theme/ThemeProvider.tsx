@@ -10,28 +10,31 @@ import {
 import type { ReactNode } from "react";
 
 import {
-  DEFAULT_THEME,
   THEME_COOKIE,
   THEME_COOKIE_MAX_AGE,
   isTheme,
-  nextTheme,
+  otherTheme,
   type ResolvedTheme,
   type Theme,
 } from "@/lib/theme";
 
+/** Where the sweep starts from — the centre of the control that was pressed. */
+export type SweepOrigin = { x: number; y: number };
+
 type ThemeContextValue = {
-  /** The user's choice, including "system". */
-  theme: Theme;
+  /** The stored choice, or null while the OS is still deciding. */
+  theme: Theme | null;
   /** What is actually on screen right now. */
   resolvedTheme: ResolvedTheme;
-  setTheme: (theme: Theme) => void;
-  /** Advances Light → Dark → System → Light. */
-  cycleTheme: () => void;
+  setTheme: (theme: Theme, origin?: SweepOrigin) => void;
+  /** Flips whatever is currently rendered. */
+  toggleTheme: (origin?: SweepOrigin) => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const DARK_QUERY = "(prefers-color-scheme: dark)";
+const REDUCED_QUERY = "(prefers-reduced-motion: reduce)";
 
 /*
  * The theme lives in a cookie and the OS setting, not in React — so it is read
@@ -49,6 +52,9 @@ function emitChange() {
 function subscribe(onStoreChange: () => void) {
   listeners.add(onStoreChange);
 
+  // Still subscribed to the OS even though "system" is no longer a choice: a
+  // visitor who has never touched the toggle is following it, and their laptop
+  // switching at sunset has to move the page with it.
   const media = window.matchMedia(DARK_QUERY);
   media.addEventListener("change", onStoreChange);
 
@@ -58,58 +64,109 @@ function subscribe(onStoreChange: () => void) {
   };
 }
 
-function readCookie(): Theme {
+/**
+ * The stored choice, or null.
+ *
+ * A cookie left over from when "system" was a value fails `isTheme` and reads
+ * as null — which lands that visitor back on the OS setting rather than on an
+ * arbitrary light. That is the same thing their old cookie asked for, so the
+ * removal of the third state migrates itself and no one is switched under.
+ */
+function readCookie(): Theme | null {
   const match = document.cookie.match(
     new RegExp(`(?:^|; )${THEME_COOKIE}=([^;]*)`),
   );
   const value = match ? decodeURIComponent(match[1]) : null;
-  return isTheme(value) ? value : DEFAULT_THEME;
+  return isTheme(value) ? value : null;
 }
 
 function readResolved(): ResolvedTheme {
-  const theme = readCookie();
-  if (theme !== "system") return theme;
-  return window.matchMedia(DARK_QUERY).matches ? "dark" : "light";
+  return readCookie() ?? (window.matchMedia(DARK_QUERY).matches ? "dark" : "light");
 }
+
+/**
+ * `document.startViewTransition`, if this browser has it.
+ *
+ * Typed here rather than relied on from the DOM lib, which does not carry it in
+ * every TypeScript version this project might be built with.
+ */
+type ViewTransitionDocument = Document & {
+  startViewTransition?: (callback: () => void) => { finished: Promise<void> };
+};
 
 export function ThemeProvider({
   children,
-  initialTheme = DEFAULT_THEME,
+  initialTheme = null,
 }: {
   children: ReactNode;
   /** Read from the cookie by the server, so SSR and hydration agree. */
-  initialTheme?: Theme;
+  initialTheme?: Theme | null;
 }) {
   // Snapshots are primitives, so referential stability is automatic.
   const serverTheme = useCallback(() => initialTheme, [initialTheme]);
+  // The server cannot know the OS setting, so an unset preference renders light
+  // and `useSyncExternalStore` corrects it the moment it hydrates. `<html>`
+  // carries `suppressHydrationWarning` for exactly this.
   const serverResolved = useCallback(
-    (): ResolvedTheme => (initialTheme === "system" ? "light" : initialTheme),
+    (): ResolvedTheme => initialTheme ?? "light",
     [initialTheme],
   );
 
   const theme = useSyncExternalStore(subscribe, readCookie, serverTheme);
   const resolvedTheme = useSyncExternalStore(subscribe, readResolved, serverResolved);
 
-  const setTheme = useCallback((next: Theme) => {
-    document.cookie = `${THEME_COOKIE}=${next}; path=/; max-age=${THEME_COOKIE_MAX_AGE}; SameSite=Lax`;
-
-    // Apply immediately rather than waiting for a re-render. "system" removes
-    // the attribute so the prefers-color-scheme rules take over again.
+  const setTheme = useCallback((next: Theme, origin?: SweepOrigin) => {
     const root = document.documentElement;
-    if (next === "system") root.removeAttribute("data-theme");
-    else root.setAttribute("data-theme", next);
 
-    emitChange();
+    const commit = () => {
+      document.cookie = `${THEME_COOKIE}=${next}; path=/; max-age=${THEME_COOKIE_MAX_AGE}; SameSite=Lax`;
+      // Applied straight away rather than waiting for a re-render, so the paint
+      // and the cookie never disagree for a frame.
+      root.setAttribute("data-theme", next);
+      emitChange();
+    };
+
+    const doc = document as ViewTransitionDocument;
+    const reduced = window.matchMedia(REDUCED_QUERY).matches;
+
+    // No origin means the toggle was reached some way that has no position —
+    // and a circle has to start somewhere. Falling back to a plain swap is
+    // better than sweeping from an arbitrary corner.
+    if (reduced || !origin || typeof doc.startViewTransition !== "function") {
+      commit();
+      return;
+    }
+
+    // The circle has to cover the furthest corner from where it started, or it
+    // stops mid-page with the old theme still showing in the far edge.
+    const radius = Math.hypot(
+      Math.max(origin.x, window.innerWidth - origin.x),
+      Math.max(origin.y, window.innerHeight - origin.y),
+    );
+
+    root.style.setProperty("--sweep-x", `${origin.x}px`);
+    root.style.setProperty("--sweep-y", `${origin.y}px`);
+    root.style.setProperty("--sweep-r", `${radius}px`);
+    root.dataset.sweeping = "";
+
+    const transition = doc.startViewTransition(commit);
+
+    void transition.finished.finally(() => {
+      delete root.dataset.sweeping;
+      root.style.removeProperty("--sweep-x");
+      root.style.removeProperty("--sweep-y");
+      root.style.removeProperty("--sweep-r");
+    });
   }, []);
 
-  const cycleTheme = useCallback(
-    () => setTheme(nextTheme(readCookie())),
+  const toggleTheme = useCallback(
+    (origin?: SweepOrigin) => setTheme(otherTheme(readResolved()), origin),
     [setTheme],
   );
 
   const value = useMemo(
-    () => ({ theme, resolvedTheme, setTheme, cycleTheme }),
-    [theme, resolvedTheme, setTheme, cycleTheme],
+    () => ({ theme, resolvedTheme, setTheme, toggleTheme }),
+    [theme, resolvedTheme, setTheme, toggleTheme],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

@@ -8,6 +8,15 @@ export type NewNotification = {
   title: string;
   description: string;
   href?: string;
+  /**
+   * Picture of whatever this is about, when there is one.
+   *
+   * Optional and expected to be absent about half the time — a password change
+   * has nothing to show — so the panel treats the type icon as the base case
+   * and this as the upgrade, rather than leaving a hole where an image failed
+   * to be found.
+   */
+  imageUrl?: string | null;
 };
 
 /**
@@ -75,18 +84,37 @@ export const NOTIFICATION_ICONS: Record<NotificationType, string> = {
   SYSTEM: "info",
 };
 
-/** Newest first, capped — the bell panel is not a full inbox. */
-export async function getNotifications(userId: string, take = 8) {
-  const [items, unreadCount] = await Promise.all([
+/**
+ * Newest first, capped — the bell panel is not a full inbox — plus the number
+ * the badge shows.
+ *
+ * `newCount` is what has arrived since the panel was last opened, and is
+ * counted over the whole table rather than over `items`: the list is cut at
+ * `take`, so counting the page would quietly cap the badge at 8 and call it
+ * the truth. A null `seenAt` is an account that has never opened the panel, for
+ * which everything is new.
+ *
+ * Note this is not the unread count. Unread is a property of a notice you have
+ * not acted on and survives being glanced at; new is a property of the batch,
+ * and is spent by looking. The row styling still follows `read`.
+ */
+export async function getNotifications(
+  userId: string,
+  seenAt: Date | null,
+  take = 8,
+) {
+  const [items, newCount] = await Promise.all([
     prisma.notification.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
       take,
     }),
-    prisma.notification.count({ where: { userId, read: false } }),
+    prisma.notification.count({
+      where: { userId, ...(seenAt ? { createdAt: { gt: seenAt } } : {}) },
+    }),
   ]);
 
-  return { items, unreadCount };
+  return { items, newCount };
 }
 
 /** "2m ago" / "3h ago" / "12 Mar" — compact enough for the dropdown. */

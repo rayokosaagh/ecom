@@ -10,6 +10,8 @@ import { Tilt } from "@/components/ui/Tilt";
 import { Spotlight } from "@/components/ui/Spotlight";
 import { cn } from "@/lib/cn";
 import { formatPrice } from "@/lib/products/format";
+import { resolveWell } from "@/lib/tints";
+import { SALE_TINTS, saleGradient } from "@/components/products/sale-tints";
 import { RatingBadge } from "@/components/reviews/RatingStars";
 import type { FeaturedProductView } from "@/lib/featured/service";
 
@@ -55,7 +57,27 @@ const WRAP_FADE_MS = 260;
  * its way to "View product" sends the shopper to a different product than the
  * one they were looking at.
  */
-export function FeaturedShowcase({ products }: { products: ShowcaseProduct[] }) {
+export function FeaturedShowcase({
+  products,
+  lead,
+}: {
+  products: ShowcaseProduct[];
+  /**
+   * The hero copy, when this carousel is the front door rather than a shelf.
+   *
+   * Passing it in rather than rendering it here is what lets the headline stay
+   * a server component while everything below is a client one — and it keeps
+   * this file ignorant of what the shop's opening line happens to say.
+   *
+   * Its presence is also the layout switch. With a lead the section becomes the
+   * two-column hero: copy on the left, one product on a stage to the right,
+   * and the panel's own copy condensed to what fits beside a headline. Without
+   * it, nothing changes — the section is the wide "Featured picks" shelf it has
+   * always been.
+   */
+  lead?: React.ReactNode;
+}) {
+  const isHero = Boolean(lead);
   const [index, setIndex] = useState(0);
   const trackRef = useRef<HTMLDivElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
@@ -237,8 +259,15 @@ export function FeaturedShowcase({ products }: { products: ShowcaseProduct[] }) 
   return (
     <section
       ref={sectionRef}
-      aria-labelledby={`${baseId}-heading`}
-      className="mx-auto max-w-7xl px-4 pb-24 sm:px-6"
+      // As the hero there is no "Featured picks" heading to point at — the
+      // page's own h1 lives in the lead — and the track below still carries its
+      // own carousel label, so the region is left unlabelled rather than
+      // pointing at an id that is not rendered.
+      aria-labelledby={isHero ? undefined : `${baseId}-heading`}
+      className={cn(
+        "mx-auto max-w-7xl px-4 sm:px-6",
+        isHero ? "pt-10 pb-20 sm:pt-14 sm:pb-24" : "pb-24",
+      )}
       // Mouse events rather than pointer events: a touch raises `pointerenter`
       // and then frequently never raises `pointerleave`, which would strand the
       // carousel suspended for the rest of the visit on exactly the devices
@@ -250,23 +279,43 @@ export function FeaturedShowcase({ products }: { products: ShowcaseProduct[] }) 
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
     >
-      {/* Same header shape as "Latest arrivals" below it. */}
-      <div className="mb-6 flex items-end justify-between gap-4">
-        <h2
-          id={`${baseId}-heading`}
-          className="text-on-surface text-2xl font-medium tracking-tight sm:text-3xl"
-        >
-          Featured <span className="accent-word">picks</span>
-        </h2>
-        <Link
-          href="/products"
-          className="text-primary rounded-sm text-sm font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
-        >
-          View all
-        </Link>
-      </div>
+      <div
+        className={cn(
+          isHero &&
+            "grid items-center gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-14",
+        )}
+      >
+        {/* Nothing at all when this is the plain shelf. */}
+        {lead}
 
-      <Card variant="outlined" className="overflow-hidden">
+        {/* `min-w-0` is load-bearing in the hero layout: a grid item defaults to
+            `min-width: auto`, so the track's own content would refuse to let
+            this column be narrower than its widest panel and would squeeze the
+            copy beside it down to nothing. */}
+        <div className={cn(isHero && "min-w-0")}>
+          {/* Same header shape as "Latest arrivals" below it — but as the hero
+              the page's h1 is the heading, and a "Featured picks" title over the
+              product would be a second one competing with it. "View all" goes
+              with it, since the lead already carries "Shop all products" to the
+              same place. */}
+          {!isHero && (
+            <div className="mb-6 flex items-end justify-between gap-4">
+              <h2
+                id={`${baseId}-heading`}
+                className="text-on-surface text-2xl font-medium tracking-tight sm:text-3xl"
+              >
+                Featured <span className="accent-word">picks</span>
+              </h2>
+              <Link
+                href="/products"
+                className="text-primary rounded-sm text-sm font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+              >
+                View all
+              </Link>
+            </div>
+          )}
+
+          <Card variant="outlined" className="overflow-hidden">
         {/* A scroll container, not a transformed strip. Swiping is the whole
             reason: a translated track cannot be dragged, so on a phone the
             carousel could only be changed by the controls underneath it. The
@@ -323,9 +372,64 @@ export function FeaturedShowcase({ products }: { products: ShowcaseProduct[] }) 
                 // they are one swipe away. `inert` also applies
                 // `pointer-events: none`, which is the last thing a surface
                 // meant to be dragged should carry.
-                className="grid w-full shrink-0 snap-start md:grid-cols-2"
+                className={cn(
+                  "grid w-full shrink-0 snap-start",
+                  // The hero panel stays one column at every width: it is
+                  // already sitting in half a page, and splitting that again
+                  // would leave the product a quarter of the screen.
+                  !isHero && "md:grid-cols-2",
+                )}
               >
-                <Spotlight className="bg-surface-container-high relative aspect-[4/3] overflow-hidden md:aspect-auto md:min-h-[26rem]">
+                <Spotlight
+                  className={cn(
+                    "bg-surface-container-high relative aspect-[4/3] overflow-hidden",
+                    // The floor, not the height — see the note on the image's
+                    // `max-h` below, which is what actually bounds the panel on
+                    // desktop. Both were trimmed together so a landscape
+                    // product, which rests on this minimum, shortens by the same
+                    // proportion as a portrait one, which rests on the cap.
+                    !isHero && "md:aspect-auto md:min-h-[24rem]",
+                    // The same background an admin picked for this product in
+                    // the featured list, so it looks like itself in both places
+                    // it appears on the home page. The spotlight's own lighting
+                    // layers over the top: the wash is the colour of the room,
+                    // the spotlight is the lamp standing in it.
+                    resolveWell(product.tint, i).className,
+                  )}
+                  style={resolveWell(product.tint, i).style}
+                >
+                  {/*
+                    The stage's colour, one per panel.
+
+                    Assorted rather than random, and the distinction is the
+                    whole of it. `sale-tints` already sets out why a colour
+                    drawn at random is the wrong tool: a value picked during
+                    render differs between the server pass and the client's,
+                    which is a hydration mismatch, and a product that wears a
+                    different colour on every visit is a product nobody can
+                    recognise. So the palette is walked by panel index instead.
+
+                    By index rather than by hashing the slug, for the reason
+                    that file gives about the sale shelf: a hash can land the
+                    same colour on two panels in a row, and with four tints and
+                    a handful of featured products, cycling guarantees every
+                    neighbour differs.
+
+                    Borrowed whole rather than redefined. Those four are built
+                    from theme tokens with no hardcoded hex in them, so this
+                    follows the light and dark schemes — and the wash is the
+                    same 70%-to-20% diagonal the sale cards wear, laid over the
+                    neutral fill above rather than replacing it, so the product
+                    still sits on a surface rather than in a puddle of colour.
+                  */}
+                  <span
+                    aria-hidden
+                    className="absolute inset-0"
+                    style={{
+                      background: saleGradient(SALE_TINTS[i % SALE_TINTS.length]),
+                    }}
+                  />
+
                   {product.image ? (
                     // Two nested transforms rather than one. The settle owns
                     // the outer element at 700ms and the sway owns the inner at
@@ -369,17 +473,22 @@ export function FeaturedShowcase({ products }: { products: ShowcaseProduct[] }) 
                             and collapses to `auto` — leaving the product's own
                             intrinsic aspect ratio to set the height of the whole
                             carousel. A portrait cut-out then pushed every panel
-                            to ~682px, well past the 26rem the stage asks for.
+                            to ~682px, well past the 24rem the stage asks for.
                             The cap belongs on the image rather than on the stage
                             because the stage is `overflow-hidden`, which would
                             crop; `object-contain` fits the artwork instead. It
                             cannot bind on mobile, where `aspect-[4/3]` already
-                            gives the stage a definite height to fill. */}
+                            gives the stage a definite height to fill.
+
+                            Because it is the real ceiling, this is the number to
+                            change when the section is asked to be shorter — the
+                            stage's `min-h` only moves the panels whose artwork
+                            is too short to reach it. */}
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={product.image}
                           alt={product.name}
-                          className="product-glow size-full max-h-[38rem] object-contain p-8 sm:p-12"
+                          className="product-glow size-full max-h-[35rem] object-contain p-8 sm:p-12"
                         />
                       </Tilt>
                       </div>
@@ -407,7 +516,8 @@ export function FeaturedShowcase({ products }: { products: ShowcaseProduct[] }) 
                     not arrive as one rigid block. */}
                 <div
                   className={cn(
-                    "flex flex-col p-6 transition-all duration-500 ease-[var(--ease-emphasized)] sm:p-8",
+                    "flex flex-col transition-all duration-500 ease-[var(--ease-emphasized)]",
+                    isHero ? "p-5 sm:p-6" : "p-6 sm:p-8",
                     current
                       ? "translate-y-0 opacity-100 delay-150"
                       : "translate-y-3 opacity-0",
@@ -454,12 +564,19 @@ export function FeaturedShowcase({ products }: { products: ShowcaseProduct[] }) 
                     {product.category}
                   </p>
 
-                  <p className="text-on-surface-variant mt-4 line-clamp-3 leading-relaxed">
-                    {product.description}
-                  </p>
+                  {/* Both the blurb and the spec list are dropped in the hero.
+                      There is a headline and three buttons in the column beside
+                      this one; a paragraph and a spec table underneath the
+                      product turn the front door into two things to read at
+                      once. What is left — name, rating, brand, price — is the
+                      identification, and the panel links through for the rest. */}
+                  {!isHero && (
+                    <p className="text-on-surface-variant mt-4 line-clamp-3 leading-relaxed">
+                      {product.description}
+                    </p>
+                  )}
 
-                  {/* Same shape as the hero's feature list. */}
-                  {product.specs.length > 0 && (
+                  {!isHero && product.specs.length > 0 && (
                     <ul className="text-on-surface-variant mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm">
                       {product.specs.map((spec) => (
                         <li key={spec.label} className="flex items-center gap-1.5">
@@ -473,14 +590,24 @@ export function FeaturedShowcase({ products }: { products: ShowcaseProduct[] }) 
                     </ul>
                   )}
 
-                  <p className="text-on-surface mt-6 text-2xl">
+                  <p
+                    className={cn(
+                      "text-on-surface text-2xl",
+                      isHero ? "mt-4" : "mt-6",
+                    )}
+                  >
                     {product.priceVaries && (
                       <span className="text-on-surface-variant text-sm">from </span>
                     )}
                     {formatPrice(product.minCents)}
                   </p>
 
-                  <div className="mt-6 flex flex-wrap items-center gap-3 pt-2">
+                  <div
+                    className={cn(
+                      "flex flex-wrap items-center gap-3",
+                      isHero ? "mt-5" : "mt-6 pt-2",
+                    )}
+                  >
                     <Link
                       href={`/products/${product.slug}`}
                       className="bg-primary text-on-primary state-layer inline-flex h-12 w-full items-center justify-center gap-2 rounded-full px-8 text-sm font-medium shadow-none transition-all duration-200 hover:shadow-elevation-2 focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-95 sm:w-auto"
@@ -489,7 +616,11 @@ export function FeaturedShowcase({ products }: { products: ShowcaseProduct[] }) 
                       <Icon name="arrow_forward" size={18} />
                     </Link>
 
-                    {product.category && (
+                    {/* Suppressed in the hero: the lead beside it already
+                        carries "Shop all products", and a third destination in
+                        the same row makes the row a menu rather than an
+                        action. */}
+                    {!isHero && product.category && (
                       <Link
                         href={`/products?category=${encodeURIComponent(
                           product.category.toLowerCase().replace(/\s+/g, "-"),
@@ -510,7 +641,11 @@ export function FeaturedShowcase({ products }: { products: ShowcaseProduct[] }) 
       {products.length > 1 && (
         <>
           {/* Selection rail, in the same pill language as the brand and
-              category rails. */}
+              category rails. Dropped in the hero: a row of named thumbnails
+              under the panel is a second product list directly beneath the
+              first, in a column that is already only half the page. The dots
+              below take over its job there, and take over its labels with it. */}
+          {!isHero && (
           <nav
             aria-label="Choose a featured product"
             className="-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0"
@@ -550,19 +685,36 @@ export function FeaturedShowcase({ products }: { products: ShowcaseProduct[] }) 
               );
             })}
           </nav>
+          )}
 
-          {/* Position indicators. Hidden from assistive tech on purpose: the
-              strip above already exposes the same choice with real names, and
-              a second set of controls for one panel is noise to anyone not
-              looking at them. These are the pointer-and-glance affordance. */}
-          <div aria-hidden className="mt-6 flex justify-center gap-2">
+          {/* Position indicators.
+
+              Hidden from assistive tech only while the strip above is there to
+              expose the same choice with real names — a second set of controls
+              for one panel is noise to anyone not looking at them. In the hero
+              the strip is gone, so these stop being decorative and become the
+              only way to change panel: they take the tab order and each one
+              takes the name of the product it selects. */}
+          <div
+            aria-hidden={isHero ? undefined : true}
+            role={isHero ? "group" : undefined}
+            aria-label={isHero ? "Choose a featured product" : undefined}
+            className={cn(
+              "flex gap-2",
+              // Under the panel it belongs to, and aligned with the copy in
+              // that column rather than with the page.
+              isHero ? "mt-5 justify-center lg:justify-start" : "mt-6 justify-center",
+            )}
+          >
             {products.map((product, i) => {
               const current = i === activeIndex;
               return (
                 <button
                   key={product.id}
                   type="button"
-                  tabIndex={-1}
+                  tabIndex={isHero ? undefined : -1}
+                  aria-label={isHero ? product.name : undefined}
+                  aria-current={isHero ? current : undefined}
                   onClick={() => goTo(i)}
                   className={cn(
                     "h-2 overflow-hidden rounded-full transition-all duration-300 ease-[var(--ease-emphasized)]",
@@ -591,6 +743,8 @@ export function FeaturedShowcase({ products }: { products: ShowcaseProduct[] }) 
           </div>
         </>
       )}
+        </div>
+      </div>
     </section>
   );
 }

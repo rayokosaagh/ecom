@@ -56,6 +56,8 @@ export default async function EditBannerPage({
           ctaLink: banner.ctaLink,
           isActive: banner.isActive,
           categoryId: banner.categoryId ?? "",
+          // "" is the form's spelling of "not chosen"; null is the column's.
+          tint: banner.tint ?? "",
           startsAt: toDateTimeLocal(banner.startsAt),
           endsAt: toDateTimeLocal(banner.endsAt),
         }}

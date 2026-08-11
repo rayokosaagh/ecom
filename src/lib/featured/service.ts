@@ -30,6 +30,16 @@ export interface FeaturedProductView {
   isNew: boolean;
   /** A few headline specs, in definition order. */
   specs: { label: string; value: string; icon: string | null }[];
+  /**
+   * The background wash an admin chose, as a preset id from `lib/tints`, or
+   * null when nobody has chosen one.
+   *
+   * Passed through raw rather than resolved to classes here: which id maps to
+   * which utilities is a presentation decision, and a service that returned
+   * Tailwind strings would make the storefront's styling unchangeable without
+   * a database read to check what it had already been told.
+   */
+  tint: string | null;
 }
 
 /** How many specs the showcase lists before it stops being a summary. */
@@ -53,6 +63,7 @@ export async function getFeaturedProducts(): Promise<FeaturedProductView[]> {
   const rows = await prisma.featuredProduct.findMany({
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     select: {
+      tint: true,
       product: {
         select: {
           id: true,
@@ -83,10 +94,12 @@ export async function getFeaturedProducts(): Promise<FeaturedProductView[]> {
 
   const newerThan = Date.now() - NEW_FOR_DAYS * 24 * 60 * 60 * 1000;
 
+  // Filtered before the product is unwrapped rather than after: `tint` lives on
+  // the FeaturedProduct row, not on the product, so mapping to `row.product`
+  // first would drop it.
   return rows
-    .map((row) => row.product)
-    .filter((product) => product.published)
-    .map((product) => {
+    .filter((row) => row.product.published)
+    .map(({ tint, product }) => {
       const range = priceRange(product, product.variants);
       return {
         id: product.id,
@@ -107,6 +120,7 @@ export async function getFeaturedProducts(): Promise<FeaturedProductView[]> {
             : spec.value,
           icon: spec.definition.icon,
         })),
+        tint,
       };
     });
 }
@@ -117,6 +131,7 @@ export async function getFeaturedForAdmin() {
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     select: {
       id: true,
+      tint: true,
       product: {
         select: {
           id: true,

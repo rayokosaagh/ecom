@@ -232,12 +232,29 @@ model User {
   /// receipt email. `notifyStock` is the back-in-stock kind; `notifyNews` is
   /// everything the shop sends because it wants to rather than because
   /// something happened.
-  notifyOrders  Boolean   @default(true)
-  notifyStock   Boolean   @default(true)
-  notifyNews    Boolean   @default(true)
+  notifyOrders Boolean @default(true)
+  notifyStock  Boolean @default(true)
+  notifyNews   Boolean @default(true)
   /// Order emails, separately from the in-app bell. The two are different
   /// channels and a customer may reasonably want one and not the other.
-  notifyEmails  Boolean   @default(true)
+  notifyEmails Boolean @default(true)
+
+  /// When the wishlist page was last opened, and null for an account that has
+  /// never opened it.
+  ///
+  /// The navbar badge counts what has arrived *since* this, not what is there:
+  /// a wishlist is a list you built on purpose, so a permanent "12" over the
+  /// heart is not news — it is the same number every day, and a badge that
+  /// never changes is a badge nobody reads. Stamped on visiting /wishlist,
+  /// which is the moment the list stops being unseen.
+  wishlistSeenAt      DateTime?
+  /// The same idea for the bell, stamped when the panel is opened.
+  ///
+  /// Deliberately not `read`. Opening the panel means you have *seen* what
+  /// arrived, which is what the badge counts; reading a notice means you acted
+  /// on it, which is what greys the row out. Collapsing the two would mark
+  /// eight notices read for a glance at one of them.
+  notificationsSeenAt DateTime?
 
   /// When this account was closed by its owner, and null while it is open.
   ///
@@ -246,10 +263,10 @@ model User {
   /// and make past revenue figures disagree with the receipts customers already
   /// hold. The personal data is scrubbed by `deleteAccount`; what remains is a
   /// tombstone that owns the orders and cannot be signed into.
-  closedAt      DateTime?
+  closedAt DateTime?
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   accounts      Account[]
   sessions      Session[]
@@ -299,6 +316,12 @@ model Notification {
   description String
   /// Optional deep link, e.g. the order or product the notice is about.
   href        String?
+  /// Picture of whatever the notice is about — the product, or the first thing
+  /// in the order. Snapshotted rather than joined at read time for the same
+  /// reason `OrderItem.name` is: the notice describes a moment, and a product
+  /// that is later re-photographed or deleted must not change or blank the
+  /// picture attached to something that already happened.
+  imageUrl    String?
   read        Boolean          @default(false)
 
   createdAt DateTime @default(now())
@@ -590,6 +613,19 @@ model FeaturedProduct {
   /// Ascending display position, owned by the admin list's reordering.
   sortOrder Int @default(0)
 
+  /// Which background wash the storefront paints behind this product, as a
+  /// preset id from `lib/tints` — "blue", "meadow", and so on.
+  ///
+  /// Text rather than an enum, and null rather than a default, both on purpose.
+  /// A palette is presentation: it will be added to and pruned more often than
+  /// this schema should change, and an id that has since been retired should
+  /// degrade to the automatic tint rather than break a query the way a missing
+  /// enum member would. Null means "nobody has chosen", which is a different
+  /// statement from "somebody chose neutral" — the first cycles through the
+  /// palette by position so an untouched row still looks arranged, the second
+  /// is an explicit request for no colour at all.
+  tint String?
+
   createdAt DateTime @default(now())
 
   @@index([sortOrder])
@@ -852,6 +888,12 @@ model PromoBanner {
   sortOrder Int     @default(0)
   isActive  Boolean @default(true)
 
+  /// The card's background wash — a preset id from `lib/tints`. Null leaves the
+  /// storefront's own choice in place, which for a promo tile is derived from
+  /// the heading so a card keeps its colour wherever it appears. See the note
+  /// on `FeaturedProduct.tint` for why this is text and not an enum.
+  tint String?
+
   /// Optional schedule. Null on either side means "unbounded in that
   /// direction", so a banner with neither is simply always on.
   startsAt DateTime?
@@ -1029,6 +1071,151 @@ model SocialLink {
   updatedAt DateTime @updatedAt
 
   /// The home page reads published links in display order on every render.
+  @@index([published, sortOrder])
+}
+
+/// One shop a customer can walk into, for the storefront's Stores page.
+///
+/// A table rather than more columns on `StoreSettings` for the same reason
+/// `SocialLink` is one: a shop can have two branches, and "which ones, in what
+/// order, and is this one showing yet" is a list question. `StoreSettings`
+/// keeps `pickupAddress` because that answers a different one — where a *web
+/// order* is collected from, which is a single place checkout has to name.
+model StoreLocation {
+  id String @id @default(cuid())
+
+  /// What the branch is called — "Kathmandu · New Road". Shown as the heading.
+  name String
+
+  /// Where it is, as free text over several lines.
+  ///
+  /// Free text rather than the structured columns an order carries, and for
+  /// exactly the reason `StoreSettings.pickupAddress` gives: nothing parses
+  /// this. It is read by a person about to walk there, and the coordinates
+  /// below are what a machine uses.
+  address String
+
+  /// A sentence or two about the branch — what it stocks, what it is near.
+  /// Optional: a second branch on the same street has nothing to add.
+  description String?
+
+  /// The number to ring, as typed. Not normalized on save, so the admin sees
+  /// back what they entered; the `tel:` link strips punctuation on use, which
+  /// is the same split `StoreSettings.whatsappNumber` makes.
+  phone String?
+  /// When the doors are open, one line per entry:
+  ///
+  ///     Sun–Fri: 10:00 – 19:00
+  ///     Sat: Closed
+  ///
+  /// Free text, but *lightly* structured: `lib/stores/hours` splits each line
+  /// at its first colon into a day column and a time column, and any line
+  /// without one is rendered whole. Seven columns of open/close times would
+  /// model a week that no real shop keeps — half-days, prayer breaks and
+  /// "Sat by appointment" all have to fit, and free text is the only shape
+  /// that holds them. The split is presentation, so a line that does not
+  /// follow the convention degrades to a plain row rather than to an error.
+  hours String?
+
+  /// Where to drop the pin.
+  ///
+  /// Optional, and stored as a pair — see `parseStoreLocation`, which refuses
+  /// one without the other. When they are absent the map falls back to
+  /// searching `address`, which is why neither is required: a branch on a
+  /// named street is found perfectly well without anyone opening a map to
+  /// read coordinates off it. When they are present the pin is exact, which is
+  /// what an address in a district with no street numbers needs.
+  ///
+  /// No Google API key is involved at either end — see `StoreMap`.
+  latitude  Float?
+  longitude Float?
+
+  /// Hidden without being deleted — the same reasoning as `Faq.published`.
+  /// A branch closed for a refit stops showing rather than being retyped.
+  published Boolean @default(true)
+
+  /// Ascending display position. Ties fall back to createdAt.
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// The Stores page reads published branches in display order.
+  @@index([published, sortOrder])
+}
+
+/// How loudly an announcement is saying it.
+///
+/// Four rather than a boolean, because "we are closed on Tuesday" and "your
+/// deliveries are suspended" are not the same message wearing different words —
+/// they need different colour, a different glyph, and to out-rank each other
+/// when both are live. `lib/announcements/levels` maps each member to exactly
+/// one palette and one icon, so a member added here without an entry there is a
+/// build error rather than an unstyled strip.
+///
+/// Ordered least to most urgent, and that order is load-bearing: the bar takes
+/// its colour from the highest level currently published. See `RANK`.
+enum AnnouncementLevel {
+  /// The default. Opening hours, a new arrival, a shipping note.
+  INFO
+
+  /// Good news with a deadline — a sale opening, free delivery this week.
+  SUCCESS
+
+  /// Something a shopper should plan around: delayed dispatch, a holiday.
+  WARNING
+
+  /// Something that breaks a promise the shop has already made — payments
+  /// down, orders paused. Solid rather than tinted, because this one has to
+  /// win against everything else on the page.
+  CRITICAL
+}
+
+/// One line of news for the strip under the navigation bar.
+///
+/// A table rather than a couple of columns on `StoreSettings` for the same
+/// reason `SocialLink` is one: the bar is a *list*. Which notices are running,
+/// in what order, and whether this one is live yet are the things being chosen,
+/// and a single `announcementText` column could express none of them.
+///
+/// Deliberately **not** scheduled with start/end dates. The published list is
+/// cached across requests and invalidated by the admin actions that change it —
+/// see `lib/announcements/service` — and a row that becomes visible at a time
+/// nobody wrote to the database would sit behind that cache until something
+/// unrelated happened to clear it. A switch an admin flips is a promise the
+/// cache can keep; a clock is not.
+model Announcement {
+  id String @id @default(cuid())
+
+  /// The line itself, as plain text.
+  ///
+  /// Plain for the same reason `Faq.answer` is: rendering admin-authored HTML
+  /// here would make this column a stored-XSS surface on *every page of the
+  /// site*, since the bar rides in the navigation bar. There is no formatting
+  /// worth that.
+  message String
+
+  level AnnouncementLevel @default(INFO)
+
+  /// Where the notice leads, if anywhere.
+  ///
+  /// Validated to a same-site path or an http(s) URL before it is stored — see
+  /// `parseAnnouncement`. That check is not decoration: this string is written
+  /// straight into an `href`, and `javascript:` in an anchor is script
+  /// execution on every page the bar appears on.
+  href String?
+
+  /// Hidden without being deleted — the same reasoning as `Faq.published`.
+  /// Last month's notice is switched off, not retyped next year.
+  published Boolean @default(true)
+
+  /// Ascending display position, which is the order they scroll past in.
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Read on every page render, through the navigation bar's own data.
   @@index([published, sortOrder])
 }
 
@@ -1278,6 +1465,14 @@ model Order {
   @@index([status, cancelReason])
   /// The unpaid sweep: pending orders, oldest attempt first.
   @@index([status, updatedAt])
+  /// The admin list standing on a status tab: one status, newest first, one
+  /// page at a time. `[status, updatedAt]` above can serve the equality but not
+  /// the ordering, so without this every tab sorts its whole match set to hand
+  /// back fifty rows.
+  @@index([status, createdAt])
+  /// The same list on the All tab, where there is no status predicate to lean
+  /// on — and the date-range filter, which is a bare range over this column.
+  @@index([createdAt])
 }
 
 /// A code a shopper types to take money off.

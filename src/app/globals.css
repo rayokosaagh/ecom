@@ -33,6 +33,26 @@
   --color-error-container: #f9dedc;
   --color-on-error-container: #410e0b;
 
+  /* --- Warning -------------------------------------------------------
+   *
+   * The fifth role, and the last one added: "this is not broken, but it has
+   * been waiting too long". Error was the only tier available for it before,
+   * and red on a merely-late order cries wolf — by the time something is
+   * genuinely wrong the reader has learned to skim past red.
+   *
+   * Amber earns its place only if it stays rare. It is for a state that a
+   * person is expected to *act* on, not for every non-ideal value on the page:
+   * low stock and an ended sale are still neutral, because nothing is owed.
+   *
+   * Tones follow the M3 ramp at hue ~80 so it sits beside the other four rather
+   * than beside them. Every pairing below clears AA at 4.5:1 for normal text —
+   * 13.23:1 and 6.45:1 light, 7.25:1 and 7.72:1 dark — which matters because
+   * badge text is 12px and never qualifies as large. */
+  --color-warning: #7a5900;
+  --color-on-warning: #ffffff;
+  --color-warning-container: #ffdf9a;
+  --color-on-warning-container: #261a00;
+
   /* --- WhatsApp -----------------------------------------------------
    *
    * A brand colour rather than a scheme one, so it is stated here instead of
@@ -209,6 +229,14 @@
   --dark-error-container: #8c1d18;
   --dark-on-error-container: #f9dedc;
 
+  /* Amber lifts and the container drops, the same inversion the other four
+   * roles make. Not the light values dimmed: #7a5900 on this surface is 1.6:1
+   * and reads as brown sludge. */
+  --dark-warning: #f0c04d;
+  --dark-on-warning: #412d00;
+  --dark-warning-container: #5d4200;
+  --dark-on-warning-container: #ffdf9a;
+
   /* On a dark surface the brand green is readable on its own — 8.66:1 — so the
    * darkened light-mode variant is not needed and would only mute it. Only the
    * outlined colour flips; the fill is brand-fixed in both schemes. */
@@ -335,6 +363,10 @@
   --color-on-error: var(--dark-on-error);
   --color-error-container: var(--dark-error-container);
   --color-on-error-container: var(--dark-on-error-container);
+  --color-warning: var(--dark-warning);
+  --color-on-warning: var(--dark-on-warning);
+  --color-warning-container: var(--dark-warning-container);
+  --color-on-warning-container: var(--dark-on-warning-container);
   --color-whatsapp: var(--dark-whatsapp);
   --color-surface: var(--dark-surface);
   --color-on-surface: var(--dark-on-surface);
@@ -403,6 +435,10 @@
     --color-on-error: var(--dark-on-error);
     --color-error-container: var(--dark-error-container);
     --color-on-error-container: var(--dark-on-error-container);
+    --color-warning: var(--dark-warning);
+    --color-on-warning: var(--dark-on-warning);
+    --color-warning-container: var(--dark-warning-container);
+    --color-on-warning-container: var(--dark-on-warning-container);
     --color-whatsapp: var(--dark-whatsapp);
     --color-surface: var(--dark-surface);
     --color-on-surface: var(--dark-on-surface);
@@ -654,6 +690,89 @@
   .brand-rails:hover .brand-rail,
   .brand-rails:focus-within .brand-rail {
     animation-play-state: paused;
+  }
+
+  /*
+   * Announcement rail: the same seamless loop as the brand rail, running the
+   * other way.
+   *
+   * The trick is identical — two copies of the track, translated by exactly one
+   * copy's width, so at the moment the animation restarts the second copy is
+   * standing precisely where the first began and there is no seam to hide. Only
+   * the direction differs: this one runs from `-50%` to `0`, which carries the
+   * content left to right, so a notice enters at the edge the reader's eye
+   * already starts from.
+   *
+   * `width: max-content` is what makes the halves equal without measuring
+   * anything in JavaScript: the track is as wide as its contents, and the two
+   * copies are identical, so one copy is exactly half of it whatever the text
+   * says.
+   */
+  /*
+   * A hard clip, with no fade at the ends — and that is a correction, not an
+   * oversight.
+   *
+   * The brand rail masks its edges so tiles arrive and leave rather than being
+   * sliced. The same mask here was wrong the moment each notice started
+   * carrying its own background: a mask fades whatever is under it, and what is
+   * under this one is the coloured band itself, so both ends of the strip
+   * dissolved into the page and the bar stopped looking like a bar. Text
+   * clipped at the edge is what every ticker does; a strip with see-through
+   * ends is what none of them do.
+   */
+  .announce-rail-viewport {
+    overflow: hidden;
+  }
+
+  .announce-rail {
+    display: flex;
+    width: max-content;
+    /* The duration is computed per strip from how much there is to carry, so
+     * the travel is a constant speed rather than a constant lap time — see
+     * `lib/announcements/rail`. The fallback only applies if the property is
+     * missing, which it never is. */
+    animation: announce-rail var(--announce-rail-duration, 20s) linear infinite;
+  }
+
+  @keyframes announce-rail {
+    from {
+      transform: translateX(-50%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  /*
+   * It stops when anyone is actually trying to use it.
+   *
+   * Not a nicety, and here it is not even only a courtesy: a notice may carry a
+   * link, and a link that slides out from under the cursor is a link nobody can
+   * click. Hover covers the pointer and `focus-within` covers the keyboard,
+   * which would otherwise have focus chased off the screen by its own strip.
+   */
+  .announce-rail-viewport:hover .announce-rail,
+  .announce-rail-viewport:focus-within .announce-rail {
+    animation-play-state: paused;
+  }
+
+  /*
+   * Anyone who asked for less motion gets a strip that does not move at all.
+   *
+   * Stopped rather than slowed, and the track is reset to `0` so the first
+   * notice is the one showing — a paused marquee parked at `-50%` would open
+   * mid-sentence. The duplicate copy stays in the markup and simply sits off
+   * to the right, unread, which is why it carries `aria-hidden`.
+   *
+   * This is also the WCAG answer: moving content that starts automatically has
+   * to be pausable, and between this and the hover/focus rule above there is a
+   * way to stop it for every input.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    .announce-rail {
+      animation: none;
+      transform: translateX(0);
+    }
   }
 
   /* State layer: M3 renders hover/press as a translucent overlay of the
@@ -1248,6 +1367,53 @@
   border-radius: 1px;
 }
 
+/* ---------------------------------------------------------------------------
+ * Switching the theme
+ *
+ * The new scheme is wiped in as a circle growing from the button that was
+ * pressed, rather than the whole page changing colour at once. A hard cut asks
+ * the reader to re-find everything against a background that has just inverted
+ * under them; a sweep from a known point keeps the page continuous and, because
+ * it starts where the cursor already is, reads as *caused* by the press.
+ *
+ * Built on the View Transitions API, which is what makes it cheap: the browser
+ * snapshots the old page and the new one itself, so nothing here has to
+ * duplicate the DOM or animate a single component. Where the API is missing the
+ * theme simply swaps — see `ThemeProvider`, which feature-detects before it
+ * reaches for any of this.
+ *
+ * `data-sweeping` is set on the root only for the length of the transition, so
+ * these rules cannot catch a view transition started by anything else.
+ * ------------------------------------------------------------------------- */
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  /* The default cross-fade would show through the incoming circle and turn the
+   * clip into a smear. Both layers stay fully opaque and the clip does all of
+   * the work. */
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+html[data-sweeping]::view-transition-old(root) {
+  /* The outgoing page is the backdrop; it does not move, it is covered. */
+  z-index: 0;
+}
+
+html[data-sweeping]::view-transition-new(root) {
+  z-index: 1;
+  animation: theme-sweep var(--duration-long2) var(--ease-emphasized);
+}
+
+@keyframes theme-sweep {
+  from {
+    clip-path: circle(0 at var(--sweep-x) var(--sweep-y));
+  }
+  to {
+    clip-path: circle(var(--sweep-r) at var(--sweep-x) var(--sweep-y));
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1255,6 +1421,16 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /*
+   * Belt and braces on the theme sweep. `ThemeProvider` already refuses to
+   * start a view transition under a reduce preference, so this only matters if
+   * that check is ever removed — but a full-viewport wipe is exactly the kind
+   * of motion the setting exists to prevent, so it is denied here as well.
+   */
+  html[data-sweeping]::view-transition-new(root) {
+    animation: none !important;
   }
 
   /*

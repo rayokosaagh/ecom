@@ -28,6 +28,27 @@ export function allowedTransitions(status: OrderStatus): OrderStatus[] {
 }
 
 /**
+ * The one move *forward* from here, if there is one.
+ *
+ * Every status has at most a single way onward — cancelling is the other exit,
+ * and it is not progress. That makes "advance this order" a well-defined thing
+ * a list can offer on a row or across a selection, without the caller having to
+ * know that pending goes to paid rather than straight to shipped.
+ *
+ * Derived from the same table rather than written out again, so a lifecycle
+ * change cannot leave a quick-action button pointing at a move the server will
+ * refuse.
+ */
+export function nextStatus(status: OrderStatus): OrderStatus | null {
+  return allowedTransitions(status).find((to) => to !== OrderStatus.CANCELLED) ?? null;
+}
+
+/** How a move reads on a button: "Mark as shipped". */
+export function transitionLabel(to: OrderStatus): string {
+  return `Mark as ${to.toLowerCase()}`;
+}
+
+/**
  * Whether the customer may cancel this themselves.
  *
  * Only before payment. Once an order is paid, cancelling is a refund, and

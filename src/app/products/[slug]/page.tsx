@@ -10,6 +10,7 @@ import { AddToCartForm } from "@/components/cart/AddToCartForm";
 import { Icon } from "@/components/ui/Icon";
 import { BrandMark } from "@/components/brands/BrandMark";
 import { SpecTable } from "@/components/products/SpecTable";
+import { StockPill } from "@/components/products/StockPill";
 import { SimilarProducts } from "@/components/products/SimilarProducts";
 import { ReviewSection } from "@/components/reviews/ReviewSection";
 import { RatingBadge } from "@/components/reviews/RatingStars";
@@ -312,23 +313,10 @@ export default async function ProductDetailPage({
                 )}
               </p>
 
-              {/* Only where there is a sale to belong to. A shopper who has
-                  found one reduction is the likeliest person in the shop to
-                  want the rest of them, and this is the only place that
-                  currently tells them there are others. */}
-              {sale && (
-                <Link
-                  href="/sale"
-                  className="text-primary mt-2 inline-flex items-center gap-1.5 rounded-sm text-sm font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
-                >
-                  See everything on sale
-                  <Icon name="arrow_forward" size={16} />
-                </Link>
-              )}
-
-              <p className="text-on-surface-variant mt-1 text-sm">
-                {sellable > 0 ? `${sellable} in stock` : "Sold out"}
-              </p>
+              {/* Availability as a state rather than a count — the running
+                  total belonged to the dashboard, not to the person deciding
+                  whether they can have this today. See `StockPill`. */}
+              <StockPill stock={sellable} className="mt-3" />
 
               <p className="text-on-surface-variant mt-6 leading-relaxed whitespace-pre-line">
                 {product.description}
@@ -347,23 +335,60 @@ export default async function ProductDetailPage({
                   stock={product.stock}
                   priceCents={product.priceCents}
                   variants={variants}
-                />
-                {/* Directly under the buy action, because that is where the
-                    unanswered question stops a purchase. The prefilled message
-                    names this product and links to it, so the first reply can
-                    be the answer rather than "which one?". Renders nothing when
-                    no number is configured. */}
-                <WhatsappButton
-                  className="mt-4 w-full sm:w-auto"
-                  label="Ask about this product"
-                  context={{
-                    productName: product.name,
-                    // Absolute, and built from configuration rather than the
-                    // request's Host header — see lib/app-url.
-                    url: appUrl(`/products/${product.slug}`),
-                  }}
+                  /* Beside the buy action rather than under it, because that is
+                     where the unanswered question stops a purchase — and a
+                     shopper weighing "buy" against "ask first" should see both
+                     answers at once instead of finding the second below the
+                     fold. The prefilled message names this product and links to
+                     it, so the first reply can be the answer rather than
+                     "which one?". Renders nothing when no number is
+                     configured, and the row then holds Add to cart alone. */
+                  secondaryAction={
+                    <WhatsappButton
+                      // The anchor inside is `h-11` against the submit button's
+                      // `h-10`. Overridden by a descendant selector because
+                      // `cn` is a plain joiner, not tailwind-merge — both
+                      // classes emit and the more specific one has to win. The
+                      // hero does the same thing to reach `h-12`.
+                      className="[&>a]:h-10"
+                      label="Ask about this product"
+                      context={{
+                        productName: product.name,
+                        // Absolute, and built from configuration rather than
+                        // the request's Host header — see lib/app-url.
+                        url: appUrl(`/products/${product.slug}`),
+                      }}
+                    />
+                  }
                 />
               </div>
+
+              {/* Only where there is a sale to belong to. A shopper who has
+                  found one reduction is the likeliest person in the shop to
+                  want the rest of them, and this is the only place that tells
+                  them there are others.
+
+                  Below the buy block rather than up beside the price, where it
+                  used to sit. Two reasons, and the first is a real bug: both
+                  this and `StockPill` are `inline-flex`, so in a block container
+                  they flowed onto the *same line* whenever the column was wide
+                  enough to fit them, and the `mt-` on each did nothing to
+                  separate them. `flex w-fit` here makes it block-level, so it
+                  takes its own line whatever sits above it.
+
+                  The second is that a link out of the page reads differently
+                  above the Add to cart button than below it. Under the price it
+                  is an interruption placed exactly where someone is deciding;
+                  down here it is the next thing to do once they have decided. */}
+              {sale && (
+                <Link
+                  href="/sale"
+                  className="text-primary mt-6 flex w-fit items-center gap-1.5 rounded-sm text-sm font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+                >
+                  See everything on sale
+                  <Icon name="arrow_forward" size={16} />
+                </Link>
+              )}
 
               <div className="mt-6 flex flex-wrap gap-3">
                 {user?.role === Role.ADMIN && (

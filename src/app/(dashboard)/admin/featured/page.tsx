@@ -29,6 +29,7 @@ export default async function AdminFeaturedPage() {
     image: row.product.image,
     brand: row.product.brand?.name ?? null,
     published: row.product.published,
+    tint: row.tint,
   }));
 
   const options: FeaturableOption[] = featurable.map((product) => ({

@@ -46,7 +46,10 @@ export async function submitReview(
 
   const product = await prisma.product.findUnique({
     where: { id: productId },
-    select: { id: true, name: true, slug: true, published: true },
+    // `image` is here only for the notification below — one column on a row
+    // already being read, rather than a second query when it comes time to
+    // raise the notice.
+    select: { id: true, name: true, slug: true, published: true, image: true },
   });
   if (!product?.published) return { message: "That product is not available." };
 
@@ -108,6 +111,7 @@ export async function submitReview(
       title: "New review",
       description: `${user.name ?? user.email} rated ${product.name} ${parsed.data.rating}/5`,
       href: "/admin/reviews",
+      imageUrl: product.image,
     });
   }
 
@@ -233,7 +237,7 @@ export async function submitReply(
       userId: true,
       status: true,
       productId: true,
-      product: { select: { slug: true, name: true } },
+      product: { select: { slug: true, name: true, image: true } },
     },
   });
   if (!review) return { message: "That review no longer exists." };
@@ -259,6 +263,7 @@ export async function submitReply(
       title: "Someone replied to your review",
       description: `${user.name ?? user.email} answered your review of ${review.product.name}`,
       href: `/products/${review.product.slug}#reviews-heading`,
+      imageUrl: review.product.image,
     });
   }
 

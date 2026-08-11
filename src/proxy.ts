@@ -23,6 +23,12 @@ const PUBLIC_ROUTES = [
   "/reset-password",
   // Help is exactly the page someone reaches for before they have an account.
   "/faq",
+  // Where the shop physically is, which is the least private fact about it.
+  // Behind the wall this would be worse than absent: the nav bar advertises the
+  // link to everyone, so a guest asking where to walk in would be answered with
+  // a sign-in form. It is also the page a search engine has most reason to
+  // crawl, and a crawler never has a session.
+  "/stores",
   // A guest fills and reviews a cart without an account; the sign-in wall
   // moves to /checkout, which is where an owner actually becomes necessary.
   "/cart",

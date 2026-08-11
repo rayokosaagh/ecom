@@ -22,6 +22,40 @@ export const getWishlistProductIds = cache(async (): Promise<Set<string>> => {
   return new Set(items.map((item) => item.productId));
 });
 
+/**
+ * What the navbar heart needs: how much is saved, and how much of it is news.
+ *
+ * Both in one call because they are one indexed scan apart and always wanted
+ * together. `unseen` is what the badge shows — see `User.wishlistSeenAt` for
+ * why the badge is not simply `total`.
+ */
+export async function getWishlistCounts(userId: string, seenAt: Date | null) {
+  const [total, unseen] = await Promise.all([
+    prisma.wishlistItem.count({ where: { userId } }),
+    prisma.wishlistItem.count({
+      where: { userId, ...(seenAt ? { createdAt: { gt: seenAt } } : {}) },
+    }),
+  ]);
+
+  return { total, unseen };
+}
+
+/**
+ * Record that the list has been looked at, which empties the badge.
+ *
+ * Called from the wishlist page itself, inside `after()` — the visit is the
+ * thing being recorded, so there is no button to hang it on, and it must not
+ * make the reader wait on a write they did not ask for. The page renders its
+ * own badge as zero rather than reading this back, because the stamp lands
+ * after the response it would have to appear in.
+ */
+export async function markWishlistSeen(userId: string): Promise<void> {
+  await prisma.user.update({
+    where: { id: userId },
+    data: { wishlistSeenAt: new Date() },
+  });
+}
+
 /** Full wishlist rows for the /wishlist page, newest first. */
 export async function getWishlist(userId: string) {
   return prisma.wishlistItem.findMany({

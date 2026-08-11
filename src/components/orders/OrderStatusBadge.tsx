@@ -1,41 +1,27 @@
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
 import { fulfilmentLabels } from "@/lib/checkout/fulfilment";
+import { BADGE_SHAPE, TONE_CONTAINER, type Tone } from "@/lib/ui/tone";
 import type { FulfilmentMethod, OrderStatus } from "@/generated/prisma/enums";
 
 /**
  * Colour carries meaning here, so it is not decorative: cancelled reads as an
- * error, shipped as a success, and the two in-flight states as neutral. The
- * icon repeats it for anyone who cannot use the colour.
+ * error, the two good end states as green, and the rest as in-flight. The icon
+ * repeats it for anyone who cannot use the colour.
+ *
+ * Shipped and delivered share a hue and differ in weight — tonal green while it
+ * is still moving, solid green once it has arrived. Two greens rather than a
+ * green and a blue because "on its way" and "there" are the same kind of news;
+ * a difference in *emphasis* says which of them is final without pretending
+ * they are unrelated outcomes. The tick and the van still separate them for a
+ * reader who takes no colour at all.
  */
-const LOOK: Record<OrderStatus, { label: string; icon: string; className: string }> = {
-  PENDING: {
-    label: "Pending",
-    icon: "schedule",
-    className: "bg-surface-container-highest text-on-surface-variant",
-  },
-  PAID: {
-    label: "Paid",
-    icon: "payments",
-    className: "bg-secondary-container text-on-secondary-container",
-  },
-  SHIPPED: {
-    label: "Shipped",
-    icon: "local_shipping",
-    className: "bg-tertiary-container text-on-tertiary-container",
-  },
-  // The finished state, and the only one that reads as done rather than as
-  // in-flight — so it takes the primary container while shipped keeps tertiary.
-  DELIVERED: {
-    label: "Delivered",
-    icon: "task_alt",
-    className: "bg-primary-container text-on-primary-container",
-  },
-  CANCELLED: {
-    label: "Cancelled",
-    icon: "cancel",
-    className: "bg-error-container text-on-error-container",
-  },
+export const STATUS_LOOK: Record<OrderStatus, { label: string; icon: string; tone: Tone }> = {
+  PENDING: { label: "Pending", icon: "schedule", tone: "neutral" },
+  PAID: { label: "Paid", icon: "payments", tone: "info" },
+  SHIPPED: { label: "Shipped", icon: "local_shipping", tone: "success" },
+  DELIVERED: { label: "Delivered", icon: "task_alt", tone: "done" },
+  CANCELLED: { label: "Cancelled", icon: "cancel", tone: "danger" },
 };
 
 export function OrderStatusBadge({
@@ -54,7 +40,7 @@ export function OrderStatusBadge({
   fulfilment?: FulfilmentMethod;
   className?: string;
 }) {
-  const look = LOOK[status];
+  const look = STATUS_LOOK[status];
 
   // "Shipped" on an order the customer is coming to collect sends them looking
   // for a tracking number that will never exist, and "Delivered" claims a
@@ -69,18 +55,15 @@ export function OrderStatusBadge({
     : null;
 
   return (
-    <span
-      className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium",
-        look.className,
-        className,
-      )}
-    >
+    <span className={cn(BADGE_SHAPE, TONE_CONTAINER[look.tone], className)}>
       {/* The finished state keeps its own tick rather than borrowing the
-          fulfilment glyph — a van on a completed order reads as in transit. */}
+          fulfilment glyph — a van on a completed order reads as in transit.
+          Filled, too: on the one solid pill the glyph has the weight to carry
+          it, and it is the second cue that this row is done rather than moving. */}
       <Icon
         name={status === "DELIVERED" ? look.icon : (labels?.icon ?? look.icon)}
         size={14}
+        filled={status === "DELIVERED"}
       />
       {wording ?? look.label}
     </span>

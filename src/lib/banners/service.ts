@@ -9,6 +9,8 @@ export interface PromoCardData {
   subtext: string | null;
   ctaLabel: string;
   ctaLink: string;
+  /** Chosen background preset, or null to let the card derive one. */
+  tint: string | null;
 }
 
 /** A card plus its identity, for callers that need a React key. */
@@ -45,6 +47,7 @@ const CARD_SELECT = {
   subtext: true,
   ctaLabel: true,
   ctaLink: true,
+  tint: true,
 } as const;
 
 /**

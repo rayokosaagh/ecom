@@ -8,6 +8,7 @@ import { OrderStatus } from "@/generated/prisma/enums";
 import { notifyUser } from "@/lib/notifications/service";
 import { sendOrderEmailSafely } from "@/lib/orders/email";
 import { orderReference } from "@/lib/orders/reference";
+import { orderThumbnail } from "@/lib/orders/service";
 
 /**
  * Marking an order paid, once and only once.
@@ -97,6 +98,7 @@ export async function settleOrderPaid(input: {
     title: `Payment received for ${reference}`,
     description: "Thank you — your order is confirmed and being prepared.",
     href: `/orders/${order.id}`,
+    imageUrl: await orderThumbnail(order.id),
   });
 
   // After the response, like the rest of the order mail: a customer waiting on

@@ -75,6 +75,13 @@ export function ListToolbar({
       else params.delete(key);
     }
 
+    // Any change here narrows or widens the result, so the old page number no
+    // longer refers to anything. Page 7 of a search that now matches three
+    // orders is a blank list, which reads as "no matches" rather than as "wrong
+    // page". Harmless on the lists that do not paginate — there is no `page` to
+    // delete.
+    params.delete("page");
+
     const search = params.toString();
     startTransition(() => {
       // `replace`, not `push`: typing four characters would otherwise leave
@@ -133,15 +140,34 @@ export function ListToolbar({
             )}
           />
 
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery("")}
-              aria-label="Clear search"
-              className="text-on-surface-variant hover:bg-on-surface/[0.08] absolute top-1/2 right-1.5 grid size-8 -translate-y-1/2 place-items-center rounded-full transition-colors duration-200"
+          {/* In the field rather than beside it, because the field is what the
+              reader is looking at while they wait — and it replaces the clear
+              button rather than crowding it, since a query mid-flight is not
+              one anybody is about to clear. Both states are a fixed 32px in the
+              same slot, so nothing moves as they swap. */}
+          {isPending ? (
+            <span
+              role="status"
+              aria-label="Searching"
+              className="absolute top-1/2 right-1.5 grid size-8 -translate-y-1/2 place-items-center"
             >
-              <Icon name="close" size={18} />
-            </button>
+              <Icon
+                name="progress_activity"
+                size={18}
+                className="text-on-surface-variant motion-safe:animate-spin"
+              />
+            </span>
+          ) : (
+            query && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                aria-label="Clear search"
+                className="text-on-surface-variant hover:bg-on-surface/[0.08] absolute top-1/2 right-1.5 grid size-8 -translate-y-1/2 place-items-center rounded-full transition-colors duration-200"
+              >
+                <Icon name="close" size={18} />
+              </button>
+            )
           )}
         </div>
 

@@ -54,8 +54,21 @@ const NAV_ITEMS: NavItem[] = [
     children: [
       { href: "/admin/featured", label: "Featured", icon: "stars", adminOnly: true },
       { href: "/admin/banners", label: "Banners", icon: "campaign", adminOnly: true },
+      // Beside Banners, which is the other thing on this screen that speaks to
+      // every visitor at once — the difference being that a banner is a section
+      // of a page and this rides the navigation bar on all of them.
+      {
+        href: "/admin/announcements",
+        label: "Announcements",
+        icon: "notifications_active",
+        adminOnly: true,
+      },
       { href: "/admin/reviews", label: "Reviews", icon: "reviews", adminOnly: true },
       { href: "/admin/faqs", label: "FAQ", icon: "help", adminOnly: true },
+      // Under Storefront rather than beside Settings, even though
+      // `StoreSettings.pickupAddress` is a neighbouring idea: that one is a
+      // checkout mechanic, this is a page customers read.
+      { href: "/admin/stores", label: "Stores", icon: "location_on", adminOnly: true },
       { href: "/admin/social", label: "Social links", icon: "share", adminOnly: true },
     ],
   },

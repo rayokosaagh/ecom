@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth/dal";
+import { isTintValue } from "@/lib/tints";
 
 export type FeaturedActionState = { message?: string };
 
@@ -54,6 +55,33 @@ export async function removeFeaturedProduct(id: string): Promise<void> {
   // Tolerate an already-removed row: two admins on the same list should not
   // produce an unhandled error for whoever clicks second.
   await prisma.featuredProduct.deleteMany({ where: { id } });
+
+  revalidateFeaturedViews();
+}
+
+/**
+ * Choose the background wash behind a featured product.
+ *
+ * The id is checked against the palette rather than written through. This
+ * arrives from a form post, so it is attacker-controlled like any other field,
+ * and the value ends up interpolated into a `class` attribute on the storefront
+ * — validating here is what keeps that from being a way to put arbitrary
+ * utilities, or arbitrary anything, onto the home page.
+ *
+ * Anything unrecognised is stored as null rather than rejected, which is also
+ * how the picker clears a choice: null is "nobody chose", and the storefront
+ * answers it by cycling the palette by position.
+ */
+export async function setFeaturedTint(id: string, tint: string): Promise<void> {
+  await requireAdmin();
+  if (!id) return;
+
+  // `updateMany` for the same reason `removeFeaturedProduct` uses `deleteMany`:
+  // two admins on one list should not hand the second an unhandled error.
+  await prisma.featuredProduct.updateMany({
+    where: { id },
+    data: { tint: isTintValue(tint) ? tint : null },
+  });
 
   revalidateFeaturedViews();
 }

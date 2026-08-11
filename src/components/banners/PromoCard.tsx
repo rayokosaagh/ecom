@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
+import { isHexColor } from "@/lib/tints";
 
 /**
  * Compositions a promo tile can take.
@@ -32,6 +33,11 @@ export interface PromoCardProps {
   ctaLabel: string;
   ctaLink: string;
   variant?: PromoVariant;
+  /**
+   * Background preset chosen in the admin, or null/undefined to derive one from
+   * the heading — see `tintFor`.
+   */
+  tint?: string | null;
 }
 
 /** Container tints for the trio, cycled by heading so a card keeps its colour. */
@@ -54,6 +60,54 @@ function tintFor(heading: string): string {
   }
   hash ^= hash >>> 15;
   return TINTS[(hash >>> 0) % TINTS.length];
+}
+
+/**
+ * The container tint for a card: the admin's pick, or the derived one.
+ *
+ * The two palettes are not the same list and should not be merged. This one
+ * carries a matching `text-on-*-container` with every fill, because a promo
+ * tile puts its heading *on* the tint and the pairing has to hold; the shared
+ * `lib/tints` palette is a wash that sits behind product cut-outs with nothing
+ * written on it, so it has no text colour to state. What is shared is the id —
+ * "blue" means the same hue in both places.
+ */
+const PICKED_TINTS: Record<string, string> = {
+  neutral:
+    "from-surface-container-highest/80 to-surface-container-highest/30 text-on-surface",
+  blue: TINTS[0],
+  sky: TINTS[1],
+  green: TINTS[2],
+  dawn: "from-primary-container/70 to-secondary-container/20 text-on-primary-container",
+  meadow:
+    "from-secondary-container/70 to-tertiary-container/20 text-on-secondary-container",
+};
+
+function containerTint(tint: string | null | undefined, heading: string): string {
+  return (tint && PICKED_TINTS[tint]) || tintFor(heading);
+}
+
+/**
+ * A custom colour on the one surface here that carries type.
+ *
+ * `text-on-surface` rather than a colour computed from the chosen hue, and that
+ * is a consequence of the alphas rather than a shortcut. The wash tops out at
+ * 70%/20% over the card's own surface, so the effective background never
+ * travels far from that surface — which means the scheme's own on-surface
+ * colour stays readable on it in both themes, for any hue. Deriving a text
+ * colour from the raw hex would be answering a question about a colour that is
+ * never actually painted at full strength.
+ */
+function customCardTint(hex: string): {
+  className: string;
+  style: { backgroundImage: string };
+} {
+  return {
+    className: "text-on-surface",
+    style: {
+      backgroundImage: `linear-gradient(to bottom right, ${hex}b3, ${hex}33)`,
+    },
+  };
 }
 
 const SHELL = cn(
@@ -146,11 +200,17 @@ export function PromoCard({
   ctaLabel,
   ctaLink,
   variant = "panel",
+  tint: picked,
 }: PromoCardProps) {
   // Anything not root-relative leaves the site, so it opens in a new tab and
   // gets the usual opener protection.
   const isInternal = ctaLink.startsWith("/");
-  const tint = tintFor(heading);
+
+  // A custom colour cannot be a class, so the tinted shells below take a style
+  // as well. `custom` is undefined for every preset, which leaves those paths
+  // exactly as they were.
+  const custom = isHexColor(picked) ? customCardTint(picked) : undefined;
+  const tint = custom ? custom.className : containerTint(picked, heading);
 
   const art = (
     // eslint-disable-next-line @next/next/no-img-element -- operator-supplied URLs on any host
@@ -203,7 +263,10 @@ export function PromoCard({
     );
   } else if (variant === "art-first") {
     body = (
-      <div className={cn(SHELL_TINTED, "flex min-h-[17rem] flex-col @sm:min-h-[20rem]", tint)}>
+      <div
+        className={cn(SHELL_TINTED, "flex min-h-[17rem] flex-col @sm:min-h-[20rem]", tint)}
+        style={custom?.style}
+      >
         <div className={cn(FRAME, "aspect-[16/10] w-full shrink-0")}>{art}</div>
         <div className={cn("flex flex-1 flex-col gap-2", PAD)}>
           <h3 className={TITLE}>{heading}</h3>
@@ -222,6 +285,7 @@ export function PromoCard({
           "grid min-h-[14rem] grid-cols-1 items-stretch @md:min-h-[11rem] @md:grid-cols-2",
           tint,
         )}
+        style={custom?.style}
       >
         <div
           className={cn(
@@ -251,6 +315,7 @@ export function PromoCard({
           PAD,
           tint,
         )}
+        style={custom?.style}
       >
         <header>
           <h3 className={TITLE}>{heading}</h3>

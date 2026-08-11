@@ -39,19 +39,21 @@ export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   // Render the stored preference straight into the markup, so the first paint
-  // is already correct — no blocking inline script, no flash. "system" is
-  // represented by the absence of the attribute, letting the
-  // prefers-color-scheme rules in globals.css decide.
+  // is already correct — no blocking inline script, no flash. A visitor who has
+  // never touched the toggle has no cookie, and gets no attribute: that is what
+  // leaves the prefers-color-scheme rules in globals.css in charge, so their
+  // OS setting still decides. See `NO_PREFERENCE`.
   const stored = (await cookies()).get(THEME_COOKIE)?.value;
-  const theme = isTheme(stored) ? stored : "system";
+  const theme = isTheme(stored) ? stored : null;
 
   return (
     <html
       lang="en"
       className={`${roboto.variable} ${dmSerif.variable} h-full`}
-      {...(theme === "system" ? {} : { "data-theme": theme })}
-      // The provider re-applies the attribute on the client when the OS scheme
-      // changes while on "system", which can diverge from the server markup.
+      {...(theme ? { "data-theme": theme } : {})}
+      // With no stored choice the server has to guess light while the client
+      // can read the real OS setting, so the two legitimately disagree for one
+      // render. `useSyncExternalStore` corrects it on hydration.
       suppressHydrationWarning
     >
       <body className="min-h-full">

@@ -46,23 +46,39 @@ export async function requireUser(): Promise<SessionUser> {
 }
 
 /**
- * Admin gate. Re-reads the role from the database rather than trusting the
- * JWT: a token issued before a demotion would still claim ADMIN until it
- * expires, so privileged routes must not rely on the token's copy.
+ * The admin check itself, with no opinion about what to do when it fails.
+ *
+ * Re-reads the role from the database rather than trusting the JWT: a token
+ * issued before a demotion would still claim ADMIN until it expires, so
+ * privileged routes must not rely on the token's copy.
+ *
+ * Separate from `requireAdmin` because a route handler cannot use a redirect as
+ * its refusal — an export endpoint answering a denied request with 307 to an
+ * HTML page hands the caller a login form named `orders.csv`. Handlers want a
+ * status code, pages want a redirect, and both want the same check.
  */
-export async function requireAdmin(): Promise<SessionUser> {
-  const user = await requireUser();
+export async function verifiedAdmin(): Promise<SessionUser | null> {
+  const user = await getCurrentUser();
+  if (!user) return null;
 
   const fresh = await prisma.user.findUnique({
     where: { id: user.id },
     select: { role: true },
   });
 
+  return fresh?.role === Role.ADMIN ? { ...user, role: Role.ADMIN } : null;
+}
+
+/** Admin gate for pages and server actions. Redirects rather than returning. */
+export async function requireAdmin(): Promise<SessionUser> {
+  await requireUser();
+
+  const admin = await verifiedAdmin();
   // `forbidden()` would be the natural fit, but it is still gated behind the
   // experimental `authInterrupts` flag, so redirect to a real page instead.
-  if (fresh?.role !== Role.ADMIN) redirect("/forbidden");
+  if (!admin) redirect("/forbidden");
 
-  return { ...user, role: Role.ADMIN };
+  return admin;
 }
 
 /** Non-throwing variant for conditionally rendering admin-only UI. */

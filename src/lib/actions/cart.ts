@@ -553,6 +553,12 @@ export async function checkout(
    */
   after(() => sendOrderEmailSafely(order.id, "PLACED"));
 
+  // The picture for both notices below, taken from the cart that is still in
+  // hand rather than read back off the order — the same photo, one query
+  // cheaper. First line with one, so a basket whose opener has no photo still
+  // shows something.
+  const orderImage = lines.find((line) => line.item.product.image)?.item.product.image;
+
   // Real notifications, raised by a real event.
   await notifyUser(user.id, {
     type: NotificationType.ORDER,
@@ -563,6 +569,7 @@ export async function checkout(
     // The receipt for this order, not the list — a notice about one order
     // should open that order.
     href: `/orders/${order.id}`,
+    imageUrl: orderImage,
   });
 
   await notifyAdmins({
@@ -570,6 +577,7 @@ export async function checkout(
     title: "New order received",
     description: `${user.name ?? user.email} spent ${formatPrice(order.totalCents)}`,
     href: `/admin/orders/${order.id}`,
+    imageUrl: orderImage,
   });
 
   // Warn admins about anything that just sold out, counting down from
@@ -581,6 +589,8 @@ export async function checkout(
       title: line.item.variantLabel ? "Configuration sold out" : "Product sold out",
       description: `${describe(line)} is now out of stock`,
       href: `/dashboard/products/${line.item.productId}/edit`,
+      // The product that ran out, which is the whole subject of the notice.
+      imageUrl: line.item.product.image,
     });
   }
 

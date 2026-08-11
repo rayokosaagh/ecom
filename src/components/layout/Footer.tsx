@@ -2,6 +2,7 @@ import { cache } from "react";
 import Link from "next/link";
 
 import { Icon } from "@/components/ui/Icon";
+import { TrustBadges } from "@/components/layout/TrustBadges";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { countPublishedFaqs } from "@/lib/faqs/service";
@@ -19,19 +20,6 @@ const getFooterCategories = cache(async () =>
 );
 
 /**
- * Store policies shown above the link columns.
- *
- * PLACEHOLDER COPY — these describe policies the app does not implement.
- * Edit them to match what the store actually offers before going live.
- */
-const PROMISES = [
-  { icon: "local_shipping", title: "Free shipping", copy: "On orders over $50" },
-  { icon: "assignment_return", title: "30-day returns", copy: "No questions asked" },
-  { icon: "lock", title: "Secure checkout", copy: "Encrypted end to end" },
-  { icon: "support_agent", title: "Real support", copy: "Answers from humans" },
-];
-
-/**
  * Site footer.
  *
  * `minimal` is for the app shell and signed-out card layouts, where a full
@@ -41,9 +29,21 @@ const PROMISES = [
  */
 export async function Footer({
   variant = "full",
+  showPromises = true,
   className,
 }: {
   variant?: "full" | "minimal";
+  /**
+   * Whether to show the four store promises above the link columns.
+   *
+   * On by default, so every page that has ever had them still does. The home
+   * page turns it off, because it renders the same four as a section of their
+   * own further up — see `TrustBadgesSection`. A prop rather than deleting the
+   * band outright: reassurance in the footer is right for a product page or a
+   * cart, where the footer is the end of a short page rather than the end of a
+   * long one.
+   */
+  showPromises?: boolean;
   className?: string;
 }) {
   const year = new Date().getFullYear();
@@ -81,25 +81,11 @@ export async function Footer({
   return (
     <footer className={cn("bg-surface-container mt-auto", className)}>
       {/* Store promises */}
-      <div className="border-outline-variant mx-auto max-w-7xl border-b px-4 py-10 sm:px-6">
-        <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {PROMISES.map((promise) => (
-            <li key={promise.title} className="flex items-start gap-3">
-              <span className="bg-primary-container text-on-primary-container grid size-10 shrink-0 place-items-center rounded-full">
-                <Icon name={promise.icon} size={20} />
-              </span>
-              <span>
-                <span className="text-on-surface block text-sm font-medium">
-                  {promise.title}
-                </span>
-                <span className="text-on-surface-variant block text-xs">
-                  {promise.copy}
-                </span>
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
+      {showPromises && (
+        <div className="border-outline-variant mx-auto max-w-7xl border-b px-4 py-10 sm:px-6">
+          <TrustBadges />
+        </div>
+      )}
 
       {/* Help.
 

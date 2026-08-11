@@ -7,6 +7,7 @@ import { OrderCancelReason, OrderStatus } from "@/generated/prisma/enums";
 import { PAYMENT_METHODS } from "@/lib/payments/methods";
 import { notifyUser } from "@/lib/notifications/service";
 import { orderReference } from "@/lib/orders/reference";
+import { orderThumbnail } from "@/lib/orders/service";
 
 /**
  * Undoing a wallet order that was never paid for.
@@ -216,6 +217,7 @@ export async function returnOrderToCart(
           ? "It was not paid in time, so nothing has been charged and the items are back in your basket."
           : "It was not paid in time, so nothing has been charged.",
       href: "/cart",
+      imageUrl: await orderThumbnail(order.id),
     });
   }
 

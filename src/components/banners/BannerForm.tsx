@@ -8,6 +8,7 @@ import { TextField } from "@/components/ui/TextField";
 import { Select } from "@/components/ui/Select";
 import { Icon } from "@/components/ui/Icon";
 import { Card, CardContent } from "@/components/ui/Card";
+import { TintPicker } from "@/components/ui/TintPicker";
 import { ImageUploadField } from "@/components/products/ImageUploadField";
 import { PromoCard } from "./PromoCard";
 import {
@@ -33,6 +34,8 @@ export interface BannerFormValues {
   isActive: boolean;
   /** Category section it appears under — "" for none. */
   categoryId: string;
+  /** Background preset id from `lib/tints` — "" for the automatic choice. */
+  tint: string;
   /** Pre-formatted for `datetime-local`, or "" when unset. */
   startsAt: string;
   endsAt: string;
@@ -46,6 +49,7 @@ export const EMPTY_BANNER: BannerFormValues = {
   ctaLink: "",
   isActive: true,
   categoryId: "",
+  tint: "",
   startsAt: "",
   endsAt: "",
 };
@@ -92,6 +96,9 @@ export function BannerForm({
   const [heading, setHeading] = useState(values.heading);
   const [subtext, setSubtext] = useState(values.subtext);
   const [ctaLabel, setCtaLabel] = useState(values.ctaLabel);
+  // Mirrored like the copy fields above so the preview recolours as it is
+  // picked, rather than only after a save.
+  const [tint, setTint] = useState(values.tint);
 
   const isCustom = linkMode === CUSTOM_LINK_VALUE;
   const isNewCategory = linkMode === NEW_CATEGORY_LINK_VALUE;
@@ -213,6 +220,28 @@ export function BannerForm({
               required
             />
           )}
+        </CardContent>
+      </Card>
+
+      <Card variant="outlined">
+        <CardContent className="space-y-5">
+          <h3 className="text-on-surface text-sm font-medium">Appearance</h3>
+
+          {/* In its own card rather than under "Visibility": a colour is not a
+              question about when the banner shows, and grouping it there would
+              file it where nobody looking for it would think to check. */}
+          <TintPicker
+            name="tint"
+            value={tint === "" ? null : tint}
+            onChange={setTint}
+            legend="Background"
+          />
+          <p className="text-on-surface-variant text-xs">
+            Sits behind the card on the home page. Every option is built from the
+            shop&rsquo;s own palette, so it follows the light and dark themes
+            rather than fixing one colour. Leave it unset to let the card take a
+            colour from its heading.
+          </p>
         </CardContent>
       </Card>
 

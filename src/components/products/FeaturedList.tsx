@@ -7,10 +7,12 @@ import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
+import { TintPicker } from "@/components/ui/TintPicker";
 import {
   addFeaturedProduct,
   removeFeaturedProduct,
   reorderFeaturedProducts,
+  setFeaturedTint,
   type FeaturedActionState,
 } from "@/lib/actions/featured";
 
@@ -21,6 +23,8 @@ export interface FeaturedRow {
   image: string | null;
   brand: string | null;
   published: boolean;
+  /** Chosen background preset, or null while nobody has chosen one. */
+  tint: string | null;
 }
 
 export interface FeaturableOption {
@@ -75,6 +79,18 @@ export function FeaturedList({
     setItems((current) => current.filter((row) => row.id !== id));
     startTransition(async () => {
       await removeFeaturedProduct(id);
+    });
+  };
+
+  // Optimistic, like `move` above and for the same reason: this list commits on
+  // click rather than behind a save button, and a swatch that stays unselected
+  // until the server answers reads as a click that did not register.
+  const recolour = (id: string, tint: string) => {
+    setItems((current) =>
+      current.map((row) => (row.id === id ? { ...row, tint } : row)),
+    );
+    startTransition(async () => {
+      await setFeaturedTint(id, tint);
     });
   };
 
@@ -206,6 +222,23 @@ export function FeaturedList({
                       <Icon name="close" size={18} />
                     </button>
                   </div>
+                </div>
+
+                {/* On its own row under the product rather than squeezed into
+                    the one above: six swatches beside a name, a brand chip and
+                    two icon buttons is what turns a scannable list into a
+                    control panel. Divided off so it reads as a setting *for*
+                    the row above rather than as another row. */}
+                <div className="border-outline-variant/60 border-t px-3 py-3 sm:px-4">
+                  <TintPicker
+                    // The row id, so two products on this page never share a
+                    // radio group — same-named groups would make selecting one
+                    // product's colour clear another's.
+                    name={`tint-${row.id}`}
+                    value={row.tint}
+                    onChange={(tint) => recolour(row.id, tint)}
+                    legend={`Background behind ${row.name}`}
+                  />
                 </div>
               </Card>
             </li>

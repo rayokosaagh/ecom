@@ -2,6 +2,7 @@ import { PromoCard, TRIO_VARIANTS } from "./PromoCard";
 import { Reveal } from "@/components/ui/Reveal";
 import { Icon } from "@/components/ui/Icon";
 import { getActiveBannerGroups, type BannerGroup } from "@/lib/banners/service";
+import { categoryIcon } from "@/lib/categories/icons";
 import { cn } from "@/lib/cn";
 
 /**
@@ -39,8 +40,12 @@ function Heading({
 
   return (
     <div className="mb-5">
+      {/* The glyph is derived from the category's own name, the same rules the
+          products menu uses — so a shelf carries one mark wherever it appears.
+          The generic `category` icon that was here said only "this is a
+          category", which the name below already says. */}
       <p className="text-primary flex items-center gap-2 text-xs font-medium tracking-[0.25em] uppercase">
-        <Icon name="category" size={16} filled />
+        <Icon name={categoryIcon(category.name)} size={16} filled />
         {category.name}
       </p>
 
@@ -124,9 +129,6 @@ function PairedSections({ groups }: { groups: BannerGroup[] }) {
         {groups.map((group, i) => {
           const banner = group.banners[0];
           const { id, ...card } = banner;
-          // Height alternates by row, so the two cards sitting side by side
-          // always match and successive rows do not.
-          const tall = Math.floor(i / PAIRED_COLUMNS) % 2 === 1;
           return (
             // One stage per cell rather than two: a half-width card and its
             // heading are close enough on screen that staggering them reads as
@@ -137,7 +139,27 @@ function PairedSections({ groups }: { groups: BannerGroup[] }) {
                 {group.category && (
                   <Heading category={group.category} size="paired" />
                 )}
-                <PromoCard {...card} variant={tall ? "panel-tall" : "panel"} />
+                {/*
+                  One variant for every cell, so all four cards in the grid are
+                  the same template.
+
+                  This used to alternate: row 0 took `panel` at 12rem and row 1
+                  `panel-tall` at 19.5rem, on the reasoning that a pair sitting
+                  side by side should match while successive rows need not. That
+                  holds for a long, ragged list of promos. It does not hold for
+                  the four category cards this actually renders — Audio,
+                  Peripherals, Accessories, Lighting — which read as one 2x2 set,
+                  and where the bottom row standing 7.5rem taller than the top
+                  looks like two of them are broken rather than like a rhythm.
+
+                  Height is the whole difference: both variants take the same
+                  `panel` branch in PromoCard, so the badge, the accent rule, the
+                  heading and the copy block were already identical. What the
+                  alternation changed was the fixed 13rem image column's aspect
+                  ratio — 13x12 against 13x19.5 — which is what made the four
+                  images look inconsistently cropped.
+                */}
+                <PromoCard {...card} variant="panel" />
               </Reveal>
             </li>
           );

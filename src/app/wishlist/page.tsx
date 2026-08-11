@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { after } from "next/server";
 
 import { Navbar } from "@/components/nav/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -9,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
 import { requireUser } from "@/lib/auth/dal";
 import { getNavData } from "@/lib/nav/data";
-import { getWishlist } from "@/lib/wishlist/service";
+import { getWishlist, markWishlistSeen } from "@/lib/wishlist/service";
 
 export const metadata: Metadata = { title: "Wishlist" };
 
@@ -18,6 +19,17 @@ export default async function WishlistPage() {
   const [nav, items] = await Promise.all([getNavData(), getWishlist(user.id)]);
   const ratings = await getRatings(items.map((item) => item.product.id));
 
+  /**
+   * Arriving here is what empties the heart's badge.
+   *
+   * After the response, not before it: nobody waiting to see their own saved
+   * products should wait on a write recording that they looked. The cost is
+   * that `nav` was read a moment too early to know — so the badge is passed as
+   * zero below rather than being read back, which is also the honest answer,
+   * since the page it counts for is the one on screen.
+   */
+  after(() => markWishlistSeen(user.id));
+
   // A product can be unpublished after being wishlisted; keep the row (the
   // heart still counts) but flag it rather than 404ing from the card link.
   const visible = items.filter((item) => item.product.published);
@@ -25,7 +37,7 @@ export default async function WishlistPage() {
 
   return (
     <div className="bg-surface-container-low flex min-h-dvh flex-col">
-      <Navbar {...nav} />
+      <Navbar {...nav} wishlistNewCount={0} />
 
       <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
         <h1 className="text-on-surface text-3xl font-normal tracking-tight">Wishlist</h1>

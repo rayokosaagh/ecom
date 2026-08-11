@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -12,6 +12,10 @@ import { useDismissable } from "@/lib/hooks/useDismissable";
 import { useProductSearch } from "@/lib/hooks/useProductSearch";
 import { SearchSuggestions } from "@/components/search/SearchSuggestions";
 import { logout } from "@/lib/actions/auth";
+import { markNotificationsSeen } from "@/lib/actions/notifications";
+import { categoryIcon } from "@/lib/categories/icons";
+import { AnnouncementBar } from "@/components/announcements/AnnouncementBar";
+import type { AnnouncementView } from "@/lib/announcements/service";
 import { NotificationPanel } from "./NotificationPanel";
 import { ProductsMenu, type MenuCategory } from "./ProductsMenu";
 
@@ -27,6 +31,8 @@ export interface NavNotification {
   title: string;
   description: string;
   href?: string | null;
+  /** Product picture, when the notice is about something with one. */
+  imageUrl?: string | null;
   time: string;
   unread: boolean;
 }
@@ -45,12 +51,120 @@ export interface NavbarProps {
   notifications?: NavNotification[];
   /** Categories for the Products hover menu. */
   categories?: MenuCategory[];
+  /**
+   * Published notices for the strip under the bar.
+   *
+   * Carried by the bar rather than dropped into each page for the same reason
+   * the cart count is: every storefront page already spreads `getNavData()`
+   * into this component, so wiring it here is what puts the strip on all of
+   * them at once — and, more to the point, means nobody has to remember to add
+   * it to the next page. Renders nothing while the list is empty.
+   */
+  announcements?: AnnouncementView[];
   cartCount?: number;
+  /** Everything saved. Announced to a screen reader; never drawn as a badge. */
   wishlistCount?: number;
+  /**
+   * Saved since the wishlist page was last opened — the number over the heart.
+   *
+   * The badge is not the total on purpose: a wishlist is a list you built
+   * deliberately, so "12" over the heart every day is not information. What is
+   * worth a badge is that something joined it, which is a number that goes back
+   * to zero once you have looked. The wishlist page passes 0 for itself, since
+   * looking at it is the very thing that clears it.
+   */
+  wishlistNewCount?: number;
+  /** Arrived since the bell was last opened. Same reasoning as above. */
+  notificationNewCount?: number;
   className?: string;
 }
 
 const DEFAULT_ITEMS: NavLink[] = [{ href: "/", label: "Home" }];
+
+/**
+ * Brands, as a top-level destination.
+ *
+ * Not in `items` because it has to render *after* the Products menu and that
+ * list renders before it: the catalogue is the primary destination and a nav
+ * reading "Home · Brands · Products" puts the main one last.
+ *
+ * It earns a place in the bar at all because of an asymmetry on the storefront.
+ * Categories are reachable from every page through the Products menu, while
+ * brands had exactly one prominent entry point — a rail most of the way down
+ * the home page — plus a footer link. In a computer shop a large share of
+ * people arrive knowing the maker ("a MacBook", "ROG", "Sony"), so the axis
+ * with no way in was the one a lot of shoppers were arriving with.
+ */
+const BRANDS_ITEM: NavLink = { href: "/brands", label: "Brands" };
+
+/**
+ * One link in the desktop bar.
+ *
+ * Module scope, not defined inside `Navbar`: a component declared during render
+ * is a new type on every render, so React would unmount and remount it each
+ * time — which would throw away the shared `layoutId` and kill the sliding
+ * pill this exists to carry.
+ */
+function TopNavLink({
+  item,
+  active,
+  reduceMotion,
+}: {
+  item: NavLink;
+  active: boolean;
+  reduceMotion: boolean;
+}) {
+  return (
+    <Link
+      href={item.href}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "relative rounded-full px-4 py-2 text-sm font-medium",
+        "transition-colors duration-200 ease-in-out",
+        "focus-visible:outline-2 focus-visible:outline-offset-2",
+        "active:scale-95",
+        active
+          ? "text-on-secondary-container"
+          : "text-on-surface-variant hover:text-on-surface hover:bg-on-surface/[0.06]",
+      )}
+    >
+      {active && (
+        // Shared layoutId slides the pill between links on navigation.
+        <motion.span
+          layoutId="navbar-active-pill"
+          className="bg-secondary-container absolute inset-0 rounded-full"
+          transition={
+            reduceMotion
+              ? { duration: 0 }
+              : { type: "spring", stiffness: 380, damping: 32 }
+          }
+        />
+      )}
+      <span className="relative z-10">{item.label}</span>
+    </Link>
+  );
+}
+
+/**
+ * Glyphs for the top-level nav links, in the mobile menu only.
+ *
+ * Keyed by href rather than label, so it survives the wording being changed.
+ * Covers the routes this app has; a link added later with no entry renders
+ * without one, which is a slightly plainer row and not a broken one — better
+ * than guessing an icon for a destination nobody here knows anything about.
+ * The desktop bar deliberately stays text-only: at that width the labels are
+ * the design, and glyphs beside them would be decoration competing with the
+ * icon cluster on the right.
+ */
+const NAV_ICONS: Record<string, string> = {
+  "/": "home",
+  "/products": "grid_view",
+  "/sale": "sell",
+  "/brands": "storefront",
+  "/stores": "location_on",
+  "/faq": "help",
+  "/compare": "compare_arrows",
+};
 
 /** One row of the mobile menu. */
 function MobileLink({
@@ -59,6 +173,7 @@ function MobileLink({
   active,
   onNavigate,
   badge,
+  icon,
   indented = false,
 }: {
   href: string;
@@ -66,6 +181,8 @@ function MobileLink({
   active: boolean;
   onNavigate: () => void;
   badge?: number;
+  /** Material Symbols ligature. Decorative — the label already says it. */
+  icon?: string;
   indented?: boolean;
 }) {
   return (
@@ -74,18 +191,28 @@ function MobileLink({
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex items-center justify-between gap-3 rounded-full py-3 text-sm font-medium",
+        "flex items-center gap-3 rounded-full py-3 text-sm font-medium",
         "transition-colors duration-200",
         "focus-visible:outline-2 focus-visible:-outline-offset-2 active:scale-[0.98]",
+        // The indent is the icon's width when there is no icon, so an indented
+        // row without one still lines up with the labels of the rows that have
+        // one rather than sitting in a third column of its own.
         indented ? "px-4 pl-7" : "px-4",
         active
           ? "bg-secondary-container text-on-secondary-container"
           : "text-on-surface-variant hover:bg-on-surface/[0.06]",
       )}
     >
-      {label}
+      {icon && (
+        <Icon
+          name={icon}
+          size={20}
+          className={cn("shrink-0", active ? "" : "text-on-surface-variant")}
+        />
+      )}
+      <span className="min-w-0 flex-1 truncate">{label}</span>
       {badge !== undefined && (
-        <span className="bg-primary text-on-primary grid min-w-5 place-items-center rounded-full px-1.5 text-xs">
+        <span className="bg-primary text-on-primary grid min-w-5 shrink-0 place-items-center rounded-full px-1.5 text-xs">
           {badge}
         </span>
       )}
@@ -190,8 +317,11 @@ export function Navbar({
   user,
   notifications = [],
   categories = [],
+  announcements = [],
   cartCount = 0,
   wishlistCount = 0,
+  wishlistNewCount = 0,
+  notificationNewCount = 0,
   className,
 }: NavbarProps) {
   const pathname = usePathname();
@@ -199,6 +329,15 @@ export function Navbar({
 
   const [scrolled, setScrolled] = useState(false);
   const [menu, setMenu] = useState<"avatar" | "bell" | "mobile" | null>(null);
+  /**
+   * The badge has been spent by opening the panel.
+   *
+   * Local, so the number disappears on the click rather than on the round trip
+   * — the server stamp behind it only has to survive until the next
+   * navigation, which reads the real count again.
+   */
+  const [bellSeen, setBellSeen] = useState(false);
+  const [, startTransition] = useTransition();
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -243,6 +382,10 @@ export function Navbar({
   if (lastPathname !== pathname) {
     setLastPathname(pathname);
     setMenu(null);
+    // The bar survives a navigation — same component, same slot — so the
+    // spent-badge flag has to be cleared by hand or a notice arriving on the
+    // next page would be silently swallowed by a click made on this one.
+    setBellSeen(false);
   }
 
   // Focus the field as it expands.
@@ -250,9 +393,29 @@ export function Navbar({
     if (searchOpen) inputRef.current?.focus();
   }, [searchOpen]);
 
-  // Read state lives in the database now; the server action revalidates and
-  // the new counts arrive with the next render.
-  const unreadCount = notifications.filter((n) => n.unread).length;
+  // Counted on the server over the whole table, not derived from the eight
+  // notices below — a badge computed from a truncated list would stop counting
+  // at eight and never say so.
+  const bellBadge = bellSeen ? 0 : notificationNewCount;
+
+  /**
+   * Open or close the bell, spending the badge on the way in.
+   *
+   * The stamp is fired once — reopening a panel you have already looked at is
+   * not new information, and a write per click would be a write per idle
+   * fidget.
+   */
+  const toggleBell = () => {
+    const opening = menu !== "bell";
+    setMenu(opening ? "bell" : null);
+
+    if (opening && bellBadge > 0) {
+      setBellSeen(true);
+      startTransition(async () => {
+        await markNotificationsSeen();
+      });
+    }
+  };
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
@@ -284,41 +447,23 @@ export function Navbar({
 
         {/* ---------- Desktop links ---------- */}
         <nav aria-label="Main" className="ml-2 hidden items-center gap-1 md:flex">
-          {items.map((item) => {
-            const active = isActive(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "relative rounded-full px-4 py-2 text-sm font-medium",
-                  "transition-colors duration-200 ease-in-out",
-                  "focus-visible:outline-2 focus-visible:outline-offset-2",
-                  "active:scale-95",
-                  active
-                    ? "text-on-secondary-container"
-                    : "text-on-surface-variant hover:text-on-surface hover:bg-on-surface/[0.06]",
-                )}
-              >
-                {active && (
-                  // Shared layoutId slides the pill between links on navigation.
-                  <motion.span
-                    layoutId="navbar-active-pill"
-                    className="bg-secondary-container absolute inset-0 rounded-full"
-                    transition={
-                      reduceMotion
-                        ? { duration: 0 }
-                        : { type: "spring", stiffness: 380, damping: 32 }
-                    }
-                  />
-                )}
-                <span className="relative z-10">{item.label}</span>
-              </Link>
-            );
-          })}
+          {items.map((item) => (
+            <TopNavLink
+              key={item.href}
+              item={item}
+              active={isActive(item.href)}
+              reduceMotion={reduceMotion}
+            />
+          ))}
 
           <ProductsMenu categories={categories} active={isActive("/products")} />
+
+          {/* After the catalogue, not before it — see `BRANDS_ITEM`. */}
+          <TopNavLink
+            item={BRANDS_ITEM}
+            active={isActive(BRANDS_ITEM.href)}
+            reduceMotion={reduceMotion}
+          />
         </nav>
 
         {/* ---------- Right cluster ---------- */}
@@ -405,18 +550,16 @@ export function Navbar({
             <button
               type="button"
               aria-label={
-                unreadCount > 0
-                  ? `Notifications, ${unreadCount} unread`
-                  : "Notifications"
+                bellBadge > 0 ? `Notifications, ${bellBadge} new` : "Notifications"
               }
               aria-haspopup="menu"
               aria-expanded={menu === "bell"}
-              onClick={() => setMenu(menu === "bell" ? null : "bell")}
+              onClick={toggleBell}
               className="text-on-surface-variant hover:bg-on-surface/[0.08] relative grid size-10 place-items-center rounded-full transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-95"
             >
-              <Icon name="notifications" size={22} />
+              <Icon name="notifications" size={22} filled={bellBadge > 0} />
               <CountBadge
-                count={unreadCount}
+                count={bellBadge}
                 className="bg-error text-on-error"
                 reduceMotion={reduceMotion}
               />
@@ -429,7 +572,7 @@ export function Navbar({
                   transition={reduceMotion ? { duration: 0 } : PANEL_MOTION.transition}
                   role="menu"
                   aria-label="Notifications"
-                  className="bg-surface-container-high shadow-elevation-2 absolute right-0 mt-2 w-[min(22rem,calc(100vw-1.5rem))] origin-top-right overflow-hidden rounded-xl"
+                  className="bg-surface-container-high shadow-elevation-2 absolute right-0 mt-2 w-[min(24rem,calc(100vw-1.5rem))] origin-top-right overflow-hidden rounded-xl"
                 >
                   <NotificationPanel
                     notifications={notifications}
@@ -445,13 +588,20 @@ export function Navbar({
           <Link
             href="/wishlist"
             aria-label={
-              wishlistCount > 0 ? `Wishlist, ${wishlistCount} items` : "Wishlist"
+              // The total is what a screen reader wants — "3 new" with no idea
+              // what it is new out of is not a description of a link. The badge
+              // shows the news; the label carries both.
+              wishlistCount > 0
+                ? `Wishlist, ${wishlistCount} saved${
+                    wishlistNewCount > 0 ? `, ${wishlistNewCount} new` : ""
+                  }`
+                : "Wishlist"
             }
             className="text-on-surface-variant hover:bg-on-surface/[0.08] relative hidden size-10 place-items-center rounded-full transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-95 sm:grid"
           >
-            <Icon name="favorite" size={22} />
+            <Icon name="favorite" size={22} filled={wishlistNewCount > 0} />
             <CountBadge
-              count={wishlistCount}
+              count={wishlistNewCount}
               className="bg-error text-on-error"
               reduceMotion={reduceMotion}
             />
@@ -472,6 +622,32 @@ export function Navbar({
           </Link>
 
           <ThemeToggle />
+
+          {/* Stores */}
+          <Link
+            href="/stores"
+            aria-label="Stores"
+            aria-current={isActive("/stores") ? "page" : undefined}
+            // The one icon in this cluster that goes somewhere rather than
+            // reporting something, so it carries no badge and instead fills in
+            // when it is the current page. That is the cluster's only way of
+            // saying "you are here" — the sliding pill belongs to the text
+            // links on the left, and there is no text here to put it behind.
+            //
+            // Sitting after the theme toggle rather than at the head of the
+            // cluster, which is where it started. The three before the toggle
+            // all report a number that belongs to you — unread notices, saved
+            // items, things in the basket — and this reports nothing; dropping
+            // it into the middle of that run broke it. On this side of the
+            // toggle it sits with the divider and the avatar, which are the
+            // other two controls that are simply about where you are going.
+            className={cn(
+              "hover:bg-on-surface/[0.08] relative hidden size-10 place-items-center rounded-full transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-95 sm:grid",
+              isActive("/stores") ? "text-on-surface" : "text-on-surface-variant",
+            )}
+          >
+            <Icon name="location_on" size={22} filled={isActive("/stores")} />
+          </Link>
 
           {/* Divider */}
           <span aria-hidden className="bg-outline-variant mx-1 hidden h-6 w-px sm:block" />
@@ -618,6 +794,7 @@ export function Navbar({
                   key={item.href}
                   href={item.href}
                   label={item.label}
+                  icon={NAV_ICONS[item.href]}
                   active={isActive(item.href)}
                   onNavigate={close}
                 />
@@ -626,7 +803,20 @@ export function Navbar({
               <MobileLink
                 href="/products"
                 label="All products"
+                icon="grid_view"
                 active={isActive("/products")}
+                onNavigate={close}
+              />
+
+              {/* Beside "All products" rather than below the category list: the
+                  two are the same kind of thing — a way into the whole
+                  catalogue — and separating them would bury the one a
+                  brand-first shopper is looking for under every category. */}
+              <MobileLink
+                href={BRANDS_ITEM.href}
+                label={BRANDS_ITEM.label}
+                icon={NAV_ICONS[BRANDS_ITEM.href]}
+                active={isActive(BRANDS_ITEM.href)}
                 onNavigate={close}
               />
 
@@ -640,6 +830,10 @@ export function Navbar({
                       key={category.slug}
                       href={`/products?category=${category.slug}`}
                       label={category.name}
+                      // The same glyph the desktop menu gives this shelf, from
+                      // the same function — the two menus are one catalogue and
+                      // should not disagree about what a category looks like.
+                      icon={categoryIcon(category.name)}
                       active={false}
                       onNavigate={close}
                       indented
@@ -649,10 +843,21 @@ export function Navbar({
               )}
 
               <div className="border-outline-variant mt-2 space-y-1 border-t pt-2">
+                {/* This group mirrors the bar's icon cluster, and Stores is
+                    part of it now — but that icon is `sm:grid`, so on a phone
+                    this row is the only way to reach the page at all. */}
+                <MobileLink
+                  href="/stores"
+                  label="Stores"
+                  icon={NAV_ICONS["/stores"]}
+                  active={isActive("/stores")}
+                  onNavigate={close}
+                />
                 <MobileLink
                   href="/wishlist"
                   label="Wishlist"
-                  badge={wishlistCount > 0 ? wishlistCount : undefined}
+                  icon="favorite"
+                  badge={wishlistNewCount > 0 ? wishlistNewCount : undefined}
                   active={isActive("/wishlist")}
                   onNavigate={close}
                 />
@@ -660,6 +865,7 @@ export function Navbar({
                   <MobileLink
                     href="/orders"
                     label="Orders"
+                    icon="receipt_long"
                     active={isActive("/orders")}
                     onNavigate={close}
                   />
@@ -667,6 +873,7 @@ export function Navbar({
                 <MobileLink
                   href="/cart"
                   label="Cart"
+                  icon="shopping_cart"
                   badge={cartCount > 0 ? cartCount : undefined}
                   active={isActive("/cart")}
                   onNavigate={close}
@@ -677,6 +884,14 @@ export function Navbar({
         )}
       </AnimatePresence>
 
+      {/* Last inside the header, so it sits under the bar *and* under the
+          mobile menu when that is open — the menu stays attached to the
+          buttons that opened it rather than having a coloured band wedged
+          between them. Inside the header rather than after it because the
+          header is `sticky`: a notice worth putting on every page is worth
+          keeping on screen, and one that scrolls away is one most visitors
+          never see. */}
+      <AnnouncementBar items={announcements} />
     </header>
   );
 }
