@@ -57,7 +57,7 @@ export function OrderTicket({
       stub={
         <>
           <div className="min-w-0">
-            <p className="text-on-surface-variant text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
+            <p className="label-caps text-on-surface-variant">
               Total · {units} item{units === 1 ? "" : "s"}
             </p>
             <p className="text-on-surface mt-0.5 text-2xl font-medium tabular-nums">
@@ -83,7 +83,7 @@ export function OrderTicket({
       <div className="px-5 pt-5 pb-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-on-surface-variant text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
+            <p className="label-caps text-on-surface-variant">
               Order no.
             </p>
             <p className="text-on-surface mt-0.5 font-mono text-xl tracking-[0.12em] tabular-nums">
@@ -92,7 +92,7 @@ export function OrderTicket({
           </div>
 
           <div className="text-right">
-            <p className="text-on-surface-variant text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
+            <p className="label-caps text-on-surface-variant">
               Placed
             </p>
             <p className="text-on-surface mt-0.5 text-sm">

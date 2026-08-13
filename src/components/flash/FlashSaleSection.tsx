@@ -46,17 +46,17 @@ export function FlashSaleSection({
       <div className="from-primary-container/50 via-secondary-container/30 to-secondary-container/45 border-secondary/20 rounded-3xl border bg-gradient-to-br p-5 sm:p-7">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-on-tertiary-container flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.18em] uppercase">
+            <p className="label-caps text-on-tertiary-container flex items-center gap-1.5 font-semibold">
               <Icon name="bolt" size={14} />
               Flash sale · {sale.percentOff}% off
             </p>
-            <h2 className="text-on-surface mt-2 text-3xl font-medium tracking-tight">
+            <h2 className="text-on-surface text-headline-md mt-2">
               {sale.name}
             </h2>
           </div>
 
           <div className="flex flex-col items-start gap-1.5 sm:items-end">
-            <span className="text-on-surface-variant text-[11px] font-semibold tracking-[0.18em] uppercase">
+            <span className="label-caps text-on-surface-variant font-semibold">
               Ends in
             </span>
             <FlashCountdown
@@ -80,7 +80,7 @@ export function FlashSaleSection({
         <div className="mt-6">
           <Link
             href="/sale"
-            className="text-on-surface-variant hover:text-primary rounded-sm text-[11px] font-semibold tracking-[0.18em] uppercase transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="label-caps text-on-surface-variant hover:text-primary rounded-sm font-semibold transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             All reductions
           </Link>

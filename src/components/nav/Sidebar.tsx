@@ -63,7 +63,7 @@ export function Sidebar({ items, open, onClose }: SidebarProps) {
     cn(
       "state-layer flex items-center gap-3 rounded-full px-4",
       "text-sm font-medium",
-      "transition-colors duration-200 ease-[var(--ease-standard)]",
+      "transition-colors duration-200 ease-standard",
       "focus-visible:outline-2 focus-visible:outline-offset-2",
       nested ? "h-12" : "h-14",
       active
@@ -104,14 +104,14 @@ export function Sidebar({ items, open, onClose }: SidebarProps) {
         aria-label="Main"
         className={cn(
           "bg-surface-container-low fixed inset-y-0 left-0 z-50 flex w-[280px] shrink-0 flex-col p-3",
-          "transition-transform duration-300 ease-[var(--ease-emphasized)]",
+          "transition-transform duration-300 ease-emphasized",
           "lg:static lg:z-auto lg:translate-x-0 lg:rounded-r-2xl",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
         <div className="flex h-16 shrink-0 items-center gap-3 px-4">
           <Icon name="storefront" size={24} className="text-primary" filled />
-          <span className="text-on-surface text-xl">Ecom</span>
+          <span className="text-on-surface text-title-lg">Ecom</span>
         </div>
 
         {/* Scrolls rather than overflowing once a couple of groups are open. */}
@@ -140,7 +140,7 @@ export function Sidebar({ items, open, onClose }: SidebarProps) {
                     name="expand_more"
                     size={20}
                     className={cn(
-                      "transition-transform duration-200 ease-[var(--ease-standard)]",
+                      "transition-transform duration-200 ease-standard",
                       expanded && "rotate-180",
                     )}
                   />

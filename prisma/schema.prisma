@@ -983,6 +983,21 @@ model StoreSettings {
   /// *before* they commit, rather than in an email afterwards.
   pickupNote String?
 
+  /// Whether the home page opens with the combined hero.
+  ///
+  /// On, the shop's opening line and the featured carousel share one section:
+  /// copy on the left, one product on a stage to the right. Off restores the
+  /// arrangement that preceded it — a centred hero with the best-seller
+  /// accordion beneath it, and "Featured picks" as its own wide shelf further
+  /// down the page.
+  ///
+  /// A stored setting rather than a code change because which one reads better
+  /// depends on things this repository cannot see: how many products are
+  /// featured, how long their names run, and what the shop's own headline says.
+  /// Defaults to the combined layout, which is what the page ships as; the
+  /// switch exists so an admin can put it back without a deploy.
+  homeHeroCombined Boolean @default(true)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

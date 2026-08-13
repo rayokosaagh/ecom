@@ -24,9 +24,6 @@ import { cn } from "@/lib/cn";
 /** A category needs at least this many banners to hold a row of its own. */
 const OWN_ROW = 2;
 
-/** Paired sections sit two to a row; the height alternates between rows. */
-const PAIRED_COLUMNS = 2;
-
 function Heading({
   category,
   size,
@@ -44,15 +41,17 @@ function Heading({
           products menu uses — so a shelf carries one mark wherever it appears.
           The generic `category` icon that was here said only "this is a
           category", which the name below already says. */}
-      <p className="text-primary flex items-center gap-2 text-xs font-medium tracking-[0.25em] uppercase">
+      <p className="eyebrow text-primary flex items-center gap-2">
         <Icon name={categoryIcon(category.name)} size={16} filled />
         {category.name}
       </p>
 
       <h2
         className={cn(
-          "text-on-surface mt-3 max-w-2xl leading-[1.1] font-medium tracking-tight text-balance",
-          size === "full" ? "text-3xl sm:text-4xl" : "text-2xl sm:text-[1.75rem]",
+          "text-on-surface mt-3 max-w-2xl",
+          size === "full"
+            ? "text-headline-md sm:text-headline-lg"
+            : "text-headline-sm sm:text-headline-md",
         )}
       >
         {lead}{" "}
@@ -96,6 +95,17 @@ function WideSection({ group }: { group: BannerGroup }) {
       <Reveal delay={120}>
       <ul
         className={cn(
+          // The cards deal out one at a time as the row scrolls in — see
+          // `.deal-reveal` in globals.css. `-rail` is required rather than
+          // decorative: below `sm` this row is `overflow-x-auto`, and a
+          // downward translate inside a horizontal scroller makes it
+          // scrollable vertically too.
+          //
+          // The `Reveal` around it stays. It looks redundant now that the
+          // cards reveal themselves, and it is not: it is what gates the
+          // *fallback* path in browsers with no scroll timeline, where the
+          // animation is on a clock and would otherwise run during page load.
+          "deal-reveal deal-reveal-rail",
           "-mx-4 flex snap-x snap-mandatory scroll-pl-4 items-stretch gap-4",
           "overflow-x-auto px-4 pb-2",
           // The peek of the next card is the affordance; a scrollbar under it
@@ -125,17 +135,31 @@ function WideSection({ group }: { group: BannerGroup }) {
 function PairedSections({ groups }: { groups: BannerGroup[] }) {
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6">
-      <ul className="grid items-start gap-x-5 gap-y-12 lg:grid-cols-2">
-        {groups.map((group, i) => {
+      {/*
+        One `Reveal` around the grid rather than one inside every cell.
+
+        The cells used to carry their own, each with a delay derived from its
+        column so a pair did not arrive in lockstep. `.deal-reveal` expresses
+        the same idea against scroll position instead of a timer, and it has to
+        own the whole grid to do it: the stagger comes from each child's slice
+        of one shared timeline, which cannot be assembled from per-cell
+        wrappers. That also fixes what the column offset could only approximate
+        — the second row is now genuinely later than the first, rather than
+        repeating the same two-step.
+
+        The wrapper here is what gates the fallback path where scroll timelines
+        are unsupported, exactly as it does on the wide rows above.
+      */}
+      <Reveal>
+      <ul className="deal-reveal grid items-start gap-x-5 gap-y-12 lg:grid-cols-2">
+        {groups.map((group) => {
           const banner = group.banners[0];
           const { id, ...card } = banner;
           return (
-            // One stage per cell rather than two: a half-width card and its
-            // heading are close enough on screen that staggering them reads as
-            // a stutter rather than a sequence. The pair in a row is offset by
-            // its column so they do not arrive in lockstep.
+            // Heading and card share one cell and arrive together: they are
+            // close enough on screen that staggering them reads as a stutter
+            // rather than as a sequence.
             <li key={id}>
-              <Reveal delay={(i % PAIRED_COLUMNS) * 90}>
                 {group.category && (
                   <Heading category={group.category} size="paired" />
                 )}
@@ -160,11 +184,11 @@ function PairedSections({ groups }: { groups: BannerGroup[] }) {
                   images look inconsistently cropped.
                 */}
                 <PromoCard {...card} variant="panel" />
-              </Reveal>
             </li>
           );
         })}
       </ul>
+      </Reveal>
     </div>
   );
 }

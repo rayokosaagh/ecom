@@ -25,7 +25,21 @@ import { THEME_ICONS, THEME_LABELS, otherTheme } from "@/lib/theme";
  * in from under the cursor rather than appearing all at once. A keyboard press
  * has a position too — the button is still somewhere on screen — so this works
  * the same way whichever route was taken to it.
+ *
+ * The glyph goes with it, and that is what makes the swap visible. During a view
+ * transition the live page is replaced by a snapshot for the length of the
+ * animation, so a moon turning into a sun *inside* the page would play behind a
+ * still image and be over by the time anyone saw it. Handing the element over
+ * lets the provider give it a `view-transition-name`, which lifts it out of the
+ * page snapshot into one of its own — so it rotates over the sweep rather than
+ * under it. The animation itself is `theme-glyph-out`/`-in` in `globals.css`.
+ *
+ * `GLYPH_CLASS` is the handle: the glyph is `IconButton`'s own child, so this is
+ * how the click handler finds it without reaching for `firstElementChild` and
+ * hoping the button never grows a second one.
  */
+const GLYPH_CLASS = "theme-toggle-glyph";
+
 export function ThemeToggle({ className }: { className?: string }) {
   const { resolvedTheme, toggleTheme } = useTheme();
   const ref = useRef<HTMLButtonElement>(null);
@@ -36,12 +50,16 @@ export function ThemeToggle({ className }: { className?: string }) {
     <IconButton
       ref={ref}
       icon={THEME_ICONS[upcoming]}
+      iconClassName={GLYPH_CLASS}
       label={`Switch to ${THEME_LABELS[upcoming].toLowerCase()} mode`}
       onClick={() => {
         const box = ref.current?.getBoundingClientRect();
-        toggleTheme(
-          box ? { x: box.left + box.width / 2, y: box.top + box.height / 2 } : undefined,
-        );
+        toggleTheme({
+          origin: box
+            ? { x: box.left + box.width / 2, y: box.top + box.height / 2 }
+            : undefined,
+          glyph: ref.current?.querySelector<HTMLElement>(`.${GLYPH_CLASS}`),
+        });
       }}
       className={className}
     />

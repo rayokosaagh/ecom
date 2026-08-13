@@ -52,7 +52,7 @@ export function OrderDetail({
         stub={
           <>
             <div className="min-w-0">
-              <p className="text-on-surface-variant text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
+              <p className="label-caps text-on-surface-variant">
                 Total · {units} item{units === 1 ? "" : "s"}
               </p>
               <p className="text-on-surface mt-0.5 text-2xl font-medium tabular-nums">
@@ -73,7 +73,7 @@ export function OrderDetail({
         <div className="px-5 pt-5 pb-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-on-surface-variant text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
+              <p className="label-caps text-on-surface-variant">
                 Order no.
               </p>
               {/* The short reference leads, matching the ticket in the list.
@@ -82,13 +82,13 @@ export function OrderDetail({
               <p className="text-on-surface mt-0.5 font-mono text-xl tracking-[0.12em] tabular-nums">
                 {orderReference(order.id)}
               </p>
-              <p className="text-on-surface-variant mt-1 font-mono text-[0.6875rem] break-all">
+              <p className="text-on-surface-variant mt-1 font-mono text-label-sm break-all">
                 {order.id}
               </p>
             </div>
 
             <div className="text-right">
-              <p className="text-on-surface-variant text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
+              <p className="label-caps text-on-surface-variant">
                 Placed
               </p>
               <p className="text-on-surface mt-0.5 text-sm">
@@ -108,7 +108,7 @@ export function OrderDetail({
               did, it is the record of what they said. */}
           {cancellation && (
             <div className="border-outline-variant mt-5 border-t pt-4">
-              <h2 className="text-on-surface-variant text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
+              <h2 className="label-caps text-on-surface-variant">
                 Cancelled because
               </h2>
               <p className="text-on-surface mt-1.5 text-sm">{cancellation}</p>
@@ -228,7 +228,7 @@ export function OrderDetail({
               either still show nothing. */}
           {order.shippingName && (
             <div className="border-outline-variant mt-4 border-t pt-4">
-              <h2 className="text-on-surface-variant text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
+              <h2 className="label-caps text-on-surface-variant">
                 {collecting ? "Collected by" : labels.destination}
               </h2>
               <address className="text-on-surface mt-1.5 text-sm not-italic">

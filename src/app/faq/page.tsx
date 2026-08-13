@@ -48,11 +48,11 @@ export default async function FaqPage() {
 
       <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
         <div className="mb-8">
-          <p className="text-primary flex items-center gap-2 text-xs font-medium tracking-[0.25em] uppercase">
+          <p className="eyebrow text-primary flex items-center gap-2">
             <Icon name="help" size={16} filled />
             Help
           </p>
-          <h1 className="text-on-surface mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">
+          <h1 className="text-on-surface text-headline-lg sm:text-display-sm mt-3">
             Common{" "}
             <span className="accent-word">questions.</span>
           </h1>

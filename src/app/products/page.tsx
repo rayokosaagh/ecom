@@ -488,12 +488,12 @@ export default async function ProductsPage({
             serif on a primary-to-tertiary gradient. Scaled down from the home
             page's 7xl, because this one sits directly above a filter toolbar
             rather than owning the viewport. */}
-        <p className="animate-rise text-primary flex items-center gap-2 text-xs font-medium tracking-[0.25em] uppercase">
+        <p className="animate-rise eyebrow text-primary flex items-center gap-2">
           <Icon name={heading.icon} size={16} filled />
           {heading.eyebrow}
         </p>
 
-        <h1 className="animate-rise rise-2 text-on-surface mt-4 max-w-3xl text-4xl leading-[1.05] font-medium tracking-tight text-balance sm:text-5xl">
+        <h1 className="animate-rise rise-2 text-on-surface text-headline-lg sm:text-display-sm mt-4 max-w-3xl">
           {heading.lead}{" "}
           <span className="accent-word">
             {heading.accent}

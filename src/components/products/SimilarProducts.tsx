@@ -37,7 +37,7 @@ export function SimilarProducts({
     <section className="mt-14" aria-labelledby="similar-heading">
       <h2
         id="similar-heading"
-        className="text-on-surface text-2xl font-normal tracking-tight"
+        className="text-on-surface text-headline-sm"
       >
         Similar products
       </h2>

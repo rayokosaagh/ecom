@@ -92,7 +92,7 @@ export default async function AdminSalesPage() {
                       <p className="text-on-surface flex items-center gap-2 truncate text-sm font-medium">
                         {row.name}
                         {!row.published && (
-                          <span className="bg-surface-container-highest text-on-surface-variant rounded-full px-2 py-0.5 text-[11px]">
+                          <span className="bg-surface-container-highest text-on-surface-variant rounded-full px-2 py-0.5 text-label-sm">
                             Draft
                           </span>
                         )}
@@ -100,7 +100,7 @@ export default async function AdminSalesPage() {
                             to editing it — a configurable product is reduced
                             one row at a time. */}
                         {row.variantSale && (
-                          <span className="bg-surface-container-highest text-on-surface-variant rounded-full px-2 py-0.5 text-[11px]">
+                          <span className="bg-surface-container-highest text-on-surface-variant rounded-full px-2 py-0.5 text-label-sm">
                             Per configuration
                           </span>
                         )}

@@ -142,7 +142,7 @@ export function AnnouncementList({ rows }: { rows: AnnouncementRow[] }) {
                           thing that says which is which at a glance. */}
                       <span
                         className={cn(
-                          "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
+                          "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-label-sm font-medium",
                           style.chip,
                         )}
                       >
@@ -153,7 +153,7 @@ export function AnnouncementList({ rows }: { rows: AnnouncementRow[] }) {
                         {row.message}
                       </span>
                       {!row.published && (
-                        <span className="bg-surface-container-highest text-on-surface-variant rounded-full px-2 py-0.5 text-[11px]">
+                        <span className="bg-surface-container-highest text-on-surface-variant rounded-full px-2 py-0.5 text-label-sm">
                           Hidden
                         </span>
                       )}

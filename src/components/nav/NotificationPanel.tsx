@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { cn } from "@/lib/cn";
+import { DURATION, EASE_EMPHASIZED_ACCELERATE } from "@/lib/motion";
 import { Icon } from "@/components/ui/Icon";
 import {
   clearAllNotifications,
@@ -166,7 +167,7 @@ export function NotificationPanel({
         <div className="flex items-center gap-2">
           <p className="text-on-surface text-sm font-medium">Notifications</p>
           {unreadCount > 0 && (
-            <span className="bg-primary-container text-on-primary-container rounded-full px-2 py-0.5 text-[11px] leading-4 font-medium">
+            <span className="bg-primary-container text-on-primary-container rounded-full px-2 py-0.5 text-label-sm leading-4 font-medium">
               {unreadCount} unread
             </span>
           )}
@@ -225,7 +226,22 @@ export function NotificationPanel({
                 exit={
                   reduceMotion
                     ? { opacity: 0 }
-                    : { opacity: 0, x: 24, height: 0, transition: { duration: 0.18 } }
+                    : {
+                        opacity: 0,
+                        x: 24,
+                        height: 0,
+                        // The JS twin of `.animate-row-exit`, and it was the one
+                        // that had drifted: 180ms is not on the M3 scale, and
+                        // with no curve named Framer applied its default
+                        // *decelerating* ease — a row sliding out slowing down
+                        // as it goes, which is the opposite of what leaving
+                        // should look like. Accelerate is the exit half of the
+                        // emphasized pair.
+                        transition: {
+                          duration: DURATION.short4,
+                          ease: EASE_EMPHASIZED_ACCELERATE,
+                        },
+                      }
                 }
                 className="group relative px-1.5 py-0.5"
               >

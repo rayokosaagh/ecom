@@ -36,14 +36,14 @@ export async function FaqSection({ className }: { className?: string }) {
       className={cn("mx-auto max-w-3xl px-4 pb-24 sm:px-6", className)}
     >
       <div className="mb-6">
-        <p className="text-primary flex items-center gap-2 text-xs font-medium tracking-[0.25em] uppercase">
+        <p className="eyebrow text-primary flex items-center gap-2">
           <Icon name="help" size={16} filled />
           Help
         </p>
         <div className="mt-3 flex items-end justify-between gap-4">
           <h2
             id="home-faq-heading"
-            className="text-on-surface text-3xl font-medium tracking-tight"
+            className="text-on-surface text-headline-md"
           >
             Common <span className="accent-word">questions</span>
           </h2>

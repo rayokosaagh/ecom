@@ -239,7 +239,7 @@ export default async function AdminInventoryPage({
                                   not losing sales — it is not a worklist item
                                   in the way a published one is. */}
                               {!unit.published && (
-                                <span className="bg-surface-container-highest text-on-surface-variant rounded-full px-2 py-0.5 text-[11px]">
+                                <span className="bg-surface-container-highest text-on-surface-variant rounded-full px-2 py-0.5 text-label-sm">
                                   Draft
                                 </span>
                               )}

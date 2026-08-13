@@ -218,7 +218,7 @@ export default async function ProductDetailPage({
 
             <div>
               {(product.brand || product.category) && (
-                <p className="text-on-surface-variant flex items-center gap-1.5 text-xs tracking-wide uppercase">
+                <p className="label-caps text-on-surface-variant flex items-center gap-1.5">
                   {product.brand && (
                     /* "I like this Sony — show me the rest" is the single most
                        common move off a product page, and the brand was
@@ -262,7 +262,7 @@ export default async function ProductDetailPage({
               )}
 
               <div className="mt-1 flex items-start justify-between gap-3">
-                <h1 className="text-on-surface text-3xl font-normal tracking-tight">
+                <h1 className="text-on-surface text-headline-md">
                   {product.name}
                 </h1>
                 {product.published && (
@@ -294,7 +294,7 @@ export default async function ProductDetailPage({
               {/* The same "was / now" the cards carry, from the same helper and
                   the same row `range` took its figure from. This is the page
                   someone decides on, so the two must not disagree. */}
-              <p className="mt-3 flex flex-wrap items-baseline gap-x-3 text-2xl">
+              <p className="text-headline-sm mt-3 flex flex-wrap items-baseline gap-x-3">
                 <span className={sale ? "text-tertiary" : "text-on-surface"}>
                   {range.varies
                     ? `From ${formatPrice(range.minCents)}`

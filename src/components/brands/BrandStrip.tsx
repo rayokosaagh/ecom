@@ -128,7 +128,7 @@ export function BrandStrip({
           can run the full width and its tiles travel off the edge of the page
           instead of stopping short of a margin. */}
       <div className="mb-7 flex items-baseline gap-4 px-4 sm:px-6">
-        <h2 className="text-on-surface shrink-0 text-3xl font-medium tracking-tight">
+        <h2 className="text-on-surface text-headline-md shrink-0">
           Shop by <span className="accent-word">brand</span>
         </h2>
 
@@ -136,7 +136,7 @@ export function BrandStrip({
 
         <Link
           href={allHref}
-          className="text-on-surface-variant hover:text-primary shrink-0 rounded-sm text-[11px] font-semibold tracking-[0.18em] uppercase transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2"
+          className="label-caps text-on-surface-variant hover:text-primary shrink-0 rounded-sm font-semibold transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2"
         >
           All brands
         </Link>

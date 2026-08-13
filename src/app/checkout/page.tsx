@@ -199,7 +199,7 @@ export default async function CheckoutPage() {
       <Navbar {...nav} />
 
       <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
-        <h1 className="text-on-surface mb-6 text-3xl font-medium tracking-tight">
+        <h1 className="text-on-surface text-headline-md mb-6">
           Checkout
         </h1>
 

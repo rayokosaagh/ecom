@@ -24,7 +24,7 @@ const LABEL: Record<string, string> = {
 const INITIAL: OrderActionState = {};
 
 /** The uppercase micro-label the ticket heads each of its blocks with. */
-const MICRO = "text-on-surface-variant text-[0.6875rem] font-medium tracking-[0.14em] uppercase";
+const MICRO = "label-caps text-on-surface-variant";
 
 /**
  * The controls that move an order through its lifecycle.

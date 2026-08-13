@@ -8,6 +8,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import type { ReactNode } from "react";
+import { flushSync } from "react-dom";
 
 import {
   THEME_COOKIE,
@@ -21,14 +22,28 @@ import {
 /** Where the sweep starts from — the centre of the control that was pressed. */
 export type SweepOrigin = { x: number; y: number };
 
+/** What the pressed control tells the provider about how to animate the change. */
+export type Sweep = {
+  origin?: SweepOrigin;
+  /**
+   * The glyph on the control that was pressed.
+   *
+   * Handed over so it can be given a `view-transition-name` for the length of
+   * the change, which is what lifts it out of the page snapshot and lets it
+   * animate *over* the sweep instead of being frozen underneath it. See
+   * `nameGlyph`.
+   */
+  glyph?: HTMLElement | null;
+};
+
 type ThemeContextValue = {
   /** The stored choice, or null while the OS is still deciding. */
   theme: Theme | null;
   /** What is actually on screen right now. */
   resolvedTheme: ResolvedTheme;
-  setTheme: (theme: Theme, origin?: SweepOrigin) => void;
+  setTheme: (theme: Theme, sweep?: Sweep) => void;
   /** Flips whatever is currently rendered. */
-  toggleTheme: (origin?: SweepOrigin) => void;
+  toggleTheme: (sweep?: Sweep) => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -94,6 +109,38 @@ type ViewTransitionDocument = Document & {
   startViewTransition?: (callback: () => void) => { finished: Promise<void> };
 };
 
+/** The name given to the pressed control's glyph. Styled in `globals.css`. */
+const GLYPH_TRANSITION_NAME = "theme-glyph";
+
+/**
+ * The glyph currently carrying `GLYPH_TRANSITION_NAME`.
+ *
+ * Module scope because the constraint it enforces is document-wide: a
+ * `view-transition-name` has to be **unique**, and a duplicate makes the browser
+ * skip the whole transition — sweep included. There is more than one
+ * `ThemeToggle` on a storefront page (the bar has one and so does the footer),
+ * so "the pressed one" cannot be decided by a component that only knows about
+ * itself. Naming goes through here, which can always find the last one and take
+ * the name back off it first.
+ */
+let namedGlyph: HTMLElement | null = null;
+
+function nameGlyph(glyph: HTMLElement | null | undefined) {
+  if (namedGlyph && namedGlyph !== glyph) {
+    namedGlyph.style.removeProperty("view-transition-name");
+  }
+  namedGlyph = glyph ?? null;
+  if (glyph) glyph.style.setProperty("view-transition-name", GLYPH_TRANSITION_NAME);
+}
+
+function releaseGlyph(glyph: HTMLElement | null | undefined) {
+  if (!glyph) return;
+  glyph.style.removeProperty("view-transition-name");
+  // Only surrender the slot if it is still ours — a second press mid-sweep has
+  // already claimed it, and clearing it here would leave that one unnamed.
+  if (namedGlyph === glyph) namedGlyph = null;
+}
+
 export function ThemeProvider({
   children,
   initialTheme = null,
@@ -115,8 +162,9 @@ export function ThemeProvider({
   const theme = useSyncExternalStore(subscribe, readCookie, serverTheme);
   const resolvedTheme = useSyncExternalStore(subscribe, readResolved, serverResolved);
 
-  const setTheme = useCallback((next: Theme, origin?: SweepOrigin) => {
+  const setTheme = useCallback((next: Theme, sweep?: Sweep) => {
     const root = document.documentElement;
+    const { origin, glyph } = sweep ?? {};
 
     const commit = () => {
       document.cookie = `${THEME_COOKIE}=${next}; path=/; max-age=${THEME_COOKIE_MAX_AGE}; SameSite=Lax`;
@@ -149,18 +197,35 @@ export function ThemeProvider({
     root.style.setProperty("--sweep-r", `${radius}px`);
     root.dataset.sweeping = "";
 
-    const transition = doc.startViewTransition(commit);
+    // Before the transition starts, so the name is in place when the browser
+    // snapshots the *old* page — applied afterwards it would only be half of a
+    // pair and the glyph would not animate at all.
+    nameGlyph(glyph);
+
+    /*
+     * `flushSync`, so the swapped glyph is in the DOM before the new state is
+     * captured.
+     *
+     * The theme itself does not need it — `data-theme` is set by hand above and
+     * CSS does the rest — but the icon is React's: it is the *other* theme's
+     * mark, so it changes only when the subscribers re-render. Left to normal
+     * scheduling that render is a task the browser may or may not run before it
+     * takes the new snapshot, and losing that race means both halves of the
+     * pair show the same glyph and it appears to pop in afterwards instead.
+     */
+    const transition = doc.startViewTransition(() => flushSync(commit));
 
     void transition.finished.finally(() => {
       delete root.dataset.sweeping;
       root.style.removeProperty("--sweep-x");
       root.style.removeProperty("--sweep-y");
       root.style.removeProperty("--sweep-r");
+      releaseGlyph(glyph);
     });
   }, []);
 
   const toggleTheme = useCallback(
-    (origin?: SweepOrigin) => setTheme(otherTheme(readResolved()), origin),
+    (sweep?: Sweep) => setTheme(otherTheme(readResolved()), sweep),
     [setTheme],
   );
 

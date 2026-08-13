@@ -99,7 +99,7 @@ export function FlashCountdown({
             <span className="text-on-surface text-lg leading-none font-medium tabular-nums">
               {String(part.value).padStart(2, "0")}
             </span>
-            <span className="text-on-surface-variant mt-1 text-[10px] tracking-[0.1em] uppercase">
+            <span className="label-caps text-on-surface-variant mt-1">
               {part.label}
             </span>
           </span>

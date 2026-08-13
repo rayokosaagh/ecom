@@ -102,7 +102,7 @@ export async function Footer({
             <div className="flex items-start gap-4">
               <Icon name="help" size={28} filled className="mt-0.5 shrink-0" />
               <div>
-                <h2 className="text-lg font-semibold tracking-tight sm:text-xl">
+                <h2 className="text-title-md sm:text-title-lg">
                   Questions before you buy?
                 </h2>
                 <p className="mt-1 max-w-prose text-sm opacity-80">
@@ -133,7 +133,7 @@ export async function Footer({
             <span className="bg-primary text-on-primary grid size-9 place-items-center rounded-xl">
               <Icon name="storefront" size={20} filled />
             </span>
-            <span className="text-on-surface text-lg font-medium tracking-tight">
+            <span className="text-on-surface text-title-md">
               Ecom<span className="text-primary">.</span>
             </span>
           </Link>
@@ -153,7 +153,7 @@ export async function Footer({
         <nav aria-labelledby="footer-shop">
           <h2
             id="footer-shop"
-            className="text-on-surface text-xs font-medium tracking-[0.15em] uppercase"
+            className="label-caps text-on-surface"
           >
             Shop
           </h2>
@@ -205,7 +205,7 @@ export async function Footer({
         <nav aria-labelledby="footer-account">
           <h2
             id="footer-account"
-            className="text-on-surface text-xs font-medium tracking-[0.15em] uppercase"
+            className="label-caps text-on-surface"
           >
             Account
           </h2>
@@ -287,7 +287,7 @@ export async function Footer({
         </nav>
 
         <div>
-          <h2 className="text-on-surface text-xs font-medium tracking-[0.15em] uppercase">
+          <h2 className="label-caps text-on-surface">
             Stay in touch
           </h2>
           <p className="text-on-surface-variant mt-4 text-sm leading-relaxed">

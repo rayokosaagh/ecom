@@ -157,7 +157,7 @@ export function BrandForm({
           <h3 className="text-on-surface text-sm font-medium">In context</h3>
           {/* The same pairing the product card uses, so the mark can be judged
               at the size it will actually be seen. */}
-          <p className="text-on-surface-variant flex items-center gap-1.5 text-xs tracking-wide uppercase">
+          <p className="label-caps text-on-surface-variant flex items-center gap-1.5">
             {/* Ranked exactly as the storefront ranks them, so the preview
                 shows which of the two a shopper would actually see. */}
             <BrandMark

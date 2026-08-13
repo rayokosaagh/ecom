@@ -93,7 +93,7 @@ export default async function OrderReceiptPage({
           </div>
         )}
 
-        <h1 className="text-on-surface mt-4 mb-6 text-3xl font-medium tracking-tight">
+        <h1 className="text-on-surface text-headline-md mt-4 mb-6">
           {justPlaced ? "Thank you" : "Your order"}
         </h1>
 

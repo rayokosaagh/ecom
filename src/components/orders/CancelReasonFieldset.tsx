@@ -52,7 +52,7 @@ export function CancelReasonFieldset({
   return (
     <div>
       <fieldset disabled={disabled} className="min-w-0">
-        <legend className="text-on-surface-variant text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
+        <legend className="label-caps text-on-surface-variant">
           Reason for cancelling
         </legend>
 
@@ -126,7 +126,7 @@ export function CancelReasonFieldset({
         <div className="border-outline-variant/60 mt-3 border-t pt-3">
           <label
             htmlFor="cancel-note"
-            className="text-on-surface-variant text-[0.6875rem] font-medium tracking-[0.14em] uppercase"
+            className="label-caps text-on-surface-variant"
           >
             In your words
           </label>

@@ -102,7 +102,7 @@ export function BackToTop() {
         className={cn(
           "bg-surface-container-high text-on-surface-variant shadow-elevation-2",
           "state-layer grid size-12 place-items-center rounded-full",
-          "transition-[box-shadow,transform] duration-200 ease-[var(--ease-standard)]",
+          "transition-[box-shadow,transform] duration-200 ease-standard",
           "hover:shadow-elevation-3 hover:-translate-y-0.5",
           "focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-95",
           "motion-reduce:transition-none motion-reduce:hover:translate-y-0",

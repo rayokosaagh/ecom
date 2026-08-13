@@ -45,7 +45,7 @@ export function CancelOrderButton({ orderId }: { orderId: string }) {
       <TicketPanel
         stub={
           <>
-            <p className="text-on-surface-variant text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
+            <p className="label-caps text-on-surface-variant">
               Cancelled
             </p>
             <TicketBarcode
@@ -68,7 +68,7 @@ export function CancelOrderButton({ orderId }: { orderId: string }) {
       <TicketPanel
         stub={
           <>
-            <p className="text-on-surface-variant text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
+            <p className="label-caps text-on-surface-variant">
               Changed your mind?
             </p>
             <button
@@ -83,7 +83,7 @@ export function CancelOrderButton({ orderId }: { orderId: string }) {
         }
       >
         <div className="px-5 pt-5 pb-5">
-          <p className="text-on-surface-variant text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
+          <p className="label-caps text-on-surface-variant">
             Cancellation
           </p>
           <p className="text-on-surface-variant mt-1.5 text-sm">

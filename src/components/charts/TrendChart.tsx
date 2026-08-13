@@ -114,7 +114,7 @@ export function TrendChart({
           {ticks.map((tick) => (
             <span
               key={tick}
-              className="text-on-surface-variant absolute right-0 translate-y-1/2 text-[11px] tabular-nums"
+              className="text-on-surface-variant absolute right-0 translate-y-1/2 text-label-sm tabular-nums"
               style={{ bottom: `${yPercent(tick)}%` }}
             >
               {axisTick(tick, format)}
@@ -264,7 +264,7 @@ export function TrendChart({
 
       {/* X axis. First, middle and last only — a label per day would collide at
        * 30 points and be unreadable at 90. */}
-      <div className="text-on-surface-variant ml-15 flex justify-between text-[11px]" aria-hidden>
+      <div className="text-on-surface-variant ml-15 flex justify-between text-label-sm" aria-hidden>
         <span>{points[0]?.label}</span>
         <span className="hidden sm:inline">{points[Math.floor(lastIndex / 2)]?.label}</span>
         <span>{points[lastIndex]?.label}</span>

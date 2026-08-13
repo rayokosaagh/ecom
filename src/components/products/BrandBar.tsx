@@ -76,7 +76,7 @@ export function BrandBar({
             href={allHref}
             aria-current={active ? undefined : "true"}
             className={cn(
-              "flex h-16 shrink-0 items-center border-b-2 px-3 text-[11px] font-semibold tracking-[0.14em] whitespace-nowrap uppercase transition-colors duration-200",
+              "label-caps flex h-16 shrink-0 items-center border-b-2 px-3 font-semibold whitespace-nowrap transition-colors duration-200",
               "focus-visible:outline-2 focus-visible:outline-offset-2",
               active
                 ? "text-on-surface-variant hover:text-on-surface border-transparent hover:border-outline-variant"
@@ -134,7 +134,7 @@ export function BrandBar({
                        recognisably the same brand on both screens. */
                     <span
                       aria-hidden
-                      className="text-[11px] font-semibold tracking-[0.06em] opacity-70 select-none"
+                      className="text-label-sm font-semibold tracking-[0.06em] opacity-70 select-none"
                     >
                       {brandInitials(brand.name)}
                     </span>
@@ -143,7 +143,7 @@ export function BrandBar({
 
                 <span
                   className={cn(
-                    "text-[11px] font-semibold tracking-[0.14em] whitespace-nowrap uppercase transition-colors duration-200",
+                    "label-caps font-semibold whitespace-nowrap transition-colors duration-200",
                     selected
                       ? "text-on-surface"
                       : "text-on-surface-variant group-hover:text-on-surface",

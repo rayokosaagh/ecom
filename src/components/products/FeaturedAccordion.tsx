@@ -98,6 +98,14 @@ export function FeaturedAccordion({
   return (
     <ul
       className={cn(
+        // The panels deal out one at a time as the row scrolls into frame,
+        // driven by scroll position rather than by a clock — see
+        // `.deal-reveal` in globals.css, which also carries the timeline this
+        // row declares for its own children. The `-rail` modifier is not
+        // optional here: it drops the rise to zero below `md`, where this row
+        // is an `overflow-x-auto` rail that a downward translate would make
+        // scrollable vertically.
+        "deal-reveal deal-reveal-rail",
         // Mobile: a scroll rail. Desktop: a fixed row that divides itself.
         "flex gap-2 overflow-x-auto pb-2 md:gap-3 md:overflow-visible md:pb-0",
         // The rail should bleed to the screen edge rather than stopping short.
@@ -129,7 +137,7 @@ export function FeaturedAccordion({
               // The redistribution itself. An open panel takes three shares of
               // the row, a closed one takes one.
               open ? "md:flex-[3_1_0%]" : "md:flex-[1_1_0%]",
-              "transition-[flex-grow] duration-[var(--duration-long2)] ease-[var(--ease-emphasized)]",
+              "transition-[flex-grow] duration-[var(--duration-long2)] ease-emphasized",
               "motion-reduce:transition-none",
             )}
           >
@@ -155,7 +163,7 @@ export function FeaturedAccordion({
                 // does. `.state-layer` cannot: its overlay sits at z-index -1
                 // so an image in normal flow would cover it.
                 "shadow-elevation-1 hover:shadow-elevation-3 focus-visible:shadow-elevation-3",
-                "transition-shadow duration-[var(--duration-medium2)] ease-[var(--ease-standard)]",
+                "transition-shadow duration-[var(--duration-medium2)] ease-standard",
                 "focus-visible:outline-2 focus-visible:outline-offset-2",
               )}
             >
@@ -209,7 +217,7 @@ export function FeaturedAccordion({
                     alt=""
                     loading={index === 0 ? "eager" : "lazy"}
                     className={cn(
-                      "size-full object-contain transition-transform duration-[var(--duration-long2)] ease-[var(--ease-emphasized)] motion-reduce:transition-none",
+                      "size-full object-contain transition-transform duration-[var(--duration-long2)] ease-emphasized motion-reduce:transition-none",
                       //
                       // Size comes from two things, and the second is the one
                       // doing the real work.
@@ -336,7 +344,7 @@ export function FeaturedAccordion({
               */}
               <div
                 className={cn(
-                  "grid transition-[grid-template-rows] duration-[var(--duration-long2)] ease-[var(--ease-emphasized)] motion-reduce:transition-none",
+                  "grid transition-[grid-template-rows] duration-[var(--duration-long2)] ease-emphasized motion-reduce:transition-none",
                   open
                     ? "grid-rows-[1fr]"
                     : "grid-rows-[1fr] md:grid-rows-[0fr]",
@@ -364,7 +372,7 @@ export function FeaturedAccordion({
                       {/* M3 label-small: 11px, heavily tracked, upper. The same
                       treatment the hero eyebrow above this uses. */}
                       {product.brand && (
-                        <span className="text-on-surface-variant block truncate text-[11px] font-medium tracking-[0.18em] uppercase">
+                        <span className="label-caps text-on-surface-variant block truncate">
                           {product.brand}
                         </span>
                       )}
@@ -374,7 +382,7 @@ export function FeaturedAccordion({
                       the media well above it re-cropped to match on every
                       frame. A fixed single line keeps the whole card's internal
                       geometry constant while only its width moves. */}
-                      <span className="text-on-surface mt-1 block truncate text-lg leading-tight font-medium">
+                      <span className="text-on-surface text-title-md mt-1 block truncate">
                         {product.name}
                       </span>
 
@@ -386,7 +394,7 @@ export function FeaturedAccordion({
                         <Icon
                           name="arrow_forward"
                           size={14}
-                          className="transition-transform duration-[var(--duration-short4)] ease-[var(--ease-emphasized)] group-hover/panel:translate-x-0.5 motion-reduce:transition-none"
+                          className="transition-transform duration-[var(--duration-short4)] ease-emphasized group-hover/panel:translate-x-0.5 motion-reduce:transition-none"
                         />
                       </span>
                     </span>
@@ -406,11 +414,11 @@ export function FeaturedAccordion({
                       ) : (
                         <>
                           {product.priceVaries && (
-                            <span className="text-on-surface-variant block text-[10px] font-medium tracking-[0.18em] uppercase">
+                            <span className="label-caps text-on-surface-variant block">
                               From
                             </span>
                           )}
-                          <span className="text-on-surface block text-xl leading-tight font-medium tabular-nums">
+                          <span className="text-on-surface text-title-lg block tabular-nums">
                             {formatPrice(product.minCents)}
                           </span>
                         </>

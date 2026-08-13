@@ -46,7 +46,7 @@ export function FaqAccordion({ faqs }: { faqs: FaqEntry[] }) {
               <Icon
                 name="expand_more"
                 size={22}
-                className="text-on-surface-variant shrink-0 transition-transform duration-200 ease-[var(--ease-standard)] group-open:rotate-180 motion-reduce:transition-none"
+                className="text-on-surface-variant shrink-0 transition-transform duration-200 ease-standard group-open:rotate-180 motion-reduce:transition-none"
               />
             </summary>
 

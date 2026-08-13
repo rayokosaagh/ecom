@@ -40,7 +40,7 @@ export default async function WishlistPage() {
       <Navbar {...nav} wishlistNewCount={0} />
 
       <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-        <h1 className="text-on-surface text-3xl font-normal tracking-tight">Wishlist</h1>
+        <h1 className="text-on-surface text-headline-md">Wishlist</h1>
         <p className="text-on-surface-variant mt-1 text-sm">
           {visible.length} item{visible.length === 1 ? "" : "s"}
           {hidden > 0 && ` · ${hidden} no longer available`}

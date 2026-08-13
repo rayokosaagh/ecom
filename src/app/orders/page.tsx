@@ -37,7 +37,7 @@ export default async function OrdersPage({
       <Navbar {...nav} />
 
       <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
-        <h1 className="text-on-surface text-3xl font-normal tracking-tight">Orders</h1>
+        <h1 className="text-on-surface text-headline-md">Orders</h1>
         <p className="text-on-surface-variant mt-1 text-sm">
           {total === 0
             ? "Nothing here yet."

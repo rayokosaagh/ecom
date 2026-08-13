@@ -26,7 +26,7 @@ export function StoreCard({ store }: { store: StoreLocationView }) {
     <Card variant="outlined" className="overflow-hidden">
       <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[1fr_minmax(0,22rem)] lg:gap-8">
         <div className="min-w-0">
-          <h2 className="text-on-surface text-xl font-medium tracking-tight">
+          <h2 className="text-on-surface text-title-lg">
             {store.name}
           </h2>
 

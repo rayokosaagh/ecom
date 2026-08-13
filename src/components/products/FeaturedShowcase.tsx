@@ -13,6 +13,11 @@ import { formatPrice } from "@/lib/products/format";
 import { resolveWell } from "@/lib/tints";
 import { SALE_TINTS, saleGradient } from "@/components/products/sale-tints";
 import { RatingBadge } from "@/components/reviews/RatingStars";
+import {
+  SpecificationHotspots,
+  SpecificationList,
+} from "@/components/products/SpecificationHotspots";
+import { buildSpecCallouts } from "@/lib/products/spec-callouts";
 import type { FeaturedProductView } from "@/lib/featured/service";
 
 /** The view plus what shoppers have said about it. */
@@ -24,11 +29,62 @@ type ShowcaseProduct = FeaturedProductView & {
 const AUTOPLAY_MS = 10000;
 
 /**
- * The fade either side of the wrap back to the first panel. Long enough to read
- * as a deliberate return to the start, short enough that the carousel does not
- * appear to stall on the last product.
+ * How many specs the shelf's summary line lists.
+ *
+ * Declared here rather than imported from `lib/featured/service`, which is
+ * `server-only`: this is a client component, and pulling a *value* out of that
+ * module would drag it into the browser bundle where its `import "server-only"`
+ * throws. Only the type crosses that line. The service caps how many specs are
+ * fetched; how many of them a given surface draws is this file's business
+ * anyway.
  */
-const WRAP_FADE_MS = 260;
+const SHELF_SPEC_COUNT = 3;
+
+/**
+ * The surface a floating chip is drawn on, in the hero.
+ *
+ * Solid, now that there is no card behind it. These were frosted while they sat
+ * over a tinted stage, where a solid fill would have read as a second card laid
+ * on the first. The stage is gone: the chips sit on the page's own background,
+ * and a translucent slab on a plain background is just a slightly different
+ * shade of that background — it needs its own surface to read as a thing at
+ * all. Its shadow is what separates it now, not its blur.
+ *
+ * `bg-surface` rather than a fixed white: it is a scheme token, so the chips
+ * turn dark with the theme and the text on them stays `on-surface` in both.
+ */
+const CHIP = "bg-surface hero-float";
+
+/**
+ * This product's callouts, chosen from its own spec rows.
+ *
+ * A thin wrapper so both the positioned layer and the phone list are built from
+ * one call per panel and cannot disagree about which specs were picked. The
+ * choosing itself is `lib/products/spec-callouts` — no spec values are decided
+ * here, and none are written down anywhere in this file.
+ */
+const calloutsFor = (product: ShowcaseProduct) => buildSpecCallouts(product.specs);
+
+/**
+ * The fade either side of a deliberate change of product.
+ *
+ * Long enough to read as one product giving way to another, short enough that
+ * the carousel does not appear to stall between them. It began as the fade
+ * around the wrap back to the first panel and now covers every change a dot or
+ * the autoplay makes — see `goTo`.
+ */
+const CHANGE_FADE_MS = 260;
+
+/**
+ * How far the product travels as it changes, in px.
+ *
+ * Enough to say which way the carousel went, not so much that it becomes the
+ * slide this replaced — that one moved a whole panel width, which is precisely
+ * what put two products on screen at once and gave the container a boundary to
+ * cut. At this distance the old product is gone before it has travelled far
+ * enough to meet an edge.
+ */
+const CHANGE_SHIFT_PX = 36;
 
 /**
  * The home page spotlight.
@@ -43,11 +99,18 @@ const WRAP_FADE_MS = 260;
  * buttons, and the secondary-container fill that marks a selection on the
  * brand and category rails.
  *
- * Every panel is rendered and the track slides, rather than swapping one panel
- * for another. That buys two things a crossfade cannot: the movement is
- * continuous, so the eye can follow which way it went, and the container is
- * always as tall as the tallest panel, so a shorter product cannot make the
- * page jump as it arrives.
+ * Every panel is rendered in one scrolling track rather than being swapped in
+ * and out. That is what makes a swipe work — the browser owns the movement,
+ * with its own momentum and rubber-banding — and it keeps the container as tall
+ * as the tallest panel, so a shorter product cannot make the page jump as it
+ * arrives.
+ *
+ * How a change *looks* is a separate question from how it is stored, and the
+ * two answers differ here. A drag slides, because the movement is the hand's
+ * own. A dot or the autoplay dissolves: fade out, jump while nothing is
+ * visible, fade back in. Sliding under those puts two products on screen with a
+ * boundary between them, and the container has to cut that boundary somewhere —
+ * which is the seam this arrangement removes rather than softens. See `goTo`.
  *
  * It loops on its own, and yields the moment there is any reason to think
  * someone is mid-thought: a pointer resting on it, focus inside it, the tab in
@@ -90,7 +153,33 @@ export function FeaturedShowcase({
   const [onScreen, setOnScreen] = useState(false);
   const [tabVisible, setTabVisible] = useState(true);
   const [reducedMotion, setReducedMotion] = useState(false);
-  const [wrapping, setWrapping] = useState(false);
+
+  /**
+   * Where a deliberate change of product has got to.
+   *
+   * Three states rather than a boolean, because the change is a cross-slide and
+   * a cross-slide has a middle. `out` carries the old product away and fades it;
+   * `in` is the single frame where the track has jumped and the new product is
+   * parked off to the *other* side, not yet moving; `idle` is it arriving and
+   * everything at rest.
+   *
+   * The `in` frame is the whole reason a boolean will not do. The incoming
+   * product has to be repositioned instantly — with no transition — before it
+   * can be animated into place, or the browser would simply tween it from where
+   * the outgoing one left off and the movement would read as one object sliding
+   * back and forth rather than two products changing over.
+   */
+  const [phase, setPhase] = useState<"idle" | "out" | "in">("idle");
+
+  /**
+   * Which way the change is travelling: 1 forward, -1 back.
+   *
+   * The slide is the only thing that carries this information. A dissolve is
+   * direction-less — it says a product changed but not which way the carousel
+   * moved — and a shopper stepping back to the previous product should see it
+   * come from the side they left it on.
+   */
+  const [direction, setDirection] = useState(1);
 
   /**
    * The panel a programmatic scroll is on its way to, or null when the scroll
@@ -108,6 +197,7 @@ export function FeaturedShowcase({
   const releaseTarget = () => {
     pendingTarget.current = null;
   };
+
 
   // Which panel is showing is read back off the scroll position rather than
   // being the thing that drives it. That inversion is what makes a swipe work:
@@ -187,11 +277,11 @@ export function FeaturedShowcase({
   const running =
     products.length > 1 && !hovered && !focused && onScreen && tabVisible && !reducedMotion;
 
-  const wrapTimer = useRef(0);
+  const changeTimer = useRef(0);
   const settleTimer = useRef(0);
   useEffect(
     () => () => {
-      window.clearTimeout(wrapTimer.current);
+      window.clearTimeout(changeTimer.current);
       window.clearTimeout(settleTimer.current);
     },
     [],
@@ -202,40 +292,50 @@ export function FeaturedShowcase({
     // hundred milliseconds to report its first event, and a control that looks
     // dead for that long reads as broken.
     setIndex(i);
-    const track = trackRef.current;
-    if (!track) return;
+    if (!trackRef.current) return;
 
-    pendingTarget.current = i;
-    track.scrollTo({ left: i * track.clientWidth, behavior: "smooth" });
+    /*
+     * Dissolve rather than slide.
+     *
+     * This is the treatment the wrap-around already used, now used for every
+     * deliberate change, and the reason is what the sliding version could never
+     * fix: a slide puts two products on screen at once, so there is always a
+     * boundary between them, and the container has to cut that boundary
+     * somewhere. Softening the cut helps; removing it is better. Fading out,
+     * jumping while nothing is visible, and fading back in means one product is
+     * on the stage at a time and the join has nowhere to show.
+     *
+     * Only for changes the shopper *asked* for — a dot, or the autoplay. A
+     * finger dragging the track still slides, because there the movement is the
+     * hand's own and seeing the next product follow it is the feedback that
+     * makes a swipe feel connected. `goTo` is not on that path.
+     *
+     * `behavior: "instant"` matters: nothing is travelling, so there are no
+     * intermediate positions for the scroll listener to misread as choices.
+     */
+    // Forward unless the shopper picked something earlier in the list — and
+    // forward for the wrap, where the last product gives way to the first and
+    // a backward slide would contradict the direction the carousel was going.
+    setDirection(i === 0 && activeIndex === products.length - 1 ? 1 : i > activeIndex ? 1 : -1);
 
-    // A backstop, in case the scroll is interrupted and never lands on `i` —
-    // otherwise the listener stays muted and a later swipe would move the
-    // panels without moving the tabs or dots with them.
-    window.clearTimeout(settleTimer.current);
-    settleTimer.current = window.setTimeout(releaseTarget, 1200);
-  };
-
-  const advance = () => {
-    const next = (activeIndex + 1) % products.length;
-    if (next !== 0) {
-      goTo(next);
-      return;
-    }
-
-    // Wrapping. Scrolling smoothly back to the first panel would whip the whole
-    // strip past the eye in one movement — the more products are featured, the
-    // worse it reads. Fading out, jumping, and fading back in costs the same
-    // moment and says "back to the start" instead.
-    setWrapping(true);
-    wrapTimer.current = window.setTimeout(() => {
-      setIndex(0);
-      // Instant, so nothing is travelling and there are no intermediate
-      // positions for the listener to misread.
-      trackRef.current?.scrollTo({ left: 0, behavior: "instant" });
+    setPhase("out");
+    window.clearTimeout(changeTimer.current);
+    changeTimer.current = window.setTimeout(() => {
+      const track = trackRef.current;
+      if (track) track.scrollTo({ left: i * track.clientWidth, behavior: "instant" });
       releaseTarget();
-      setWrapping(false);
-    }, WRAP_FADE_MS);
+
+      // Park the incoming product off to the far side with no transition, then
+      // release it a frame later so it animates in. Two frames, not one: the
+      // first commits the parked position, the second is the one the browser
+      // can tween *from*. Collapsed into a single frame the reposition and the
+      // release land in the same style recalculation and no movement happens.
+      setPhase("in");
+      requestAnimationFrame(() => requestAnimationFrame(() => setPhase("idle")));
+    }, CHANGE_FADE_MS);
   };
+
+  const advance = () => goTo((activeIndex + 1) % products.length);
 
   // Held in a ref so the timer below depends only on *when* to fire, not on the
   // identity of a closure that changes every render.
@@ -253,7 +353,21 @@ export function FeaturedShowcase({
     return () => window.clearTimeout(id);
   }, [running, activeIndex]);
 
-  if (products.length === 0) return null;
+  if (products.length === 0) {
+    // As a shelf, an empty featured list means no section — the page should not
+    // show an empty card. As the hero it means no *carousel*: the copy beside it
+    // is the page's h1 and its call to action, and an admin emptying the
+    // featured list is not a reason for the front door to lose its headline. So
+    // the lead renders on its own, in one column, and the stage is simply not
+    // there to fill.
+    if (!lead) return null;
+
+    return (
+      <section className="mx-auto max-w-7xl px-4 pt-10 pb-20 sm:px-6 sm:pt-14 sm:pb-24">
+        {lead}
+      </section>
+    );
+  }
 
 
   return (
@@ -266,7 +380,10 @@ export function FeaturedShowcase({
       aria-labelledby={isHero ? undefined : `${baseId}-heading`}
       className={cn(
         "mx-auto max-w-7xl px-4 sm:px-6",
-        isHero ? "pt-10 pb-20 sm:pt-14 sm:pb-24" : "pb-24",
+        // Hero padding grew with the stage above it, for the same reason: with
+        // the best sellers no longer tucked underneath, this section is the
+        // whole of the first screen and was sitting too high in it.
+        isHero ? "pt-12 pb-24 sm:pt-20 sm:pb-28" : "pb-24",
       )}
       // Mouse events rather than pointer events: a touch raises `pointerenter`
       // and then frequently never raises `pointerleave`, which would strand the
@@ -285,8 +402,16 @@ export function FeaturedShowcase({
             "grid items-center gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-14",
         )}
       >
-        {/* Nothing at all when this is the plain shelf. */}
-        {lead}
+        {/* Nothing at all when this is the plain shelf.
+
+            In a wrapper of its own rather than dropped straight into the grid,
+            for two reasons. This component owns its own columns — where the
+            copy sits is a fact about the layout, not about what the copy says —
+            and it keeps an element built by another component out of a
+            children *array*, which is the shape React's missing-key check looks
+            at. The lead is one of two fixed children and needs no key; being
+            the sole child of this wrapper is what makes that unambiguous. */}
+        {lead && <div className="min-w-0">{lead}</div>}
 
         {/* `min-w-0` is load-bearing in the hero layout: a grid item defaults to
             `min-width: auto`, so the track's own content would refuse to let
@@ -302,7 +427,7 @@ export function FeaturedShowcase({
             <div className="mb-6 flex items-end justify-between gap-4">
               <h2
                 id={`${baseId}-heading`}
-                className="text-on-surface text-2xl font-medium tracking-tight sm:text-3xl"
+                className="text-on-surface text-headline-sm sm:text-headline-md"
               >
                 Featured <span className="accent-word">picks</span>
               </h2>
@@ -315,7 +440,27 @@ export function FeaturedShowcase({
             </div>
           )}
 
-          <Card variant="outlined" className="overflow-hidden">
+          {/* The shelf is a card. The hero is not — its product stands on the
+              page and its facts float beside it, so the frame is stripped back
+              to nothing rather than the panel being rebuilt without it.
+
+              Neutralised with important-suffixed utilities rather than by
+              swapping the element, because `cn` is a plain joiner: a bare
+              `bg-transparent` and the variant's `bg-surface` are both plain
+              utilities and which one wins would come down to the order Tailwind
+              happened to emit them in. `!` settles it. Same pattern as
+              `max-w-full!` on the brand tiles.
+
+              `overflow-visible!` matters as much as the other two: the chips
+              carry their own shadow now, and a clipped shadow at the panel edge
+              is what would give the frame away after the border had gone. */}
+          <Card
+            variant="outlined"
+            className={cn(
+              "overflow-hidden",
+              isHero && "border-transparent! bg-transparent! overflow-visible!",
+            )}
+          >
         {/* A scroll container, not a transformed strip. Swiping is the whole
             reason: a translated track cannot be dragged, so on a phone the
             carousel could only be changed by the controls underneath it. The
@@ -353,10 +498,61 @@ export function FeaturedShowcase({
           onKeyDown={releaseTarget}
           className={cn(
             "flex snap-x snap-mandatory overflow-x-auto overflow-y-hidden overscroll-x-contain focus-visible:outline-2 focus-visible:-outline-offset-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-            "transition-opacity ease-[var(--ease-standard)]",
-            wrapping ? "opacity-0" : "opacity-100",
+            /*
+              The cross-slide.
+
+              A plain dissolve removed the seam but took the direction with it:
+              it says a product changed without saying which way the carousel
+              went. This puts that back without bringing the seam back — the old
+              product leaves to one side as it fades, and the new one arrives
+              from the other. Both are the only thing on screen while they move,
+              so there is still never a boundary between two products for the
+              container to cut.
+
+              The `in` frame carries no transition, because it is a
+              reposition rather than a movement. See `phase`.
+            */
+            phase === "in"
+              ? "transition-none"
+              : "transition-[opacity,transform] ease-standard",
+            /*
+              A soft edge on the two sides the track clips against.
+
+              The container cuts at the panel boundary, so mid-change the
+              product arriving from the right meets that boundary as a hard
+              vertical line straight down its middle — the edges do not read as
+              finished, they read as torn. A photograph sliced by a clean rule
+              is what a carousel looks like to whoever built it and what a
+              rendering fault looks like to everyone else.
+
+              A mask rather than a pair of gradient strips laid over the top:
+              a strip has to be painted in the page's own background colour and
+              would then be wrong the moment this section sits on anything else,
+              where a mask makes the pixels transparent and cannot disagree with
+              what is behind it. 16px is deliberately small — enough to turn the
+              cut into a fade, not enough to read as a vignette.
+
+              Hero only. The shelf's panels sit inside a bordered card, and a
+              fade running under that border would leave the border floating
+              over nothing at the corners.
+            */
+            isHero &&
+              "[mask-image:linear-gradient(to_right,transparent_0,black_16px,black_calc(100%-16px),transparent_100%)]",
           )}
-          style={{ transitionDuration: `${WRAP_FADE_MS}ms` }}
+          style={{
+            transitionDuration: `${CHANGE_FADE_MS}ms`,
+            opacity: phase === "idle" ? 1 : 0,
+            // Short on purpose. This is a cue about direction, not a journey —
+            // a full panel's width of travel is the slide this replaced, and it
+            // is the slide that put two products on screen at once.
+            transform: `translateX(${
+              phase === "out"
+                ? -direction * CHANGE_SHIFT_PX
+                : phase === "in"
+                  ? direction * CHANGE_SHIFT_PX
+                  : 0
+            }px)`,
+          }}
         >
           {products.map((product, i) => {
             const current = i === activeIndex;
@@ -382,21 +578,53 @@ export function FeaturedShowcase({
               >
                 <Spotlight
                   className={cn(
-                    "bg-surface-container-high relative aspect-[4/3] overflow-hidden",
+                    "relative",
+                    // The shelf keeps its filled, clipped stage. The hero has
+                    // neither: the product stands on the page's own background,
+                    // so there is no fill to paint and nothing to clip against.
+                    !isHero && "bg-surface-container-high overflow-hidden",
                     // The floor, not the height — see the note on the image's
                     // `max-h` below, which is what actually bounds the panel on
                     // desktop. Both were trimmed together so a landscape
                     // product, which rests on this minimum, shortens by the same
                     // proportion as a portrait one, which rests on the cap.
-                    !isHero && "md:aspect-auto md:min-h-[24rem]",
+                    !isHero && "aspect-[4/3] md:aspect-auto md:min-h-[24rem]",
+                    // As the hero the stage *is* the card: the copy that used to
+                    // sit in a body beneath it now floats over it as chips, so
+                    // this height is the whole panel's height rather than the
+                    // top half of it. Stated outright at both widths instead of
+                    // an aspect ratio, because what has to be controlled here is
+                    // how much room the product and the chips get — not the
+                    // shape of the box they share. A ratio at this width would
+                    // also put the card well past the fold.
+                    // `hero-stage` also switches off the panel vignette, which
+                    // has no panel to sit on here. See `.hero-stage::after`.
+                    // The product is height-bound in this stage, so the stage's
+                    // own height is the lever on how large it draws.
+                    //
+                    // Raised from 30/40rem when the best-sellers shelf moved out
+                    // from under the hero (see the note in `app/page.tsx`).
+                    // Taking a whole shelf off the fold left the hero holding
+                    // the top of the page on its own and looking short for the
+                    // job — the stage is what fills that, and a larger stage
+                    // draws a larger product, which is the point of the
+                    // arrangement. The card still lands above the fold.
+                    // `hero-stage` also carries the spotlight — see
+                    // `.hero-stage::after`.
+                    isHero && "hero-stage h-[32rem] md:h-[44rem]",
                     // The same background an admin picked for this product in
                     // the featured list, so it looks like itself in both places
                     // it appears on the home page. The spotlight's own lighting
                     // layers over the top: the wash is the colour of the room,
                     // the spotlight is the lamp standing in it.
-                    resolveWell(product.tint, i).className,
+                    //
+                    // The hero takes none of it. A tinted well is a *panel*
+                    // treatment, and there is no panel there any more — painted
+                    // onto the page it would draw the rectangle back on, which
+                    // is the thing that arrangement exists to remove.
+                    !isHero && resolveWell(product.tint, i).className,
                   )}
-                  style={resolveWell(product.tint, i).style}
+                  style={isHero ? undefined : resolveWell(product.tint, i).style}
                 >
                   {/*
                     The stage's colour, one per panel.
@@ -422,13 +650,48 @@ export function FeaturedShowcase({
                     neutral fill above rather than replacing it, so the product
                     still sits on a surface rather than in a puddle of colour.
                   */}
-                  <span
-                    aria-hidden
-                    className="absolute inset-0"
-                    style={{
-                      background: saleGradient(SALE_TINTS[i % SALE_TINTS.length]),
-                    }}
-                  />
+                  {!isHero && (
+                    <span
+                      aria-hidden
+                      className="absolute inset-0"
+                      style={{
+                        background: saleGradient(SALE_TINTS[i % SALE_TINTS.length]),
+                      }}
+                    />
+                  )}
+
+                  {/*
+                    What stands behind the product now that nothing frames it.
+
+                    Two faint fields of dots, `aria-hidden` and carrying nothing
+                    to read. Without a card the product hangs in an empty band,
+                    and the eye needs something to measure a floating object
+                    against. Tinted through `currentColor` so they follow the
+                    scheme into dark mode rather than becoming soot on charcoal.
+
+                    The pair of rings that used to sit here has gone: with the
+                    specification callouts leaning in from the corners, a circle
+                    around the product was a second thing drawing attention to
+                    the middle of the stage, and the two read as clutter
+                    together where either alone read as composition.
+                  */}
+                  {isHero && (
+                    <span aria-hidden className="pointer-events-none absolute inset-0">
+                      <span className="hero-dot-grid text-primary/[0.14] absolute top-1/2 left-[6%] hidden size-28 -translate-y-1/2 lg:block" />
+                      <span className="hero-dot-grid text-primary/[0.14] absolute top-[58%] right-[4%] hidden size-24 -translate-y-1/2 lg:block" />
+                    </span>
+                  )}
+
+                  {/* The specifications, annotated onto the photograph. Built
+                      from this product's own spec rows — a different panel
+                      annotates different facts, and a product with none is not
+                      annotated at all. */}
+                  {isHero && (
+                    <SpecificationHotspots
+                      callouts={calloutsFor(product)}
+                      current={current}
+                    />
+                  )}
 
                   {product.image ? (
                     // Two nested transforms rather than one. The settle owns
@@ -438,7 +701,7 @@ export function FeaturedShowcase({
                     // would silently overwrite the other with no error.
                       <div
                       className={cn(
-                        "relative z-10 size-full transition-transform duration-700 ease-[var(--ease-emphasized)]",
+                        "relative z-10 size-full transition-transform duration-700 ease-emphasized",
                         // A gentle counter-drift against the slide: the image
                         // trails the panel, which reads as depth rather than a
                         // flat sheet of card moving sideways.
@@ -484,11 +747,50 @@ export function FeaturedShowcase({
                             change when the section is asked to be shorter — the
                             stage's `min-h` only moves the panels whose artwork
                             is too short to reach it. */}
+                        {/* The inset in the hero is asymmetric, and that is the
+                            layout doing its job rather than an oversight: the
+                            chips occupy the top and bottom of the stage, so the
+                            artwork is given the band between them. The sides
+                            stay narrow because width is what the product is
+                            actually bound by here — a landscape cut-out in a
+                            ~680px stage runs out of width long before height,
+                            so trimming `px` is what makes it draw larger, while
+                            `pt`/`pb` cost it almost nothing and keep it clear of
+                            the chips. Untouched as a shelf, where the panel sits
+                            beside its own copy at half the width. */}
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={product.image}
                           alt={product.name}
-                          className="product-glow size-full max-h-[35rem] object-contain p-8 sm:p-12"
+                          className={cn(
+                            // The halo traces the artwork's own alpha, so it is
+                            // the light *on* the product — the pool behind it
+                            // is `.hero-stage::after`. Both, or neither reads as
+                            // lighting: a lit floor under an unlit object looks
+                            // like a sticker on a photograph.
+                            "product-glow size-full object-contain",
+                            // The cap belongs to the shelf only. It is there
+                            // because that stage is `aspect-auto` with a bare
+                            // `min-height`, so `size-full` has no definite
+                            // height to resolve against and the artwork's own
+                            // ratio would set the panel's height. The hero
+                            // states its height outright, so nothing there
+                            // needs catching — and the cap was quietly the
+                            // binding constraint on how large the product drew:
+                            // 35rem minus the insets left a 336px box inside a
+                            // 608px stage, so the product was sized by a rule
+                            // written for the other layout.
+                            !isHero && "max-h-[35rem]",
+                            // The bottom inset only tightens from `sm` up. On a
+                            // phone the two slabs stack instead of sitting side
+                            // by side, so the space they need down there is
+                            // roughly double — trimming it at every width would
+                            // buy the product a few pixels and run it into the
+                            // price.
+                            isHero
+                              ? "px-4 pt-14 pb-32 sm:px-8 sm:pt-16 sm:pb-32"
+                              : "p-8 sm:p-12",
+                          )}
                         />
                       </Tilt>
                       </div>
@@ -498,7 +800,7 @@ export function FeaturedShowcase({
                     </div>
                   )}
 
-                  {(product.isNew || product.soldOut) && (
+                  {!isHero && (product.isNew || product.soldOut) && (
                     <span
                       className={cn(
                         "absolute top-4 left-4 rounded-full px-3 py-1 text-xs font-medium",
@@ -510,25 +812,173 @@ export function FeaturedShowcase({
                       {product.soldOut ? "Sold out" : "New"}
                     </span>
                   )}
+
+                  {/*
+                    The facts, floating over the stage instead of stacked under
+                    it.
+
+                    The panel used to be two halves — a picture on top, a column
+                    of copy beneath — which gave the product half a card and made
+                    the other half a list. Here the stage is the whole card and
+                    the same four facts orbit the product: what it is at the top,
+                    what it costs and where it goes at the bottom. Nothing is
+                    lost; it is arranged around the subject rather than queued
+                    below it.
+
+                    `pointer-events-none` on the layer is load-bearing. It spans
+                    the whole stage, and without it this would sit between the
+                    cursor and everything underneath — killing the tilt, the
+                    spotlight, and the press-and-drag that moves the carousel on
+                    a touch screen. Only the link inside takes events back.
+                  */}
+                  {isHero && (
+                    <div
+                      className={cn(
+                        "pointer-events-none absolute inset-0 z-20 flex flex-col justify-between gap-3 p-4 sm:p-5",
+                        // The same beat the copy column used to arrive on, so
+                        // the panel still assembles rather than landing rigid.
+                        "transition-all duration-500 ease-emphasized",
+                        current
+                          ? "translate-y-0 opacity-100 delay-150"
+                          : "translate-y-3 opacity-0",
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={cn(
+                              CHIP,
+                              "eyebrow text-primary flex items-center gap-1.5 rounded-full px-3 py-1.5",
+                            )}
+                          >
+                            <Icon name="stars" size={14} filled />
+                            Featured
+                          </span>
+
+                          {(product.isNew || product.soldOut) && (
+                            <span
+                              className={cn(
+                                "rounded-full px-3 py-1.5 text-xs font-medium",
+                                product.soldOut
+                                  ? "bg-error-container text-on-error-container"
+                                  : "bg-primary text-on-primary",
+                              )}
+                            >
+                              {product.soldOut ? "Sold out" : "New"}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Renders nothing until someone has rated it, so a new
+                            feature does not lead with an empty row of grey
+                            stars. */}
+                        {product.rating && (
+                          <span
+                            className={cn(
+                              CHIP,
+                              "flex shrink-0 items-center rounded-full px-3 py-1.5",
+                            )}
+                          >
+                            <RatingBadge
+                              average={product.rating.average}
+                              count={product.rating.count}
+                              size={14}
+                            />
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Wraps rather than shrinks: on a narrow stage the two
+                          slabs stack instead of squeezing a long product name
+                          into a column two words wide. */}
+                      <div className="flex flex-wrap items-end justify-between gap-3">
+                        <div className={cn(CHIP, "min-w-0 rounded-2xl px-4 py-3")}>
+                          <p className="label-caps text-on-surface-variant flex items-center gap-1.5">
+                            {product.brand &&
+                              (product.brand.iconSvg || product.brand.logo ? (
+                                <BrandMark
+                                  svg={product.brand.iconSvg}
+                                  logo={product.brand.logo}
+                                  treatment={product.brand.logoTreatment}
+                                  size={14}
+                                  label={product.brand.name}
+                                />
+                              ) : (
+                                <span className="text-on-surface font-medium">
+                                  {product.brand.name}
+                                </span>
+                              ))}
+                            {product.brand && product.category && (
+                              <span
+                                aria-hidden
+                                className="bg-outline-variant h-3 w-px shrink-0"
+                              />
+                            )}
+                            {product.category}
+                          </p>
+
+                          <h3 className="text-on-surface text-title-lg sm:text-headline-sm mt-1 truncate">
+                            {product.name}
+                          </h3>
+                        </div>
+
+                        <div
+                          className={cn(
+                            CHIP,
+                            "flex shrink-0 items-center gap-3 rounded-2xl py-2 pr-2 pl-4",
+                          )}
+                        >
+                          <p className="text-on-surface text-xl whitespace-nowrap">
+                            {product.priceVaries && (
+                              <span className="text-on-surface-variant text-sm">
+                                from{" "}
+                              </span>
+                            )}
+                            {formatPrice(product.minCents)}
+                          </p>
+
+                          <Link
+                            href={`/products/${product.slug}`}
+                            className="bg-primary text-on-primary state-layer pointer-events-auto inline-flex h-11 shrink-0 items-center gap-2 rounded-full px-5 text-sm font-medium transition-all duration-200 hover:shadow-elevation-2 focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-95"
+                          >
+                            View
+                            <Icon name="arrow_forward" size={18} />
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </Spotlight>
 
-                {/* The copy settles a beat after the slide, so the panel does
+                {/* The same specifications, for phones — outside the stage, so
+                    nothing overlaps the product at the one width where there is
+                    no room beside it. Hidden from `md` up, where the positioned
+                    callouts above take over. */}
+                {isHero && <SpecificationList callouts={calloutsFor(product)} />}
+
+                {/* The shelf's copy column, beneath the picture at one width and
+                    beside it at another. The hero has no such column — its copy
+                    floats over the stage as chips — so everything from here down
+                    is the shelf only, and the conditionals this block used to
+                    carry for the hero have gone with it.
+
+                    The copy settles a beat after the slide, so the panel does
                     not arrive as one rigid block. */}
+                {!isHero && (
                 <div
                   className={cn(
-                    "flex flex-col transition-all duration-500 ease-[var(--ease-emphasized)]",
-                    isHero ? "p-5 sm:p-6" : "p-6 sm:p-8",
+                    "flex flex-col p-6 transition-all duration-500 ease-emphasized sm:p-8",
                     current
                       ? "translate-y-0 opacity-100 delay-150"
                       : "translate-y-3 opacity-0",
                   )}
                 >
-                  <p className="text-primary flex items-center gap-2 text-xs font-medium tracking-[0.25em] uppercase">
+                  <p className="eyebrow text-primary flex items-center gap-2">
                     <Icon name="stars" size={16} filled />
                     Featured
                   </p>
 
-                  <h3 className="text-on-surface mt-4 text-2xl leading-[1.15] font-medium tracking-tight text-balance sm:text-3xl">
+                  <h3 className="text-on-surface text-headline-sm sm:text-headline-md mt-4">
                     {product.name}
                   </h3>
 
@@ -543,7 +993,7 @@ export function FeaturedShowcase({
                     />
                   )}
 
-                  <p className="text-on-surface-variant mt-3 flex items-center gap-1.5 text-xs tracking-wide uppercase">
+                  <p className="label-caps text-on-surface-variant mt-3 flex items-center gap-1.5">
                     {product.brand &&
                       (product.brand.iconSvg || product.brand.logo ? (
                         <BrandMark
@@ -564,21 +1014,18 @@ export function FeaturedShowcase({
                     {product.category}
                   </p>
 
-                  {/* Both the blurb and the spec list are dropped in the hero.
-                      There is a headline and three buttons in the column beside
-                      this one; a paragraph and a spec table underneath the
-                      product turn the front door into two things to read at
-                      once. What is left — name, rating, brand, price — is the
-                      identification, and the panel links through for the rest. */}
-                  {!isHero && (
-                    <p className="text-on-surface-variant mt-4 line-clamp-3 leading-relaxed">
-                      {product.description}
-                    </p>
-                  )}
+                  <p className="text-on-surface-variant mt-4 line-clamp-3 leading-relaxed">
+                    {product.description}
+                  </p>
 
-                  {!isHero && product.specs.length > 0 && (
+                  {/* Sliced here rather than by the query. The service now
+                      carries a wider pool so the hero's callouts have something
+                      to choose from; this shelf still wants the three-line
+                      summary it has always shown, so it takes its own count
+                      instead of inheriting one meant for the other surface. */}
+                  {product.specs.length > 0 && (
                     <ul className="text-on-surface-variant mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm">
-                      {product.specs.map((spec) => (
+                      {product.specs.slice(0, SHELF_SPEC_COUNT).map((spec) => (
                         <li key={spec.label} className="flex items-center gap-1.5">
                           <Icon name={spec.icon ?? "label"} size={16} />
                           {spec.label}
@@ -590,24 +1037,14 @@ export function FeaturedShowcase({
                     </ul>
                   )}
 
-                  <p
-                    className={cn(
-                      "text-on-surface text-2xl",
-                      isHero ? "mt-4" : "mt-6",
-                    )}
-                  >
+                  <p className="text-on-surface mt-6 text-2xl">
                     {product.priceVaries && (
                       <span className="text-on-surface-variant text-sm">from </span>
                     )}
                     {formatPrice(product.minCents)}
                   </p>
 
-                  <div
-                    className={cn(
-                      "flex flex-wrap items-center gap-3",
-                      isHero ? "mt-5" : "mt-6 pt-2",
-                    )}
-                  >
+                  <div className="mt-6 flex flex-wrap items-center gap-3 pt-2">
                     <Link
                       href={`/products/${product.slug}`}
                       className="bg-primary text-on-primary state-layer inline-flex h-12 w-full items-center justify-center gap-2 rounded-full px-8 text-sm font-medium shadow-none transition-all duration-200 hover:shadow-elevation-2 focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-95 sm:w-auto"
@@ -616,11 +1053,7 @@ export function FeaturedShowcase({
                       <Icon name="arrow_forward" size={18} />
                     </Link>
 
-                    {/* Suppressed in the hero: the lead beside it already
-                        carries "Shop all products", and a third destination in
-                        the same row makes the row a menu rather than an
-                        action. */}
-                    {!isHero && product.category && (
+                    {product.category && (
                       <Link
                         href={`/products?category=${encodeURIComponent(
                           product.category.toLowerCase().replace(/\s+/g, "-"),
@@ -632,6 +1065,7 @@ export function FeaturedShowcase({
                     )}
                   </div>
                 </div>
+                )}
               </div>
             );
           })}
@@ -717,7 +1151,7 @@ export function FeaturedShowcase({
                   aria-current={isHero ? current : undefined}
                   onClick={() => goTo(i)}
                   className={cn(
-                    "h-2 overflow-hidden rounded-full transition-all duration-300 ease-[var(--ease-emphasized)]",
+                    "h-2 overflow-hidden rounded-full transition-all duration-300 ease-emphasized",
                     current ? "w-8" : "bg-outline-variant hover:bg-outline w-2",
                     // Dimmed to a track only while something is draining it;
                     // held or stationary it stays the solid dot it was.

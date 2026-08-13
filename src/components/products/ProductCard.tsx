@@ -105,7 +105,7 @@ export function ProductCard({
         lift stays here too, so it composes with the Card's own elevation
         change rather than competing with it.
       */}
-      <div className="group block h-full rounded-xl transition-transform duration-200 ease-[var(--ease-standard)] hover:-translate-y-0.5">
+      <div className="group block h-full rounded-xl transition-transform duration-200 ease-standard hover:-translate-y-0.5">
         <Card variant="outlined" className="h-full overflow-hidden" interactive>
           {/* No background on the frame itself. Plenty of catalogue images are
               transparent PNGs, and a tint here showed straight through them as
@@ -142,7 +142,7 @@ export function ProductCard({
                 //
                 // No padding: with `cover` it would only inset the fill and
                 // reintroduce an uneven frame.
-                className="size-full object-cover transition-transform duration-300 ease-[var(--ease-standard)] group-hover:scale-105"
+                className="size-full object-cover transition-transform duration-300 ease-standard group-hover:scale-105"
               />
             ) : (
               <div className="bg-surface-container-highest text-on-surface-variant grid size-full place-items-center">
@@ -154,7 +154,7 @@ export function ProductCard({
                 than overlap — a draft product can be on sale, and on the
                 dashboard both facts matter. */}
             {showDraft && (
-              <span className="bg-surface-container-highest text-on-surface-variant absolute top-2 left-2 rounded-full px-2 py-0.5 text-[11px] sm:px-3 sm:py-1 sm:text-xs">
+              <span className="bg-surface-container-highest text-on-surface-variant text-label-sm absolute top-2 left-2 rounded-full px-2 py-0.5 sm:px-3 sm:py-1">
                 Draft
               </span>
             )}
@@ -169,7 +169,7 @@ export function ProductCard({
                 shopper scans for, and it has to win against the photograph
                 behind it. */}
             {soldOut ? (
-              <span className="bg-error-container text-on-error-container absolute top-2 right-2 rounded-full px-2 py-0.5 text-[11px] sm:px-3 sm:py-1 sm:text-xs">
+              <span className="bg-error-container text-on-error-container text-label-sm absolute top-2 right-2 rounded-full px-2 py-0.5 sm:px-3 sm:py-1">
                 Sold out
               </span>
             ) : (
@@ -178,7 +178,7 @@ export function ProductCard({
                 <span
                   className={cn(
                     "bg-tertiary text-on-tertiary shadow-elevation-1 absolute left-2 rounded-full px-2.5 py-1",
-                    "text-[11px] font-semibold tracking-wide uppercase sm:text-xs",
+                    "text-label-sm font-semibold uppercase",
                     showDraft ? "top-10" : "top-2",
                   )}
                 >
@@ -218,7 +218,7 @@ export function ProductCard({
             {/* Brand and category together are what separate a workstation from
                 an ultrabook at a glance. */}
             {(product.brand || product.category) && (
-              <p className="text-on-surface-variant flex items-center gap-1.5 truncate text-xs tracking-wide uppercase">
+              <p className="label-caps text-on-surface-variant flex items-center gap-1.5 truncate">
                 {/* The mark alone where there is one — it is the faster read at
                     card size, and it inherits currentColor from this line. It
                     carries the brand name as its accessible label, since the
@@ -265,7 +265,7 @@ export function ProductCard({
                 {product.category?.name}
               </p>
             )}
-            <h3 className="text-on-surface truncate text-sm font-medium">{product.name}</h3>
+            <h3 className="text-on-surface text-title-sm truncate">{product.name}</h3>
 
             {/* Nothing at all until someone has rated it — see RatingBadge. */}
             {product.rating && (
@@ -275,17 +275,17 @@ export function ProductCard({
                 size={13}
               />
             )}
-            <p className="text-on-surface flex flex-wrap items-baseline gap-x-1.5 text-sm sm:text-base">
+            <p data-numeric className="text-on-surface text-title-md flex flex-wrap items-baseline gap-x-1.5">
               {/* "From" only when configurations actually differ in price —
                   saying it on a product sold at one price would be noise. */}
               {range.varies && (
-                <span className="text-on-surface-variant text-xs">from </span>
+                <span className="text-on-surface-variant text-body-sm">from </span>
               )}
-              <span className={sale ? "text-tertiary font-medium" : undefined}>
+              <span className={sale ? "text-tertiary" : undefined}>
                 {formatPrice(range.minCents)}
               </span>
               {sale && (
-                <span className="text-on-surface-variant text-xs line-through">
+                <span className="text-on-surface-variant text-body-sm line-through">
                   {/* Spelled out for a screen reader, which announces a
                       strikethrough as nothing at all. */}
                   <span className="sr-only">was </span>
@@ -306,7 +306,7 @@ export function ProductCard({
                     style={{ backgroundColor: color.hex }}
                   />
                 ))}
-                <span className="text-on-surface-variant hidden truncate text-xs sm:inline">
+                <span className="text-on-surface-variant text-body-sm hidden truncate sm:inline">
                   {product.colors.length > 4
                     ? `+${product.colors.length - 4}`
                     : product.colors.length === 1

@@ -14,7 +14,7 @@ export default function ForbiddenPage() {
           <div className="bg-error-container text-on-error-container grid size-14 place-items-center rounded-full">
             <Icon name="lock" size={28} />
           </div>
-          <h1 className="text-on-surface text-2xl font-normal">Access denied</h1>
+          <h1 className="text-on-surface text-headline-sm">Access denied</h1>
           <p className="text-on-surface-variant text-sm">
             This area is restricted to administrators. If you believe this is a
             mistake, contact your store administrator.

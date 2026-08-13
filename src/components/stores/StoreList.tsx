@@ -136,7 +136,7 @@ export function StoreList({ rows }: { rows: StoreRow[] }) {
                   <p className="text-on-surface flex flex-wrap items-center gap-2 text-sm font-medium">
                     {row.name}
                     {!row.published && (
-                      <span className="bg-surface-container-highest text-on-surface-variant rounded-full px-2 py-0.5 text-[11px]">
+                      <span className="bg-surface-container-highest text-on-surface-variant rounded-full px-2 py-0.5 text-label-sm">
                         Hidden
                       </span>
                     )}
@@ -145,12 +145,12 @@ export function StoreList({ rows }: { rows: StoreRow[] }) {
                         street. Absent is fine — it means the address is doing
                         the work — so this states which, rather than warning. */}
                     {row.latitude !== null && row.longitude !== null ? (
-                      <span className="text-on-surface-variant inline-flex items-center gap-1 text-[11px]">
+                      <span className="text-on-surface-variant inline-flex items-center gap-1 text-label-sm">
                         <Icon name="my_location" size={12} />
                         Pinned
                       </span>
                     ) : (
-                      <span className="text-on-surface-variant inline-flex items-center gap-1 text-[11px]">
+                      <span className="text-on-surface-variant inline-flex items-center gap-1 text-label-sm">
                         <Icon name="search" size={12} />
                         Map finds the address
                       </span>

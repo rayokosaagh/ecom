@@ -38,7 +38,7 @@ export function TopAppBar({
         />
       )}
       {leading}
-      <h1 className="text-on-surface truncate text-xl font-normal sm:text-[22px]">
+      <h1 className="text-on-surface text-title-lg truncate">
         {title}
       </h1>
       <div className="ml-auto flex items-center gap-1">{actions}</div>

@@ -78,7 +78,7 @@ export function DiscountField({
           autoCapitalize="characters"
           autoComplete="off"
           spellCheck={false}
-          className="border-outline bg-surface text-on-surface placeholder:text-on-surface-variant/70 focus:border-primary h-10 min-w-0 flex-1 rounded-lg border px-3 text-sm uppercase transition-colors duration-200 focus:outline-none"
+          className="label-caps border-outline bg-surface text-on-surface placeholder:text-on-surface-variant/70 focus:border-primary h-10 min-w-0 flex-1 rounded-lg border px-3 transition-colors duration-200 focus:outline-none"
         />
         <button
           type="submit"

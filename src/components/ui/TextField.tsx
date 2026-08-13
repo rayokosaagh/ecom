@@ -72,7 +72,7 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
             className={cn(
               "peer h-14 w-full rounded-sm border bg-transparent px-4 pt-4 text-base",
               "text-on-surface caret-primary",
-              "transition-colors duration-200 ease-[var(--ease-standard)]",
+              "transition-colors duration-200 ease-standard",
               "focus:border-2 focus:outline-none",
               "disabled:text-on-surface/[0.38] disabled:border-on-surface/[0.12]",
               leadingIcon && "pl-11",
@@ -89,7 +89,7 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
             className={cn(
               "pointer-events-none absolute left-4 px-1",
               "bg-surface",
-              "transition-all duration-200 ease-[var(--ease-standard)]",
+              "transition-all duration-200 ease-standard",
               // Floated (default) position: sitting on the top border.
               "-top-2 text-xs",
               // Resting position, only while empty and unfocused.

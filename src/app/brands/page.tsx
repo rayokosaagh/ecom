@@ -35,14 +35,14 @@ export default async function BrandsPage() {
 
       <main className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6">
         <div className="mb-8">
-          <p className="text-on-surface-variant flex items-center gap-2 text-xs font-medium tracking-[0.25em] uppercase">
+          <p className="eyebrow text-on-surface-variant flex items-center gap-2">
             <Icon name="sell" size={16} />
             Brands
           </p>
 
           {/* The same two-tone heading construction the home strip and the sale
               page use, a size up because this one is a page title. */}
-          <h1 className="text-on-surface mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">
+          <h1 className="text-on-surface text-headline-lg sm:text-display-sm mt-3">
             Shop by <span className="accent-word">brand.</span>
           </h1>
 

@@ -59,7 +59,7 @@ function Switch({
       <span
         aria-hidden
         className={cn(
-          "absolute top-1/2 block -translate-y-1/2 rounded-full transition-all duration-200 ease-[var(--ease-emphasized)]",
+          "absolute top-1/2 block -translate-y-1/2 rounded-full transition-all duration-200 ease-emphasized",
           checked
             ? "bg-on-primary left-[calc(100%-1.5rem)] size-6"
             : "bg-outline left-1 size-4",

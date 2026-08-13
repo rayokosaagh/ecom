@@ -48,7 +48,7 @@ export function ConfirmDelete({
       <span
         aria-hidden={open}
         className={cn(
-          "transition-[opacity,transform] duration-[var(--duration-short4)] ease-[var(--ease-standard)]",
+          "transition-[opacity,transform] duration-[var(--duration-short4)] ease-standard",
           open
             ? "pointer-events-none scale-90 opacity-0"
             : "scale-100 opacity-100",
@@ -69,7 +69,7 @@ export function ConfirmDelete({
         aria-hidden={!open}
         className={cn(
           "flex items-center gap-1 justify-self-end",
-          "transition-[opacity,transform] duration-[var(--duration-short4)] ease-[var(--ease-emphasized)]",
+          "transition-[opacity,transform] duration-[var(--duration-short4)] ease-emphasized",
           open ? "scale-100 opacity-100" : "pointer-events-none scale-90 opacity-0",
         )}
       >

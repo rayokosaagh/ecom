@@ -28,14 +28,14 @@ import type { SaleProductView } from "@/lib/sales/service";
  */
 export const SALE_SHELL = cn(
   "relative h-full overflow-hidden rounded-3xl ring-1 ring-inset ring-on-surface/[0.06]",
-  "transition-[box-shadow,transform] duration-300 ease-[var(--ease-emphasized)]",
+  "transition-[box-shadow,transform] duration-300 ease-emphasized",
   "group-hover:shadow-elevation-3 group-hover:-translate-y-1",
   "motion-reduce:transition-none motion-reduce:group-hover:translate-y-0",
 );
 
 /** Foreground follows the wash, so the copy stays legible through the change. */
 export const SALE_CONTENT = cn(
-  "relative text-[var(--sale-on)] transition-[color] duration-500 ease-[var(--ease-emphasized)]",
+  "relative text-[var(--sale-on)] transition-[color] duration-500 ease-emphasized",
   "group-hover:text-[var(--sale-on-hover)]",
   "motion-reduce:transition-none",
 );
@@ -56,7 +56,7 @@ export function TintLayers({ tints }: { tints: SaleTintPair }) {
       />
       <span
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 ease-[var(--ease-emphasized)] group-hover:opacity-100 motion-reduce:transition-none"
+        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 ease-emphasized group-hover:opacity-100 motion-reduce:transition-none"
         style={{ background: saleGradient(tints.hover) }}
       />
     </>
@@ -83,7 +83,7 @@ export function tintVars(tints: SaleTintPair): CSSProperties {
 export function DiscountBadge({ percentOff }: { percentOff: number }) {
   if (percentOff < 1) return null;
   return (
-    <span className="bg-tertiary text-on-tertiary shadow-elevation-1 absolute top-3 left-3 z-10 rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-wide uppercase sm:text-xs">
+    <span className="bg-tertiary text-on-tertiary shadow-elevation-1 absolute top-3 left-3 z-10 rounded-full px-2.5 py-1 text-label-sm font-semibold tracking-wide uppercase sm:text-xs">
       {percentOff}% off
     </span>
   );
@@ -93,7 +93,7 @@ export function DiscountBadge({ percentOff }: { percentOff: number }) {
 export function TintedMeta({ product }: { product: SaleProductView }) {
   if (!product.brand && !product.category) return null;
   return (
-    <p className="flex items-center gap-1.5 truncate text-xs tracking-wide uppercase opacity-75">
+    <p className="label-caps flex items-center gap-1.5 truncate opacity-75">
       {product.brand &&
         (product.brand.iconSvg || product.brand.logo ? (
           <BrandMark
@@ -154,7 +154,7 @@ export function SaleCard({
               src={product.image}
               alt={product.name}
               loading="lazy"
-              className="size-full object-cover object-center transition-transform duration-300 ease-[var(--ease-emphasized)] group-hover:scale-105 motion-reduce:transition-none"
+              className="size-full object-cover object-center transition-transform duration-300 ease-emphasized group-hover:scale-105 motion-reduce:transition-none"
             />
           ) : (
             <div className="grid size-full place-items-center opacity-60">
@@ -174,13 +174,13 @@ export function SaleCard({
         <div className={cn(SALE_CONTENT, "flex flex-1 flex-col gap-1 p-3 sm:p-4")}>
           <TintedMeta product={product} />
 
-          <h3 className="truncate text-sm font-semibold tracking-tight sm:text-base">
+          <h3 className="text-title-sm truncate font-semibold">
             {product.name}
           </h3>
 
           <p className="mt-auto flex flex-wrap items-baseline gap-x-2 pt-1">
             {range.varies && <span className="text-xs opacity-75">from</span>}
-            <span className="text-base font-semibold sm:text-lg">
+            <span className="text-title-md font-semibold">
               {formatPrice(range.minCents)}
             </span>
             <span className="text-xs line-through opacity-60">

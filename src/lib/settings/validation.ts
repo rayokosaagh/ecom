@@ -23,6 +23,7 @@ export type StoreSettingsInput = {
   pickupAddress: string | null;
   pickupHours: string | null;
   pickupNote: string | null;
+  homeHeroCombined: boolean;
 };
 
 export function parseStoreSettings(
@@ -39,6 +40,12 @@ export function parseStoreSettings(
   const pickupAddress = String(formData.get("pickupAddress") ?? "").trim();
   const pickupHours = String(formData.get("pickupHours") ?? "").trim();
   const pickupNote = String(formData.get("pickupNote") ?? "").trim();
+
+  /**
+   * Which home page arrangement to serve. Nothing to validate — it is one
+   * checkbox with two legal states, and both of them render a whole page.
+   */
+  const homeHeroCombined = formData.get("homeHeroCombined") === "on";
 
   /**
    * Switching collection on without saying where is refused.
@@ -105,6 +112,7 @@ export function parseStoreSettings(
       pickupAddress: pickupAddress || null,
       pickupHours: pickupHours || null,
       pickupNote: pickupNote || null,
+      homeHeroCombined,
     },
   };
 }

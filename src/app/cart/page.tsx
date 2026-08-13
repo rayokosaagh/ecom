@@ -61,7 +61,7 @@ export default async function CartPage({
       <Navbar {...nav} />
 
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-        <h1 className="text-on-surface text-3xl font-normal tracking-tight">Your cart</h1>
+        <h1 className="text-on-surface text-headline-md">Your cart</h1>
 
         {/* Why the basket looks the way it does, for someone arriving back from
             a wallet they cancelled at. Without it the items reappearing is as
@@ -250,9 +250,9 @@ export default async function CartPage({
                     </div>
                   </dl>
 
-                  <div className="border-outline-variant flex justify-between border-t pt-4">
-                    <span className="text-on-surface font-medium">Total</span>
-                    <span className="text-on-surface text-lg">
+                  <div className="border-outline-variant flex items-baseline justify-between border-t pt-4">
+                    <span className="text-on-surface text-title-md">Total</span>
+                    <span data-numeric className="text-on-surface text-title-lg">
                       {formatPrice(payableCents + shippingCents)}
                     </span>
                   </div>

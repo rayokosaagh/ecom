@@ -1,13 +1,15 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 import { cn } from "@/lib/cn";
+import { DURATION, EASE_STANDARD, NO_MOTION, PANEL_TRANSITION, SPRING } from "@/lib/motion";
 import { Icon } from "@/components/ui/Icon";
 import { categoryIcon } from "@/lib/categories/icons";
 import { useDismissable } from "@/lib/hooks/useDismissable";
+import { NAV_PANEL_VARIANTS, useNavMenu } from "./NavMenuGroup";
 
 export interface MenuCategory {
   name: string;
@@ -85,32 +87,16 @@ export function ProductsMenu({
   categories: MenuCategory[];
   active: boolean;
 }) {
-  const [open, setOpen] = useState(false);
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
   const reduceMotion = useReducedMotion();
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const ref = useDismissable<HTMLDivElement>(open, () => setOpen(false));
+  // Shared with the brands menu rather than held here, so that entering one
+  // trigger from the other closes the first in the same render instead of
+  // leaving both panels open for the length of a close timer. See
+  // `NavMenuGroup` for what that looked like.
+  const { open, replaced, openNow, closeSoon, close } = useNavMenu("products");
 
-  const cancelClose = () => {
-    if (closeTimer.current) clearTimeout(closeTimer.current);
-    closeTimer.current = null;
-  };
-
-  const openNow = () => {
-    cancelClose();
-    setOpen(true);
-  };
-
-  const closeSoon = () => {
-    cancelClose();
-    closeTimer.current = setTimeout(() => setOpen(false), 160);
-  };
-
-  const close = () => {
-    cancelClose();
-    setOpen(false);
-  };
+  const ref = useDismissable<HTMLDivElement>(open, close);
 
   // Falls back to the first category rather than holding null, so the detail
   // panel always has something in it and never opens blank.
@@ -138,11 +124,12 @@ export function ProductsMenu({
         onKeyDown={(event) => {
           if (event.key === "ArrowDown") {
             event.preventDefault();
-            setOpen(true);
+            openNow();
           }
         }}
         className={cn(
-          "relative flex items-center gap-1 rounded-full px-4 py-2 text-sm font-medium",
+          // Matches `TopNavLink`: tighter until `lg`, so the bar fits at `md`.
+          "relative flex items-center gap-1 rounded-full px-2 py-2 text-sm font-medium lg:px-4",
           "transition-colors duration-200 ease-in-out",
           "focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-95",
           active
@@ -155,28 +142,35 @@ export function ProductsMenu({
             layoutId="navbar-active-pill"
             className="bg-secondary-container absolute inset-0 rounded-full"
             transition={
-              reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 380, damping: 32 }
+              reduceMotion ? NO_MOTION : SPRING.panel
             }
           />
         )}
         <span className="relative z-10">Products</span>
         <motion.span
           animate={{ rotate: open ? 180 : 0 }}
-          transition={reduceMotion ? { duration: 0 } : { duration: 0.2 }}
+          transition={
+            reduceMotion ? NO_MOTION : { duration: DURATION.short4, ease: EASE_STANDARD }
+          }
           className="relative z-10 grid place-items-center"
         >
           <Icon name="expand_more" size={16} />
         </motion.span>
       </Link>
 
-      <AnimatePresence>
+      <AnimatePresence custom={replaced}>
         {open && categories.length > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: -6, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+            // Variants rather than literal states, and `custom` rather than a
+            // computed `exit` — a menu being *replaced* by its neighbour leaves
+            // at once instead of fading behind it. See `NAV_PANEL_VARIANTS`.
+            custom={replaced}
+            variants={NAV_PANEL_VARIANTS}
+            initial="hidden"
+            animate="shown"
+            exit="hidden"
             transition={
-              reduceMotion ? { duration: 0 } : { duration: 0.15, ease: [0.2, 0, 0, 1] }
+              reduceMotion ? NO_MOTION : PANEL_TRANSITION
             }
             // `pt-2` rather than `mt-2`: the gap between trigger and card has to
             // belong to the hover target. As a margin it was dead space, and a
@@ -188,7 +182,7 @@ export function ProductsMenu({
               <div className="flex">
                 {/* ---------- Rail: fixed width, never reflows ---------- */}
                 <div className="border-outline-variant bg-surface-container w-60 shrink-0 border-r p-2">
-                  <p className="text-on-surface-variant px-3 pt-1 pb-2 text-[11px] font-medium tracking-[0.14em] uppercase">
+                  <p className="label-caps text-on-surface-variant px-3 pt-1 pb-2">
                     Categories
                   </p>
                   <ul>

@@ -66,11 +66,11 @@ export default async function StoresPage() {
 
       <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
         <div className="mb-8">
-          <p className="text-primary flex items-center gap-2 text-xs font-medium tracking-[0.25em] uppercase">
+          <p className="eyebrow text-primary flex items-center gap-2">
             <Icon name="location_on" size={16} filled />
             Visit
           </p>
-          <h1 className="text-on-surface mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">
+          <h1 className="text-on-surface text-headline-lg sm:text-display-sm mt-3">
             Come and{" "}
             <span className="accent-word">see us.</span>
           </h1>

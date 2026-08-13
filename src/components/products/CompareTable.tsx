@@ -124,7 +124,7 @@ export function CompareTable({
                     </span>
 
                     {header.brand && (
-                      <span className="text-on-surface-variant mb-0.5 flex items-center gap-1.5 text-xs tracking-wide uppercase">
+                      <span className="label-caps text-on-surface-variant mb-0.5 flex items-center gap-1.5">
                         {header.brand.iconSvg || header.brand.logo ? (
                           <BrandMark
                             svg={header.brand.iconSvg}
@@ -146,7 +146,7 @@ export function CompareTable({
                     </span>
                     <span className="text-on-surface mt-1 block">{header.price}</span>
                     {header.soldOut && (
-                      <span className="bg-error-container text-on-error-container mt-1 inline-block rounded-full px-2 py-0.5 text-[11px]">
+                      <span className="bg-error-container text-on-error-container mt-1 inline-block rounded-full px-2 py-0.5 text-label-sm">
                         Sold out
                       </span>
                     )}
@@ -165,7 +165,7 @@ export function CompareTable({
                     colSpan={headers.length + 1}
                     className="bg-surface-container border-outline-variant border-t px-3 py-2 text-left"
                   >
-                    <span className="text-on-surface-variant flex items-center gap-2 text-xs font-medium tracking-[0.15em] uppercase">
+                    <span className="label-caps text-on-surface-variant flex items-center gap-2">
                       {group.icon && (
                         <Icon name={group.icon} size={14} className="text-primary" />
                       )}

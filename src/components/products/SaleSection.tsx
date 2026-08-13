@@ -67,7 +67,7 @@ export function SaleSection({
             the semibold lead-in and the regular display italic carries it. */}
         <h2
           id="sale-heading"
-          className="text-on-surface text-3xl font-semibold tracking-tight sm:text-4xl"
+          className="text-on-surface text-headline-md sm:text-headline-lg"
         >
           On <span className="accent-word">sale</span>
         </h2>
@@ -80,8 +80,13 @@ export function SaleSection({
         </Link>
       </div>
 
+      {/* `deal-reveal` around a single child is still the right tool rather
+          than an overweight one: it is the same arrival the cards below use, so
+          the lead does not want a second animation with its own timing that
+          happens to look similar. With one child it simply takes the first
+          slice of the range — a beat of stillness, then a rise and a fade. */}
       {featureLead && (
-        <div className="mb-3 sm:mb-4">
+        <div className="deal-reveal mb-3 sm:mb-4">
           <SaleLeadCard
             product={lead}
             tints={saleTintPair(LEAD_TINT_INDEX, lead.slug)}
@@ -89,7 +94,23 @@ export function SaleSection({
         </div>
       )}
 
-      <ul className="stagger grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
+      {/*
+        `deal-reveal` rather than the `stagger` this used to carry.
+
+        The two do the same choreography from different clocks — `stagger` runs
+        on a timer once the section is revealed, this one runs on scroll
+        position — and they cannot be combined: `.stagger > *` sets the
+        `animation` *shorthand*, which resets `animation-timeline` to `auto` and
+        would quietly sever the scroll timeline, leaving a time-based animation
+        that still looks like it works.
+
+        Its own timeline, not the lead card's. The two are separate elements, so
+        each measures its own arrival — and since the lead sits above the grid
+        it reaches the viewport first anyway, which gives the section the
+        cascade it would have had from one shared timeline without either
+        needing to know about the other.
+      */}
+      <ul className="deal-reveal grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
         {grid.map((product, index) => (
           <li key={product.slug}>
             {/* Resting colour drawn from the palette *minus* the lead's, so
@@ -154,7 +175,7 @@ export function SaleLeadCard({
             <TintedMeta product={product} />
 
             {/* Same type scale as PromoCard's tinted headings. */}
-            <h3 className="text-2xl leading-[1.15] font-semibold tracking-tight text-balance sm:text-[1.75rem]">
+            <h3 className="text-headline-sm sm:text-headline-md font-semibold">
               {product.name}
             </h3>
 
@@ -173,7 +194,7 @@ export function SaleLeadCard({
 
             <p className="mt-1 flex flex-wrap items-baseline gap-x-3">
               {range.varies && <span className="text-sm opacity-75">from</span>}
-              <span className="text-3xl font-semibold sm:text-4xl">
+              <span className="text-headline-md sm:text-headline-lg font-semibold">
                 {formatPrice(range.minCents)}
               </span>
               <span className="text-base line-through opacity-60">
@@ -189,7 +210,7 @@ export function SaleLeadCard({
                 View product
                 <span
                   aria-hidden
-                  className="absolute -bottom-0.5 left-0 h-px w-full origin-left scale-x-0 bg-current transition-transform duration-300 ease-[var(--ease-emphasized)] group-hover:scale-x-100 motion-reduce:transition-none"
+                  className="absolute -bottom-0.5 left-0 h-px w-full origin-left scale-x-0 bg-current transition-transform duration-300 ease-emphasized group-hover:scale-x-100 motion-reduce:transition-none"
                 />
               </span>
               <Icon name="arrow_forward" size={18} className="shrink-0" />
@@ -202,7 +223,7 @@ export function SaleLeadCard({
               <img
                 src={product.image}
                 alt={product.name}
-                className="absolute inset-0 size-full object-cover object-center transition-transform duration-300 ease-[var(--ease-emphasized)] group-hover:scale-105 motion-reduce:transition-none"
+                className="absolute inset-0 size-full object-cover object-center transition-transform duration-300 ease-emphasized group-hover:scale-105 motion-reduce:transition-none"
               />
             ) : (
               <div className="grid size-full place-items-center opacity-60">

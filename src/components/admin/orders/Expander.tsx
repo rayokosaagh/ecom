@@ -41,7 +41,7 @@ export function Expander({
         name="chevron_right"
         size={18}
         className={cn(
-          "transition-transform duration-200 ease-[var(--ease-standard)]",
+          "transition-transform duration-200 ease-standard",
           open && "rotate-90",
         )}
       />

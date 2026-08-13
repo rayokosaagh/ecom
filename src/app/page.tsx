@@ -15,6 +15,7 @@ import { FaqSection } from "@/components/faqs/FaqSection";
 import { WhatsappButton } from "@/components/support/WhatsappButton";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
+import { cn } from "@/lib/cn";
 import { Reveal } from "@/components/ui/Reveal";
 import { getNavData } from "@/lib/nav/data";
 import { getWishlistProductIds } from "@/lib/wishlist/service";
@@ -24,6 +25,7 @@ import { getSaleProducts } from "@/lib/sales/service";
 import { getShoppableBrands } from "@/lib/brands/service";
 import { getBestSellers } from "@/lib/products/best-sellers";
 import { getLiveFlashSale, reconcileFlashSales } from "@/lib/flash/service";
+import { getStoreSettings } from "@/lib/settings/service";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -43,6 +45,132 @@ import { prisma } from "@/lib/prisma";
  */
 const BRAND_LIMIT = 18;
 
+/**
+ * The shop's opening line, its two actions and its two promises.
+ *
+ * One component with two alignments, because the home page has two
+ * arrangements and the *words* are the same in both. Which one is served is an
+ * admin setting — see `homeHeroCombined` on `StoreSettings` — so the copy has
+ * to be able to sit in either without being written out twice; a second copy
+ * would be the one that stopped being updated.
+ *
+ * Every alignment here is stated rather than inherited. In the stacked
+ * arrangement this sits inside a `flex flex-col items-center` section that used
+ * to centre each of these elements as a flex item; wrapped in a component they
+ * are no longer that section's children, so the centring has to come from the
+ * elements themselves.
+ */
+function HeroCopy({
+  categoryNames,
+  showRegister,
+  split,
+}: {
+  categoryNames: string[];
+  /** Signed-out visitors are offered an account; signed-in ones are not. */
+  showRegister: boolean;
+  /**
+   * Beside the featured product rather than across the page — centred while
+   * the columns are stacked, left-aligned from `lg` where they are not. Copy
+   * centred against a card beside it reads as an unrelated caption.
+   */
+  split: boolean;
+}) {
+  return (
+    <div className={cn("w-full text-center", split && "lg:text-left")}>
+      <p
+        className={cn(
+          "animate-rise eyebrow text-primary flex items-center justify-center gap-2",
+          split && "lg:justify-start",
+        )}
+      >
+        <Icon name="storefront" size={16} filled />
+        {/* The real category names, so the eyebrow stays true as the catalogue
+            grows. */}
+        {categoryNames.length > 0 ? categoryNames.join(" · ") : "New arrivals"}
+      </p>
+
+      {/* A step down from `display-lg` when the copy is in a column: 72px in
+          half a page breaks "Precision gear for" over three lines and leaves
+          the headline taller than the product it is introducing. Across the
+          full width there is room for it. */}
+      <h1
+        className={cn(
+          "animate-rise rise-2 text-on-surface text-display-sm mx-auto mt-6 max-w-3xl",
+          split ? "sm:text-display-md lg:mx-0" : "sm:text-display-lg",
+        )}
+      >
+        Precision gear for
+        <span className="accent-word block pt-2">the modern desk.</span>
+      </h1>
+
+      <div
+        className={cn(
+          "animate-rise rise-3 mt-9 flex flex-wrap items-center justify-center gap-3",
+          split && "lg:justify-start",
+        )}
+      >
+        <Link
+          href="/products"
+          className="bg-primary text-on-primary state-layer text-label-lg inline-flex h-12 items-center gap-2 rounded-full px-8 shadow-none transition-all duration-200 hover:shadow-elevation-2 focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-95"
+        >
+          Shop all products
+          <Icon name="arrow_forward" size={18} />
+        </Link>
+        {showRegister && (
+          <Link
+            href="/register"
+            className="text-primary state-layer text-label-lg inline-flex h-12 items-center rounded-full px-6 focus-visible:outline-2 focus-visible:outline-offset-2"
+          >
+            Create an account
+          </Link>
+        )}
+
+        {/* Beside the shopping actions rather than in a section of its own:
+            someone who lands with a question should not have to scroll the
+            whole page to find out they can just ask. Renders nothing until a
+            number is configured. */}
+        <WhatsappButton
+          label="Ask us anything"
+          // The note lives with the buttons that answer a specific question; in
+          // a hero it is noise.
+          showNote={false}
+          className="[&>a]:h-12"
+        />
+      </div>
+
+      <ul
+        className={cn(
+          "animate-rise rise-4 text-on-surface-variant text-body-md flex flex-wrap items-center justify-center gap-x-8 gap-y-2",
+          // Tighter beside the product, where the column has a card to keep
+          // level with rather than a whole page to breathe into.
+          split ? "mt-10 lg:justify-start" : "mt-12",
+        )}
+      >
+        <li className="flex items-center gap-1.5">
+          <Icon name="memory" size={16} />
+          Spec-first, no filler
+        </li>
+        <span aria-hidden className="bg-outline-variant hidden h-4 w-px sm:block" />
+        <li className="flex items-center gap-1.5">
+          <Icon name="lock" size={16} />
+          Secure checkout
+        </li>
+      </ul>
+
+      {/*
+        Nothing follows the promises.
+
+        A stat rule stood here — products carried, then brands — to fill the
+        foot of the column beside the card, and both figures have been taken
+        out on request. The space they occupied is not a defect to be patched:
+        the column is centred against the card by `items-center` on the hero
+        grid, so what is left reads as margin above and below the copy rather
+        than as a hole under it.
+      */}
+    </div>
+  );
+}
+
 export default async function HomePage() {
   // Settled before anything reads a price, and deliberately not inside the
   // batch below. A flash sale rewrites `Product.priceCents`, so a reconcile
@@ -50,8 +178,17 @@ export default async function HomePage() {
   // yesterday's figures on the first request after a sale opens or closes.
   await reconcileFlashSales();
 
-  const [nav, wishlistIds, categories, featured, bestSellers, onSale, brands, flashSale] =
-    await Promise.all([
+  const [
+    nav,
+    wishlistIds,
+    categories,
+    featured,
+    bestSellers,
+    onSale,
+    brands,
+    flashSale,
+    settings,
+  ] = await Promise.all([
       getNavData(),
       getWishlistProductIds(),
       prisma.category.findMany({ orderBy: { name: "asc" }, select: { name: true } }),
@@ -64,9 +201,38 @@ export default async function HomePage() {
       getSaleProducts(4),
       getShoppableBrands(BRAND_LIMIT),
       getLiveFlashSale(),
+      // Which of the two home page arrangements to serve. Cached per request
+      // and already read by the WhatsApp buttons below, so this costs nothing
+      // extra.
+      getStoreSettings(),
     ]);
 
   const categoryNames = categories.slice(0, 4).map((c) => c.name);
+
+  /** Which arrangement the admin has published. See `HeroCopy`. */
+  const combinedHero = settings.homeHeroCombined;
+
+  // Built once and used by whichever arrangement is rendered — the two differ
+  // in where these go, never in what is in them.
+  const bestSellerPanels = bestSellers.map((entry) => ({
+    slug: entry.slug,
+    name: entry.name,
+    image: entry.image,
+    brand: entry.brand,
+    minCents: entry.minCents,
+    priceVaries: entry.priceVaries,
+    soldOut: entry.soldOut,
+    // Always null here, and deliberately: `tint` is an admin's pick on a
+    // *featured* row, and there is no such row behind a best seller.
+    // `resolveWell` cycles the palette by position instead, which is what that
+    // fallback is for.
+    tint: null,
+  }));
+
+  // Below three the accordion has too few panels to divide its row between;
+  // `FeaturedAccordion` declines the same count on its own, and the check is
+  // here as well so the heading goes with it.
+  const hasBestSellers = bestSellers.length >= 3;
 
   const products = await prisma.product.findMany({
     where: { published: true },
@@ -98,120 +264,71 @@ export default async function HomePage() {
     ...(flashSale?.products.map((entry) => entry.id) ?? []),
   ]);
 
+  // The featured list is the hero in one arrangement and a shelf in the other,
+  // so it is prepared once here rather than mapped at either call site.
+  const showcaseProducts = featured.map((entry) => ({
+    ...entry,
+    rating: ratings.get(entry.id) ?? null,
+  }));
+
   return (
     <div className="bg-surface-container-low flex min-h-dvh flex-col">
       <Navbar {...nav} />
 
       <main>
-        {/* `sm:px-6` matches the gutter every other section on this page uses
-            (`mx-auto max-w-7xl px-4 sm:px-6`). It was `px-4` alone, which put
-            the hero's contents 8px wider than everything below them from `sm`
-            up — invisible on the centred copy, obvious on the accordion, whose
-            edges sit right above the Featured picks card. */}
-        <section className="flex flex-col items-center justify-center px-4 pt-16 pb-20 text-center sm:px-6 sm:pt-24 sm:pb-28">
-          <p className="animate-rise text-primary flex items-center gap-2 text-xs font-medium tracking-[0.25em] uppercase">
-            <Icon name="storefront" size={16} filled />
-            {/* The real category names, so the eyebrow stays true as the
-                catalogue grows. */}
-            {categoryNames.length > 0 ? categoryNames.join(" · ") : "New arrivals"}
-          </p>
+        {/* The front door, in whichever of the two arrangements is published.
+            The switch is `homeHeroCombined` in the dashboard's storefront
+            settings; both show the same products, and differ only in where the
+            copy, the spotlight and the best sellers sit.
 
-          <h1 className="animate-rise rise-2 text-on-surface mt-6 max-w-3xl text-5xl leading-[1.05] font-medium tracking-tight text-balance sm:text-7xl">
-            Precision gear for
-            <span className="accent-word block pt-2">
-              the modern desk.
-            </span>
-          </h1>
+            Neither is wrapped in `Reveal`: this is above the fold, and the copy
+            carries the staggered `animate-rise` entrance the hero has always
+            used. */}
+        {combinedHero ? (
+          <>
+            {/* One section rather than two.
 
-          <div className="animate-rise rise-3 mt-9 flex flex-wrap items-center justify-center gap-3">
-            <Link
-              href="/products"
-              className="bg-primary text-on-primary state-layer inline-flex h-12 items-center gap-2 rounded-full px-8 text-sm font-medium shadow-none transition-all duration-200 hover:shadow-elevation-2 focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-95"
-            >
-              Shop all products
-              <Icon name="arrow_forward" size={18} />
-            </Link>
-            {!nav.user && (
-              <Link
-                href="/register"
-                className="text-primary state-layer inline-flex h-12 items-center rounded-full px-6 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2"
-              >
-                Create an account
-              </Link>
-            )}
+                The opening line, the actions and the featured spotlight used to
+                be stacked: a centred hero, and then the same shop's best
+                product introduced again a screen and a half further down. Both
+                were saying "start here", which meant the page said it twice and
+                neither one got the whole of the fold. Side by side they say it
+                once — the copy makes the claim and the product beside it is the
+                evidence.
 
-            {/* Beside the shopping actions rather than in a section of its own:
-                someone who lands with a question should not have to scroll the
-                whole page to find out they can just ask. Outlined, so it reads
-                as the third option rather than competing with "Shop all
-                products". Renders nothing until a number is configured. */}
-            <WhatsappButton
-              label="Ask us anything"
-              // The note lives with the buttons that answer a specific
-              // question; in a hero it is noise.
-              showNote={false}
-              className="[&>a]:h-12"
+                The carousel takes the copy as its `lead` rather than the page
+                wrapping both in a grid, because the two columns have to be
+                siblings for the product to sit *beside* the headline rather
+                than under it, and the track that scrolls is a client component.
+                Handing the copy in keeps it server-rendered — see
+                `FeaturedShowcase`, where `lead` is also the switch into this
+                layout. */}
+            <FeaturedShowcase
+              products={showcaseProducts}
+              lead={
+                <HeroCopy
+                  categoryNames={categoryNames}
+                  showRegister={!nav.user}
+                  split
+                />
+              }
             />
-          </div>
 
-          <ul className="animate-rise rise-4 text-on-surface-variant mt-12 flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-sm">
-            <li className="flex items-center gap-1.5">
-              <Icon name="memory" size={16} />
-              Spec-first, no filler
-            </li>
-            <span aria-hidden className="bg-outline-variant hidden h-4 w-px sm:block" />
-            <li className="flex items-center gap-1.5">
-              <Icon name="lock" size={16} />
-              Secure checkout
-            </li>
-          </ul>
-
-          {/* Under the copy rather than beside it. The hero is a centred stack,
-              and moving the headline off to one side to make room would restyle
-              the part of this page that already works — so the shelf takes the
-              full width beneath it instead.
-
-              It carries **best sellers**, not the featured list. It used to
-              show the latter, which meant the featured products appeared twice
-              in a row — here, and again in the spotlight immediately below —
-              so the row was a second telling of the same story rather than a
-              section of its own. Ranked by units sold, it now answers a
-              question no other shelf on this page does: not what the shop
-              chose, but what people bought. Renders nothing under three
-              products; see `FeaturedAccordion`. */}
-          {bestSellers.length >= 3 && (
-            <h2 className="animate-rise rise-4 text-on-surface mt-14 w-full max-w-[calc(80rem-3rem)] text-left text-2xl font-medium tracking-tight sm:text-3xl">
-              Best <span className="accent-word">sellers</span>
-            </h2>
-          )}
-          <FeaturedAccordion
-            products={bestSellers.map((entry) => ({
-              slug: entry.slug,
-              name: entry.name,
-              image: entry.image,
-              brand: entry.brand,
-              minCents: entry.minCents,
-              priceVaries: entry.priceVaries,
-              soldOut: entry.soldOut,
-              // Always null here, and deliberately: `tint` is an admin's pick
-              // on a *featured* row, and there is no such row behind a best
-              // seller. `resolveWell` cycles the palette by position instead,
-              // which is what that fallback is for.
-              tint: null,
-            }))}
-            /* Width matched to the Featured picks card below rather than set
-               independently. That card is a `max-w-7xl` section with `sm:px-6`
-               gutters, so the box a shopper actually sees is 80rem *minus* those
-               two 1.5rem gutters. This row has no gutters of its own at `md`
-               and up, so it has to state that figure directly — `max-w-7xl`
-               here would overhang the card below it by 3rem.
-
-               `mt-4` rather than the `mt-14` it used to carry: the heading above
-               now owns the gap from the hero, and leaving both would have set
-               the row a full section's distance from its own title. */
-            className="animate-rise rise-4 mt-4 w-full max-w-[calc(80rem-3rem)] text-left"
-          />
-        </section>
+          </>
+        ) : (
+          /* The arrangement the combined hero replaced: a centred stack, with
+             "Featured picks" further down the page as a wide shelf of its own —
+             rendered below, after the flash sale. The best sellers used to sit
+             directly under this copy; they are now a shelf of their own below
+             the flash sale, in both arrangements. See the note there. */
+          <section className="flex flex-col items-center justify-center px-4 pt-16 pb-24 text-center sm:px-6 sm:pt-24 sm:pb-32">
+            <HeroCopy
+              categoryNames={categoryNames}
+              showRegister={!nav.user}
+              split={false}
+            />
+          </section>
+        )}
 
         {/* First of the shelves, because it is the only thing on the page with
             a deadline. Everything below is still true tomorrow; this is not,
@@ -227,16 +344,16 @@ export default async function HomePage() {
           />
         </Reveal>
 
-        {/* The curated spotlight. Renders nothing while the admin list is
-            empty, so the page never shows an empty shelf. */}
-        <Reveal>
-          <FeaturedShowcase
-            products={featured.map((entry) => ({
-              ...entry,
-              rating: ratings.get(entry.id) ?? null,
-            }))}
-          />
-        </Reveal>
+        {/* The curated spotlight as a shelf, which is where it lived before the
+            combined hero took it up to the top. Only in the stacked
+            arrangement — in the other one this same component *is* the hero,
+            and rendering it here as well would show the featured products
+            twice. Renders nothing while the admin list is empty. */}
+        {!combinedHero && (
+          <Reveal>
+            <FeaturedShowcase products={showcaseProducts} />
+          </Reveal>
+        )}
 
         {/* Deals, above the category banners and the general grid: a shopper
             who came for a sale should not have to scroll past everything else
@@ -252,6 +369,53 @@ export default async function HomePage() {
             wishlistIds={wishlistIds}
           />
         </Reveal>
+
+        {/*
+          Best sellers — below both deal shelves, and the reason is the reveal
+          rather than the merchandising.
+
+          This sat directly beneath the hero in both arrangements, which put the
+          top of the row about 945px down the page. That is at or above the fold
+          on most desktop windows, and the accordion's scroll-driven reveal is
+          anchored to `entry` — the range that runs while an element crosses
+          into the viewport, whose length is exactly the element's own height.
+          Measured: on a window taller than about 1360px the row was fully on
+          screen before the visitor touched the scrollbar, so the panels
+          finished dealing out with nobody watching; between 945 and 1360 the
+          sequence began already half spent. No tuning of the timing wins that
+          back, because the problem is that the element never *enters*. It
+          needed distance.
+
+          It went below the flash sale first, which was not enough and is worth
+          recording: `FlashSaleSection` renders nothing unless a sale is
+          actually live, so on a shop with no flash sale the move bought only
+          the hero's own growth and the row landed at 1049 — still inside a tall
+          fold. Position on this page is a function of which shelves have data,
+          so "below X" is only as good as X's emptiest day. Below the sale shelf
+          as well, the row clears every viewport with the current catalogue and
+          degrades to roughly where it was if *both* deal shelves are empty,
+          which is the worst case and still covers ordinary laptop heights.
+
+          One shelf now instead of two copies, which is the other half of the
+          fix: the stacked arrangement stated its width in absolute terms
+          (`max-w-[calc(80rem-3rem)]`) to line up with a gutterless hero while
+          the combined one used a plain guttered section. Two spellings of one
+          shelf is how they drift apart. As its own section it takes the same
+          `max-w-7xl` gutters every other shelf here uses.
+
+          The order still reads: things with a deadline or a discount first,
+          then what people actually bought, then the ways to browse.
+        */}
+        {hasBestSellers && (
+          <Reveal>
+            <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6">
+              <h2 className="text-on-surface text-headline-sm sm:text-headline-md">
+                Best <span className="accent-word">sellers</span>
+              </h2>
+              <FeaturedAccordion products={bestSellerPanels} className="mt-6" />
+            </section>
+          </Reveal>
+        )}
 
         {/* Brands directly after the deals, because a shopper who arrives
             knowing the maker — "a MacBook", "ROG", "Sony" — is high-intent and
@@ -274,13 +438,13 @@ export default async function HomePage() {
         <Reveal>
           <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6">
             <div className="mb-6 flex items-end justify-between gap-4">
-            <h2 className="text-on-surface text-3xl font-medium tracking-tight">
+            <h2 className="text-on-surface text-headline-md">
               Latest <span className="accent-word">arrivals</span>
             </h2>
             {products.length > 0 && (
               <Link
                 href="/products"
-                className="text-primary rounded-sm text-sm font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+                className="text-primary text-label-lg rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
               >
                 View all
               </Link>
@@ -291,8 +455,8 @@ export default async function HomePage() {
             <Card variant="outlined">
               <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
                 <Icon name="inventory_2" size={40} className="text-on-surface-variant" />
-                <p className="text-on-surface">No products yet</p>
-                <p className="text-on-surface-variant max-w-sm text-sm">
+                <p className="text-on-surface text-title-md">No products yet</p>
+                <p className="text-on-surface-variant text-body-md max-w-sm">
                   Sign in as an administrator and add your first product from the
                   dashboard.
                 </p>

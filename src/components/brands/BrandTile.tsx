@@ -45,7 +45,7 @@ export function BrandTile({ brand }: { brand: BrandSummary }) {
           wordmark. A square plate would spend its height on the empty
           bands above and below the lettering. */}
       <span
-        className="bg-surface-container group-hover:bg-secondary-container flex aspect-3/2 items-center justify-center overflow-hidden rounded-2xl px-4 transition-colors duration-200 ease-[var(--ease-standard)]"
+        className="bg-surface-container group-hover:bg-secondary-container flex aspect-3/2 items-center justify-center overflow-hidden rounded-2xl px-4 transition-colors duration-200 ease-standard"
       >
         {brand.iconSvg || brand.logo ? (
           /* Dimmed by opacity rather than by a muted text colour:
@@ -85,7 +85,7 @@ export function BrandTile({ brand }: { brand: BrandSummary }) {
           from reading as a block of text. The name carries the tile:
           the mark above is decorative, and a brand with only initials
           has nothing else to identify it by. */}
-      <span className="text-on-surface group-hover:text-primary mt-3 block truncate text-center text-[11px] font-semibold tracking-[0.18em] uppercase transition-colors duration-200">
+      <span className="label-caps text-on-surface group-hover:text-primary mt-3 block truncate text-center font-semibold transition-colors duration-200">
         {brand.name}
       </span>
     </Link>

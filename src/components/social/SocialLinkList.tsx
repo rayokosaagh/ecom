@@ -161,7 +161,7 @@ export function SocialLinkList({ rows }: { rows: SocialLinkRow[] }) {
                     <p className="text-on-surface flex flex-wrap items-center gap-2 text-sm font-medium">
                       {name}
                       {!row.published && (
-                        <span className="bg-surface-container-highest text-on-surface-variant rounded-full px-2 py-0.5 text-[11px]">
+                        <span className="bg-surface-container-highest text-on-surface-variant rounded-full px-2 py-0.5 text-label-sm">
                           Hidden
                         </span>
                       )}

@@ -155,11 +155,191 @@
   --shadow-elevation-5: 0 8px 12px 6px rgb(0 0 0 / 0.15), 0 4px 4px 0 rgb(0 0 0 / 0.3);
 
   /* --- Typography ------------------------------------------------------
-   * Google Sans is proprietary and not served by Google Fonts, so Roboto —
-   * Google's published fallback for it — is loaded via next/font in layout.tsx. */
-  --font-sans: var(--font-roboto), "Google Sans", Roboto, system-ui, sans-serif;
+   *
+   * DM Sans and DM Serif Display, loaded via next/font in layout.tsx. They are
+   * a matched pair rather than two picks — see the note there for why that
+   * matters to every two-tone headline on this site.
+   *
+   * The stack behind DM Sans is deliberately short. A long list of "similar"
+   * fallbacks is a promise the metrics cannot keep: DM Sans is wide with a
+   * large x-height, and degrading to Arial reflows every heading. `system-ui`
+   * is the honest stop — it is what the reader's OS is already rendering
+   * everything else in, so a failed font load looks like a plain page rather
+   * than a broken one. */
+  --font-sans: var(--font-dm-sans), system-ui, sans-serif;
   /* Accent serif for display headlines — generates the `font-display` utility. */
   --font-display: var(--font-serif-display), Georgia, serif;
+  /* The third family, and the reason `font-mono` is now a decision rather than
+   * a default: without this token the utility ships Tailwind's generic stack,
+   * which resolves to a different typeface on every OS. Same short-fallback
+   * rule as the sans — `ui-monospace` is what the reader's system is already
+   * using for code, so a failed load degrades to something plain rather than
+   * to Courier. See the note in layout.tsx for which call sites this is for. */
+  --font-mono: var(--font-dm-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* --- Type scale ------------------------------------------------------
+   *
+   * M3's five roles — display, headline, title, body, label — because the
+   * colour system above already speaks M3 and a second vocabulary for type
+   * would mean every component translating between two. What is *not* M3 is
+   * the metrics: the published figures are drawn for Roboto, which is narrow
+   * and small-eyed, and much of that scale exists to compensate. DM Sans needs
+   * the opposite corrections, so each step is measured here rather than copied.
+   *
+   * Two rules produced every number below.
+   *
+   *  - Tracking is a function of size, not a constant. The app used to apply
+   *    `tracking-tight` (-0.025em) to a 72px hero and a 24px section heading
+   *    alike, which is too loose for one and too tight for the other. Letters
+   *    at display sizes have more space between them *in absolute terms* at
+   *    the same em value, so the correction has to grow as the type does: this
+   *    scale runs from -0.04em at 72px through 0 in the middle to +0.02em at
+   *    11px, where the gap between letters is a couple of pixels and has to be
+   *    opened rather than closed.
+   *  - Line height is a function of *measure and role*, not a constant either.
+   *    A headline is one or two lines and wants them close enough to read as a
+   *    block (1.0–1.2); body copy is many lines and needs the return sweep to
+   *    land unambiguously (1.5–1.6). Interpolating between the two is what
+   *    gives the title steps their 1.3–1.4.
+   *
+   * Each token carries its line height, tracking and weight, so `text-title-md`
+   * is the whole decision in one utility. That is the point: the ad-hoc
+   * `text-2xl font-medium tracking-tight` strings this replaces had to be
+   * remembered in full at every call site, and a heading added later got
+   * whichever part of the string its author happened to copy.
+   *
+   * Display — the one heading on a page that is the reason the page exists.
+   * Hero copy and page titles, nothing else. */
+  --text-display-lg: 4.5rem; /* 72px */
+  --text-display-lg--line-height: 1;
+  --text-display-lg--letter-spacing: -0.04em;
+  --text-display-lg--font-weight: 500;
+
+  --text-display-md: 3.5rem; /* 56px */
+  --text-display-md--line-height: 1.04;
+  --text-display-md--letter-spacing: -0.035em;
+  --text-display-md--font-weight: 500;
+
+  /* 48px rather than the 44 this started at. The two corrections in this scale
+   * compound at display sizes and it is easy to over-apply them: DM Sans is
+   * wider than the Roboto these figures were first set against, which invites
+   * dropping a step, and the new negative tracking pulls a line in again on top
+   * of that. Both together took the catalogue's page title visibly below where
+   * it had been, so it stopped holding the top of the page. Measured on screen
+   * rather than reasoned about — see the note at the head of this scale. */
+  --text-display-sm: 3rem; /* 48px */
+  --text-display-sm--line-height: 1.08;
+  --text-display-sm--letter-spacing: -0.032em;
+  --text-display-sm--font-weight: 500;
+
+  /* Headline — the heading that names a section of a page. */
+  --text-headline-lg: 2.25rem; /* 36px */
+  --text-headline-lg--line-height: 1.12;
+  --text-headline-lg--letter-spacing: -0.026em;
+  --text-headline-lg--font-weight: 500;
+
+  --text-headline-md: 1.875rem; /* 30px */
+  --text-headline-md--line-height: 1.16;
+  --text-headline-md--letter-spacing: -0.022em;
+  --text-headline-md--font-weight: 500;
+
+  --text-headline-sm: 1.5rem; /* 24px */
+  --text-headline-sm--line-height: 1.22;
+  --text-headline-sm--letter-spacing: -0.018em;
+  --text-headline-sm--font-weight: 500;
+
+  /* Title — the name of a thing rather than of a section: a product on a card,
+   * a dialog, a row group. The step the catalogue leans on hardest. */
+  --text-title-lg: 1.25rem; /* 20px */
+  --text-title-lg--line-height: 1.3;
+  --text-title-lg--letter-spacing: -0.014em;
+  --text-title-lg--font-weight: 500;
+
+  --text-title-md: 1.0625rem; /* 17px */
+  --text-title-md--line-height: 1.35;
+  --text-title-md--letter-spacing: -0.01em;
+  --text-title-md--font-weight: 500;
+
+  --text-title-sm: 0.9375rem; /* 15px */
+  --text-title-sm--line-height: 1.4;
+  --text-title-sm--letter-spacing: -0.006em;
+  --text-title-sm--font-weight: 500;
+
+  /* Body — running prose. Line heights are the loosest on the scale because
+   * these are the only steps that routinely wrap more than twice. */
+  --text-body-lg: 1.0625rem; /* 17px */
+  --text-body-lg--line-height: 1.6;
+  --text-body-lg--letter-spacing: -0.003em;
+  --text-body-lg--font-weight: 400;
+
+  --text-body-md: 0.9375rem; /* 15px */
+  --text-body-md--line-height: 1.55;
+  --text-body-md--letter-spacing: 0em;
+  --text-body-md--font-weight: 400;
+
+  --text-body-sm: 0.8125rem; /* 13px */
+  --text-body-sm--line-height: 1.5;
+  --text-body-sm--letter-spacing: 0.004em;
+  --text-body-sm--font-weight: 400;
+
+  /* Label — type inside a control or beside a value. Never wraps, so the line
+   * heights are tight; always read at a glance, so the weight is 500 and the
+   * tracking opens rather than closes. */
+  --text-label-lg: 0.875rem; /* 14px */
+  --text-label-lg--line-height: 1.25;
+  --text-label-lg--letter-spacing: 0.005em;
+  --text-label-lg--font-weight: 500;
+
+  --text-label-md: 0.8125rem; /* 13px */
+  --text-label-md--line-height: 1.25;
+  --text-label-md--letter-spacing: 0.008em;
+  --text-label-md--font-weight: 500;
+
+  --text-label-sm: 0.6875rem; /* 11px */
+  --text-label-sm--line-height: 1.3;
+  --text-label-sm--letter-spacing: 0.02em;
+  --text-label-sm--font-weight: 500;
+
+  /* --- Optical tracking for Tailwind's own steps -------------------------
+   *
+   * The scale above only reaches type somebody has converted to it. Everything
+   * still on `text-sm` / `text-xs` / `text-2xl` — several hundred call sites,
+   * plus the whole dashboard, which this pass deliberately left at its own
+   * density — keeps Tailwind's defaults, and those ship *no* letter-spacing at
+   * any size. That is the right choice for a framework, which cannot know the
+   * typeface, and the wrong one for an app that does: DM Sans is geometric and
+   * wide, so it wants opening below 14px and closing above 24px, and gets
+   * neither.
+   *
+   * Overriding the steps rather than the call sites is what makes this cheap.
+   * Nothing has to be edited, the dashboard improves without being touched, and
+   * the values are the same curve the named scale uses — so a `text-2xl`
+   * heading somebody writes next week lands within a hair of `text-headline-sm`
+   * instead of looking like it came from a different app.
+   *
+   * Line heights are deliberately *not* touched. Tracking changes width, which
+   * is invisible at these magnitudes; line height changes the height of every
+   * row, table cell and stacked list in the app, and there is no version of
+   * that which is a safe global edit.
+   *
+   * The corollary is that `tracking-tight` now means something different: it is
+   * a flat -0.025em applied *on top of* these values, which is roughly right at
+   * 30px and badly wrong at 14px. All 42 of its uses were removed in the same
+   * pass, so nothing is double-tracking today. The one deliberate survivor is
+   * the payment mark in `checkout/PaymentMark`, which is setting a wordmark
+   * rather than a line of text.
+   */
+  --text-xs--letter-spacing: 0.01em;
+  --text-sm--letter-spacing: 0.005em;
+  --text-base--letter-spacing: 0em;
+  --text-lg--letter-spacing: -0.008em;
+  --text-xl--letter-spacing: -0.012em;
+  --text-2xl--letter-spacing: -0.016em;
+  --text-3xl--letter-spacing: -0.02em;
+  --text-4xl--letter-spacing: -0.026em;
+  --text-5xl--letter-spacing: -0.03em;
+  --text-6xl--letter-spacing: -0.034em;
+  --text-7xl--letter-spacing: -0.038em;
 
   /* --- Motion -------------------------------------------------------- */
   /* M3 motion easing. `emphasized` was previously a duplicate of `standard`,
@@ -189,6 +369,46 @@
   --duration-medium2: 300ms;
   --duration-medium4: 400ms;
   --duration-long2: 500ms;
+
+  /* --- Framework defaults, retargeted ------------------------------------
+   *
+   * The three curves above only reached the transitions that named one, and
+   * almost none of them did. There are ~330 transitions in this app and 43
+   * `ease-*` classes: every other one — every `transition-colors` on a nav
+   * link, every button hover, every input focus ring — was running Tailwind's
+   * default, `cubic-bezier(0.4, 0, 0.2, 1)`. That is not an arbitrary curve,
+   * it is *Material 2's* standard easing, and shipping it under an M3 colour
+   * system is most of why the app moved like a 2018 Material app: symmetric,
+   * slow off the mark, and with the same lazy arrival it had at the start.
+   *
+   * M3 replaced it with `cubic-bezier(0.2, 0, 0, 1)` — off the mark almost
+   * immediately, then a long decelerating settle. It is the same difference the
+   * type scale's tracking pass was making: not a new effect, just the thing
+   * already there landing where it was aimed.
+   *
+   * This is fixed here rather than at the call sites for the same reason the
+   * `--text-*--letter-spacing` block above overrides Tailwind's steps instead
+   * of editing several hundred class strings: nothing has to be touched, the
+   * dashboard improves without being visited, and a `transition-colors`
+   * somebody writes next week is Material by default rather than by memory.
+   *
+   * The duration moves 150ms → 200ms, which is M3's `short4` and the value 218
+   * of the explicit call sites already ask for by hand. The bare `transition`
+   * uses were the odd ones out at 150.
+   */
+  --default-transition-timing-function: var(--ease-standard);
+  --default-transition-duration: var(--duration-short4);
+
+  /*
+   * Tailwind's own three easing names, pointed at their M3 counterparts, so the
+   * handful of `ease-in-out` / `ease-out` call sites are not the one place in
+   * the app still moving on Material 2. The mapping is by role, not by shape:
+   * M3's emphasized pair *is* a decelerate/accelerate pair, which is what `out`
+   * and `in` mean.
+   */
+  --ease-in-out: var(--ease-standard);
+  --ease-out: var(--ease-emphasized);
+  --ease-in: var(--ease-emphasized-accelerate);
 }
 
 /*
@@ -565,6 +785,17 @@
     color: var(--color-on-surface);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    /* The Firefox-on-macOS counterpart. Without it that one combination keeps
+     * the subpixel rendering the line above turns off everywhere else, and DM
+     * Sans — which is light-stemmed for its width — comes out visibly heavier
+     * and warmer there than in any other browser. */
+    -moz-osx-font-smoothing: grayscale;
+    /* Let the browser drive DM Sans's optical size axis from the font size.
+     * This is the default, and it is stated because it is load-bearing: the
+     * axis is only present at all because layout.tsx asks next/font for it,
+     * and someone removing `axes: ["opsz"]` there should find a second place
+     * saying the app expects it. */
+    font-optical-sizing: auto;
     /*
      * A wide child cannot silently make the whole page pan sideways. Sections
      * that genuinely scroll horizontally — the brand rail, the compare dock —
@@ -600,6 +831,67 @@
     select {
       font-size: 16px;
     }
+  }
+
+  /*
+   * Every heading balances its own line breaks.
+   *
+   * `text-balance` was already on eight headings, chosen one at a time — which
+   * means it was missing from every heading nobody thought about, and those are
+   * exactly the ones that break badly: a section title that wraps to a single
+   * orphaned word is the most common typographic fault in this app, and it only
+   * appears at the widths nobody previewed. Applied here it costs nothing on
+   * headings that fit on one line, which is most of them.
+   *
+   * The browser gives up past a handful of lines, so this cannot become a
+   * performance problem on a long heading — it simply stops applying.
+   */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    text-wrap: balance;
+  }
+
+  /*
+   * Running text gets `pretty` rather than `balance`.
+   *
+   * They are not the same instruction and swapping them is a real mistake:
+   * `balance` evens out *every* line, which on a paragraph re-ragged the whole
+   * block and made the measure wander; `pretty` leaves the body of the
+   * paragraph alone and only refuses to leave a single word stranded on the
+   * last line. On product blurbs and FAQ answers — the two places here with
+   * genuine multi-line prose — that is the entire difference between typeset
+   * and merely wrapped.
+   */
+  p,
+  li,
+  dd,
+  blockquote,
+  figcaption {
+    text-wrap: pretty;
+  }
+
+  /*
+   * Numerals line up by default.
+   *
+   * DM Sans ships proportional figures, so a column of prices sets `1` narrower
+   * than `8` and the decimal points drift — visible in the cart, the order
+   * list, and every dashboard table. `tabular-nums` was already being applied
+   * by hand in 69 places, which is the tell: it is the default the app actually
+   * wants, and the 69 were the ones somebody caught.
+   *
+   * Scoped to the elements that carry figures rather than set on `body`,
+   * because tabular figures are *wrong* in prose — fixed-width digits inside a
+   * sentence read as a table that has lost its rules. A price is a value; "3
+   * colours" is a sentence.
+   */
+  table,
+  time,
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
   }
 
   /* Material Symbols default to the filled-at-0 optical axis. */
@@ -928,6 +1220,37 @@
   }
 }
 
+/*
+ * One card of a shelf arriving. See `.deal-reveal`.
+ *
+ * The rise is a variable rather than a literal length because one caller needs
+ * it to be zero: `.deal-reveal-rail`, for a shelf that is a horizontal scroll
+ * rail on small screens. `overflow-x: auto` with `overflow-y: visible` is not a
+ * combination CSS allows — the visible computes to `auto` — so such a rail is a
+ * scroll container in *both* axes whether or not anyone wanted it to be, and a
+ * child translated downward contributes to its scrollable overflow. The rail
+ * would become scrollable vertically by the height of the rise: invisible,
+ * because its scrollbars are hidden, and reachable by a thumb, which is worse.
+ *
+ * The first version of this was far too timid — a 28px rise and a scale of 0.96
+ * on a panel 416px tall, which meant opacity was carrying the whole effect and
+ * the movement was below the threshold of being noticed at all. Measured
+ * against the scroll distance actually available (the accordion has about 400px
+ * to work with) there is no room for subtlety: the gesture has to be legible
+ * within two or three turns of a wheel or it is not a reveal, it is a slightly
+ * slow page load.
+ */
+@keyframes deal-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, var(--deal-rise, 0rem), 0) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @layer utilities {
   /*
    * The accent word in a two-tone heading — the italic serif half of "Featured
@@ -943,6 +1266,68 @@
    * y in "everyday" — reach below it, so without the extra quarter-rem they
    * are sliced flat.
    */
+  /*
+   * The uppercase micro-label, in the two sizes this app actually has.
+   *
+   * There were nine. Not nine deliberate variants — nine copies of one idea,
+   * each written from memory at a different call site: `text-xs` with tracking
+   * of 0.25em, 0.18em, 0.15em, 0.14em, 0.1em and plain `tracking-wide`, at
+   * 10px, 11px and 12px, with 11px spelled `text-[11px]` in the brand tiles and
+   * `text-[0.6875rem]` in the order ticket. Nothing distinguished them but
+   * which file was open at the time, and the drift is visible: the footer's
+   * column heads and the nav menu's group heads sit a few feet apart on screen
+   * and are set differently.
+   *
+   * The two that survive are genuinely different jobs, which is why they are
+   * two and not one:
+   *
+   *  - `.eyebrow` announces the page. It sits alone above a display heading
+   *    with nothing else near it, so it can afford 0.22em — at that spacing the
+   *    word stops reading as a word and starts reading as a rule with letters
+   *    on it, which is the effect wanted and is only available when there is
+   *    space around it.
+   *  - `.label-caps` names a group *inside* dense material — a footer column, a
+   *    menu section, a block on the order ticket. The same 0.22em there is
+   *    unreadable: the label is competing with the list under it, and letters
+   *    spaced that far apart lose word shape exactly when the reader is
+   *    scanning rather than reading. 0.14em is open enough to read as a label
+   *    and tight enough to still be a word.
+   *
+   * Both are 11px, because the size was never what separated them. Pair either
+   * with `font-semibold` where the surface needs more weight; the metrics stay
+   * put, which is the whole point of naming them.
+   *
+   * M3's name for the second role is "overline", and that is what this was
+   * called for exactly one render. `overline` is already a Tailwind utility —
+   * `text-decoration-line: overline` — so the two collided and every label in
+   * the footer, the nav menus and the order ticket came out with a rule drawn
+   * across the top of it. Worth remembering before naming any utility here
+   * after a CSS keyword: `underline`, `truncate`, `container` and `visible` are
+   * all waiting to do the same thing.
+   */
+  .eyebrow,
+  .label-caps {
+    font-size: 0.6875rem; /* 11px */
+    line-height: 1.3;
+    font-weight: 500;
+    text-transform: uppercase;
+  }
+
+  .eyebrow {
+    letter-spacing: 0.22em;
+    /* Letter-spacing is applied *after* every glyph, including the last one, so
+     * a tracked label is always sitting a fifth of an em left of where it looks
+     * like it should. Invisible when the label is centred under nothing, and
+     * obvious the moment it is in a flex row with an icon — which is where this
+     * one always is. */
+    margin-right: -0.22em;
+  }
+
+  .label-caps {
+    letter-spacing: 0.14em;
+    margin-right: -0.14em;
+  }
+
   .accent-word {
     font-family: var(--font-display);
     font-style: italic;
@@ -1026,6 +1411,279 @@
   .stagger > *:nth-child(n + 7) {
     animation-delay: 400ms;
   }
+
+  /* ---------------------------------------------------------------------
+   * A shelf dealing its cards out as you scroll to it.
+   *
+   * Put `.deal-reveal` on the row, grid or wrapper; its immediate children
+   * become the things that arrive, in document order. Two shelves use it — the
+   * best-sellers accordion and the sale shelf — which is why it is a mechanism
+   * rather than a rule about one component.
+   *
+   * `.stagger` above is the same idea driven by *time*: it starts when the
+   * section is revealed and runs to completion on its own clock, so a visitor
+   * who scrolls past quickly misses it and one who stops halfway sees it finish
+   * without them. This is driven by *scroll position* — the cards are wherever
+   * the reader has put them, and scrolling back up puts them back. That is the
+   * whole reason it is a separate utility rather than a longer `.stagger`.
+   *
+   * ## Where the timeline lives, and why it is not `view()`
+   *
+   * The obvious spelling is `animation-timeline: view()` on each child: every
+   * card then measures its own visibility. It is also wrong, and only on a
+   * phone, which is what makes it worth writing down. `view()` resolves against
+   * the element's nearest scroll container in the block axis — and below `md`
+   * the accordion's row is `overflow-x-auto`, which computes `overflow-y` to
+   * `auto` as well (CSS does not allow one axis to scroll while the other stays
+   * visible). So on a phone each panel's nearest block-axis scrollport is the
+   * rail it sits in, inside which it is permanently, fully visible. Progress
+   * would sit pinned at one value and nothing would ever animate.
+   *
+   * A *named* timeline declared on the container escapes that:
+   * `view-timeline-name` measures the container's visibility in the
+   * container's own scrollport ancestor, which is the page in every layout.
+   * The children then read one shared timeline and differ only in which slice
+   * of it they respond to — which is also the more honest description of the
+   * effect. It is one shelf arriving, not six independent elements that happen
+   * to arrive together.
+   *
+   * ## What the range is measured against
+   *
+   * `entry` spans exactly the container's own height of scrolling — from "top
+   * edge touches the bottom of the viewport" to "bottom edge clears it". That
+   * makes the *pace* of the reveal a function of how tall the shelf is: the
+   * accordion's row is 416px and its whole sequence is over in about 300px of
+   * scrolling, while the sale grid is taller and the same percentages spread
+   * over correspondingly more. That is the right behaviour rather than a
+   * defect — a bigger shelf takes longer to scroll past, so it should take
+   * longer to arrive — but it is the reason these are percentages and not
+   * lengths.
+   * ------------------------------------------------------------------- */
+  .deal-reveal > * {
+    --deal-rise: 3rem;
+    animation-name: deal-in;
+    animation-fill-mode: both;
+    /* No timing function here — the two paths below genuinely want different
+     * ones, for the reason spelled out on each. */
+  }
+
+  /*
+   * For a shelf that is a horizontal scroll rail on small screens.
+   *
+   * The rise has to be zero there. See the note on `@keyframes deal-in`: a
+   * downward translate inside an `overflow-x-auto` container contributes to its
+   * scrollable overflow, so the rail would become scrollable vertically by the
+   * height of the rise — invisible, because its scrollbars are hidden, and
+   * reachable by a thumb, which is worse. Only the accordion needs this; the
+   * sale grid is an ordinary grid with nothing to overflow.
+   */
+  .deal-reveal-rail > * {
+    --deal-rise: 0rem;
+  }
+
+  @media (min-width: 48rem) {
+    .deal-reveal-rail > * {
+      --deal-rise: 3rem;
+    }
+  }
+
+  /*
+   * The scroll-driven path.
+   *
+   * Longhands throughout, and that is load-bearing rather than a style: the
+   * `animation` shorthand resets `animation-timeline` to `auto`, so a later
+   * `animation: foo 1s` anywhere would silently sever the timeline and leave a
+   * normal time-based animation behind — which still *looks* like it works,
+   * just not driven by anything. `animation-duration: auto` is what stretches
+   * the animation across the whole range; the shorthand's implicit `0s` would
+   * collapse it.
+   */
+  @supports (animation-timeline: view()) {
+    .deal-reveal {
+      view-timeline-name: --deal-shelf;
+    }
+
+    .deal-reveal > * {
+      animation-timeline: --deal-shelf;
+      animation-duration: auto;
+      /*
+       * Linear, and this was measured rather than chosen.
+       *
+       * The obvious move is to reuse `--ease-emphasized`, which is what every
+       * other entrance here uses. On a clock it is right: a decelerate curve
+       * covers most of the distance immediately and then settles, which is what
+       * makes an arrival feel unhurried. On a *scroll* timeline the same curve
+       * is a bug. Measured with the row a fifth of the way into its range, the
+       * first panel was already at 0.93 opacity — the curve had spent 90% of
+       * the animation in the first third of the scroll, so the reveal was over
+       * before the reader had really begun scrolling to it and the remaining
+       * two thirds of the range did nothing at all.
+       *
+       * Progress here *is* the reader's scroll position, so anything other than
+       * linear puts the panels somewhere other than where the reader put them.
+       * Same argument as `carousel-progress`, which is linear because it is
+       * reporting a clock; this one is reporting a scrollbar.
+       */
+      animation-timing-function: linear;
+    }
+
+    /*
+     * Windows 20 wide on a step of 11, opening at 25 rather than 0.
+     *
+     * That leading 25 is the delay. Nothing moves for the first quarter of the
+     * range, so the row is properly over the fold — about a third of it showing
+     * — before the first panel starts arriving. Beginning at 0 meant the
+     * sequence was already underway at the exact moment the row became visible,
+     * which reads as the panels having been caught mid-motion rather than as
+     * them arriving because you scrolled to them. A beat of stillness first is
+     * what makes it a reveal instead of something already in progress.
+     *
+     * On paper 25% of a 416px row is 104px of scrolling; measured in place it
+     * is nearer 75. The difference is the `Reveal` wrapper around this section,
+     * whose own entrance transitions `transform` from a 32px offset to none
+     * over 700ms — and a view timeline reads the element's actual position, so
+     * for those frames the row is drifting upward through the timeline on its
+     * own and progress advances faster than scrolling alone would carry it.
+     * Harmless (the ramp stays monotonic, and it settles the moment the
+     * wrapper does) but it is why the numbers here do not divide out cleanly
+     * against a ruler.
+     *
+     * The delay is spent from the same 100, never added to it: the last panel
+     * still has to finish by `entry 100%`, because past that the row is fully
+     * on screen and anything still animating is visibly unfinished content.
+     * Lengthening the pause therefore costs window width — each panel now fades
+     * over 20% of the range rather than 25 — and that is the trade to make
+     * consciously if it is ever tuned again. The step is the last thing to
+     * spend: it is what "one by one" is made of.
+     *
+     * On that: an early version used 45-wide windows on a step of 10, which is
+     * 78% overlap, and at that density all four panels moved essentially
+     * together so what read was the row fading as a block. Still overlapping
+     * rather than disjoint, though — with no overlap each panel waits for the
+     * one before it to finish and the row arrives as four separate events,
+     * where roughly half an overlap keeps it one gesture with four beats.
+     */
+    .deal-reveal > *:nth-child(1) {
+      animation-range: entry 25% entry 45%;
+    }
+    .deal-reveal > *:nth-child(2) {
+      animation-range: entry 36% entry 56%;
+    }
+    .deal-reveal > *:nth-child(3) {
+      animation-range: entry 47% entry 67%;
+    }
+    .deal-reveal > *:nth-child(4) {
+      animation-range: entry 58% entry 78%;
+    }
+    .deal-reveal > *:nth-child(5) {
+      animation-range: entry 69% entry 89%;
+    }
+    .deal-reveal > *:nth-child(6) {
+      animation-range: entry 80% entry 100%;
+    }
+    /* The shelf asks for six and the component refuses under three, so this is
+     * only ever reached if someone raises the count. Sharing the last window is
+     * a deliberately dull answer: any further spread would push the tail of the
+     * sequence past the point where the row is fully on screen. */
+    .deal-reveal > *:nth-child(n + 7) {
+      animation-range: entry 80% entry 100%;
+    }
+  }
+
+  /*
+   * The fallback, for Firefox and Safari before 26.
+   *
+   * This is the objection recorded on `Reveal` and on the `[data-reveal]` rules
+   * below — that a view timeline is the better mechanism but simply does not
+   * appear at all where it is unsupported. So the same choreography runs on a
+   * clock instead, gated by `Reveal` so it still starts when the row arrives
+   * rather than while it is three screens down.
+   *
+   * The hold only exists on this path. On a scroll timeline pausing would
+   * freeze progress at whatever value it had, so when `Reveal` flipped the
+   * attribute the panels would jump from a stale frame to the true scroll
+   * position — a visible snap, and the reason this is scoped rather than shared
+   * with `.stagger`'s rule below.
+   */
+  @supports not (animation-timeline: view()) {
+    .deal-reveal > * {
+      animation-duration: var(--duration-long2);
+      /* The decelerate curve *is* right on this path — see the note on the
+       * scroll-driven one for why the same value is wrong there. Here progress
+       * is time, and a panel that covers most of its distance early and then
+       * settles is exactly the unhurried arrival every other entrance in this
+       * app is built from. */
+      animation-timing-function: var(--ease-emphasized);
+    }
+    /*
+     * The same leading beat the scroll path takes at `entry 25%`, expressed the
+     * only way a clock can express it: 260ms before the first panel moves.
+     *
+     * It is doing slightly more work here than it does there. `Reveal` fades
+     * this section in over 700ms on the emphasized curve, and with the first
+     * panel starting at zero the two movements began on the same frame — the
+     * section arriving and the panels arriving inside it, which muddles both.
+     * At 260ms the wrapper is most of the way in before anything inside it
+     * moves, so the cascade reads as happening *within* something that is
+     * already there rather than as part of its arrival.
+     *
+     * The step stays at 90ms. Unlike the scroll path there is no fixed budget
+     * to spend it from here — a clock can always run longer — so lengthening
+     * the pause costs nothing but the wait, and the sequence keeps its spacing.
+     */
+    .deal-reveal > *:nth-child(1) {
+      animation-delay: 260ms;
+    }
+    .deal-reveal > *:nth-child(2) {
+      animation-delay: 350ms;
+    }
+    .deal-reveal > *:nth-child(3) {
+      animation-delay: 440ms;
+    }
+    .deal-reveal > *:nth-child(4) {
+      animation-delay: 530ms;
+    }
+    .deal-reveal > *:nth-child(5) {
+      animation-delay: 620ms;
+    }
+    .deal-reveal > *:nth-child(6) {
+      animation-delay: 710ms;
+    }
+    .deal-reveal > *:nth-child(n + 7) {
+      animation-delay: 760ms;
+    }
+
+    /*
+     * Held until the row is revealed — and *reset*, not paused.
+     *
+     * `animation-play-state: paused` is the obvious spelling and it is wrong,
+     * which only a browser on this path can show you. The animation is attached
+     * at first paint and starts running immediately; `Reveal` is a client
+     * component, so its effect cannot set `data-reveal="pending"` until React
+     * has hydrated. Everything between those two moments is animation the
+     * pause then freezes in place. Measured in Firefox 153: by the time the
+     * attribute landed the four panels sat at 0.93 / 0.85 / 0.62 / 0 — three
+     * of them essentially finished, behind a wrapper that is itself still at
+     * `opacity: 0`. Revealing the section then resumed a cascade that was
+     * already over, so the effect the reader actually saw was the last panel
+     * arriving on its own.
+     *
+     * `animation-name: none` discards that progress instead of preserving it.
+     * Re-applying the name when the attribute flips to "shown" starts the
+     * sequence from frame zero, so the whole cascade happens where it was
+     * meant to — after the section arrives, not during hydration.
+     *
+     * No `opacity: 0` alongside it. The panels are unanimated and therefore
+     * fully opaque while held, which is invisible anyway because the
+     * `[data-reveal="pending"]` rule below has the wrapper at zero — and
+     * adding one here would mean a JavaScript failure between "pending" and
+     * "shown" left the row permanently blank rather than merely unanimated.
+     */
+    [data-reveal="pending"] .deal-reveal > * {
+      animation-name: none;
+    }
+  }
+
   /* Pointer-following tilt. The angles are written to these properties from a
    * pointer handler rather than through React state — see components/ui/Tilt.
    *
@@ -1368,6 +2026,118 @@
 }
 
 /* ---------------------------------------------------------------------------
+ * The hero's floating pieces
+ *
+ * The hero has no card any more. The product stands on the page itself, with
+ * the facts about it on small slabs that float over the same background — so
+ * what used to be one framed rectangle is now a subject and four labels, and
+ * the only thing separating them from the page is their own shadow.
+ *
+ * A scoped Fraunces/Manrope pairing sat here too and has been taken out: the
+ * hero is set in the site's own DM Sans and DM Serif Display again, so a
+ * headline reads the same on the front page as it does everywhere else.
+ * ------------------------------------------------------------------------- */
+
+/*
+ * A slab, lifted off the page.
+ *
+ * A large blur with a large *negative* spread, so the shadow is narrower than
+ * the slab and reads as contact with the surface rather than a halo around a
+ * floating rectangle. Kept off the outlined cards further down the page, which
+ * sit among other cards where one shadow would be an inconsistency.
+ */
+.hero-float {
+  box-shadow: 0 18px 40px -16px rgb(20 24 31 / 0.16);
+}
+
+/* Dark mode needs its own, and not merely a stronger one: a soft grey shadow is
+ * invisible against a dark surface, so the depth has to come from a denser,
+ * tighter black. Both branches of the theme are covered, in the order the rest
+ * of this file uses — the explicit choice first, the OS default second. */
+:root[data-theme="dark"] .hero-float {
+  box-shadow: 0 18px 40px -16px rgb(0 0 0 / 0.6);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .hero-float {
+    box-shadow: 0 18px 40px -16px rgb(0 0 0 / 0.6);
+  }
+}
+
+/*
+ * The dot field behind the product.
+ *
+ * Drawn with a repeating radial gradient rather than an asset: it is two lines
+ * of CSS, it costs no request, and it scales to whatever box it is given. The
+ * colour comes from `currentColor`, so the caller tints it with a text utility
+ * and it follows the theme instead of being a fixed grey that turns to soot in
+ * dark mode.
+ *
+ * Decoration in the strict sense — the elements carrying it are `aria-hidden`
+ * and carry no information. Their job is to stop the product floating in an
+ * empty band now that it has no card to sit in: the eye needs something to
+ * measure the subject against, and a field of dots gives it depth without
+ * competing for attention the way a filled panel did.
+ */
+.hero-dot-grid {
+  background-image: radial-gradient(currentColor 1.5px, transparent 1.6px);
+  background-size: 16px 16px;
+}
+
+/*
+ * The spotlight, on a stage with no panel.
+ *
+ * `.spotlight::after` normally lays a *vignette* over the panel — transparent
+ * in the middle, darkening toward the corners. That works on a filled, clipped
+ * stage and is exactly wrong here: with no fill behind it, a layer that is
+ * opaque at its edges paints a rectangle of tint straight onto the page, its
+ * corners the panel's corners. Measured rather than guessed — sampling the
+ * rendered pixels showed two different colours inside the panel bounds and one
+ * flat colour everywhere outside them, which is a gradient, not a fill.
+ *
+ * So it is inverted: bright at the pointer and **transparent well before the
+ * edges**, which is what a pool of light on a floor looks like and what keeps
+ * the panel's own boundary invisible. The ending shape is under half the
+ * panel and the last stop clears at 70% of that, so the light is spent around
+ * a third of the way out — nothing reaches a corner to draw it.
+ *
+ * It still tracks the pointer through `--spot-x`/`--spot-y`, so the lamp and
+ * the product's tilt agree about where the light comes from — the whole point
+ * of the effect, set out on `.spotlight` above.
+ *
+ * Unlayered, so it wins against the layered `.spotlight::after` it overrides
+ * without a specificity fight.
+ */
+.hero-stage {
+  --hero-spot: rgb(255 255 255 / 0.9);
+  --hero-spot-soft: rgb(255 255 255 / 0.38);
+}
+
+/* Cool and much weaker in dark mode: a white pool that reads as a lamp on a
+ * light grey page reads as a blown highlight on a near-black one. Both branches
+ * of the theme, in the order the rest of this file uses. */
+:root[data-theme="dark"] .hero-stage {
+  --hero-spot: rgb(198 220 255 / 0.16);
+  --hero-spot-soft: rgb(150 190 255 / 0.07);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .hero-stage {
+    --hero-spot: rgb(198 220 255 / 0.16);
+    --hero-spot-soft: rgb(150 190 255 / 0.07);
+  }
+}
+
+.hero-stage::after {
+  background: radial-gradient(
+    46% 44% at var(--spot-x) var(--spot-y),
+    var(--hero-spot) 0%,
+    var(--hero-spot-soft) 42%,
+    transparent 70%
+  );
+}
+
+/* ---------------------------------------------------------------------------
  * Switching the theme
  *
  * The new scheme is wiped in as a circle growing from the button that was
@@ -1414,6 +2184,61 @@ html[data-sweeping]::view-transition-new(root) {
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * The toggle's own glyph, turning over
+ *
+ * The button shows the theme you are about to switch *to*, so pressing it
+ * replaces a moon with a sun. Left inside the page that swap is invisible: a
+ * view transition hides the live DOM behind a snapshot for the whole animation,
+ * and the icon would finish changing while nobody could see it.
+ *
+ * `ThemeProvider` gives the pressed glyph a `view-transition-name` for the
+ * length of the change, which is what these rules attach to — it gets a
+ * snapshot pair of its own, painted above the root's, so the old mark turns out
+ * as the new one turns in while the circle wipes past underneath.
+ *
+ * The name is only ever on the control that was actually pressed, and only for
+ * the duration — a page has more than one toggle on it (the bar and the footer),
+ * and a `view-transition-name` shared by two elements makes the browser abandon
+ * the transition altogether.
+ *
+ * The two halves turn the same way rather than mirroring, so the swap reads as
+ * one mark rotating through the change rather than two passing each other.
+ * ------------------------------------------------------------------------- */
+
+html[data-sweeping]::view-transition-old(theme-glyph),
+html[data-sweeping]::view-transition-new(theme-glyph) {
+  /* Turning about its own middle. Nothing here has to lift it over the sweep —
+   * a named group is painted after the root's, so it is already on top. */
+  transform-origin: center;
+}
+
+html[data-sweeping]::view-transition-old(theme-glyph) {
+  animation: theme-glyph-out var(--duration-medium2) var(--ease-emphasized-accelerate)
+    both;
+}
+
+html[data-sweeping]::view-transition-new(theme-glyph) {
+  /* Starts a little after the outgoing mark has begun clearing out, so the two
+   * are not both at half strength on top of each other in the middle. */
+  animation: theme-glyph-in var(--duration-medium4) var(--ease-emphasized)
+    var(--duration-short2) both;
+}
+
+@keyframes theme-glyph-out {
+  to {
+    transform: rotate(-120deg) scale(0.3);
+    opacity: 0;
+  }
+}
+
+@keyframes theme-glyph-in {
+  from {
+    transform: rotate(120deg) scale(0.3);
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1430,6 +2255,14 @@ html[data-sweeping]::view-transition-new(root) {
    * of motion the setting exists to prevent, so it is denied here as well.
    */
   html[data-sweeping]::view-transition-new(root) {
+    animation: none !important;
+  }
+
+  /* Same reasoning for the glyph — and it has to be named here too, because the
+   * blanket rule above reaches `*` and its pseudo-elements, which the view
+   * transition pseudo-elements are not. */
+  html[data-sweeping]::view-transition-old(theme-glyph),
+  html[data-sweeping]::view-transition-new(theme-glyph) {
     animation: none !important;
   }
 
@@ -1451,5 +2284,27 @@ html[data-sweeping]::view-transition-new(root) {
     overflow-x: auto;
     -webkit-mask-image: none;
     mask-image: none;
+  }
+
+  /*
+   * The blanket rule cannot serve a scroll-driven animation either, and here it
+   * fails in a worse way than it does on the rail above.
+   *
+   * `animation-duration` is a *time*, and a scroll-driven animation has none —
+   * its progress is a position, so collapsing the duration to 0.01ms is not a
+   * weakened version of the effect, it is no instruction at all. Every panel of
+   * the accordion would go on rising and fading under the reader's scroll,
+   * which is precisely the coupling of motion to input that this preference
+   * exists to switch off.
+   *
+   * Removed outright rather than shortened. With no animation the panels sit at
+   * their natural state, which is the finished one, so the row is simply
+   * present — the correct reduced-motion answer for a reveal, whose only job
+   * was ever to be a flourish over something that is already there.
+   */
+  .deal-reveal > * {
+    animation: none !important;
+    transform: none !important;
+    opacity: 1 !important;
   }
 }

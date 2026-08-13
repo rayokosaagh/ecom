@@ -56,7 +56,7 @@ export function TintPicker({
 
   return (
     <fieldset className={cn("min-w-0", className)} disabled={disabled}>
-      <legend className="text-on-surface-variant mb-2 text-xs font-medium tracking-[0.12em] uppercase">
+      <legend className="label-caps text-on-surface-variant mb-2">
         {legend}
       </legend>
 

@@ -33,7 +33,7 @@ export function CompareDock() {
       style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
     >
       <div className="bg-surface-container-high shadow-elevation-3 pointer-events-auto mx-auto flex max-w-4xl flex-col gap-2 rounded-2xl p-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-        <p className="text-on-surface-variant hidden shrink-0 text-xs tracking-wide uppercase sm:block">
+        <p className="label-caps text-on-surface-variant hidden shrink-0 sm:block">
           {groupName}
         </p>
 

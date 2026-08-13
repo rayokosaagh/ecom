@@ -149,7 +149,7 @@ function AccountInfo({
         </div>
 
         <div className="min-w-0 flex-1 basis-48">
-          <h1 className="text-on-surface truncate text-xl font-normal tracking-tight sm:text-2xl">
+          <h1 className="text-on-surface text-title-lg sm:text-headline-sm truncate">
             {user.name ?? "Your account"}
           </h1>
           <p className="text-on-surface-variant truncate text-sm">{user.email}</p>

@@ -40,7 +40,7 @@ export async function SocialBar({ className }: { className?: string }) {
         <div>
           <h2
             id="follow-us"
-            className="text-on-surface text-2xl font-medium tracking-tight sm:text-3xl"
+            className="text-on-surface text-headline-sm sm:text-headline-md"
           >
             Follow <span className="accent-word">us</span>
           </h2>

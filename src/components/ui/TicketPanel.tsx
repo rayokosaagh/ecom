@@ -87,7 +87,7 @@ export function TicketPanel({
     // A shadow would be clipped along with everything else the mask touches,
     // so separation from the page comes from the surface colour alone.
     href &&
-      "transition-transform duration-200 ease-[var(--ease-emphasized)] hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2",
+      "transition-transform duration-200 ease-emphasized hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2",
     className,
   );
 

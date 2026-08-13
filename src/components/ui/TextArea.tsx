@@ -35,7 +35,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
             className={cn(
               "peer w-full resize-y rounded-sm border bg-transparent px-4 pt-5 pb-3 text-base",
               "text-on-surface caret-primary",
-              "transition-colors duration-200 ease-[var(--ease-standard)]",
+              "transition-colors duration-200 ease-standard",
               "focus:border-2 focus:outline-none",
               hasError
                 ? "border-error focus:border-error"
@@ -48,7 +48,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
             htmlFor={fieldId}
             className={cn(
               "bg-surface pointer-events-none absolute left-4 px-1",
-              "transition-all duration-200 ease-[var(--ease-standard)]",
+              "transition-all duration-200 ease-standard",
               "-top-2 text-xs",
               "peer-placeholder-shown:top-4 peer-placeholder-shown:text-base",
               "peer-focus:-top-2 peer-focus:text-xs",

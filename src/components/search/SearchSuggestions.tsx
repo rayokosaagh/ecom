@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
+import { NO_MOTION, PANEL_TRANSITION } from "@/lib/motion";
 import { formatPrice } from "@/lib/products/format";
 import { tokenize, type ProductSuggestion } from "@/lib/products/search-text";
 
@@ -118,7 +119,7 @@ export function SearchSuggestions({
       initial={reduceMotion ? false : { opacity: 0, scale: 0.98, y: -4 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.98, y: -4 }}
-      transition={reduceMotion ? { duration: 0 } : { duration: 0.15, ease: [0.2, 0, 0, 1] }}
+      transition={reduceMotion ? NO_MOTION : PANEL_TRANSITION}
       className={cn(
         "bg-surface-container-high shadow-elevation-2 absolute top-full z-50 mt-2",
         align === "right" ? "right-0" : "left-0",
@@ -182,7 +183,7 @@ export function SearchSuggestions({
                     {formatPrice(product.priceCents)}
                   </span>
                   {soldOut && (
-                    <span className="text-on-surface-variant text-[11px]">Sold out</span>
+                    <span className="text-on-surface-variant text-label-sm">Sold out</span>
                   )}
                 </span>
               </li>

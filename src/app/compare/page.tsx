@@ -192,12 +192,12 @@ export default async function ComparePage({
       <Navbar {...nav} />
 
       <main className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6">
-        <p className="text-primary flex items-center gap-2 text-xs font-medium tracking-[0.25em] uppercase">
+        <p className="eyebrow text-primary flex items-center gap-2">
           <Icon name="balance" size={16} filled />
           {anchor?.name ?? "Compare"}
         </p>
 
-        <h1 className="text-on-surface mt-4 text-4xl leading-[1.05] font-medium tracking-tight sm:text-5xl">
+        <h1 className="text-on-surface text-headline-lg sm:text-display-sm mt-4">
           Side by{" "}
           <span className="accent-word">
             side.

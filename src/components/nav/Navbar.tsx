@@ -1,11 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 import { cn } from "@/lib/cn";
+import {
+  DURATION,
+  EASE_STANDARD,
+  NO_MOTION,
+  PANEL_TRANSITION,
+  SPRING,
+} from "@/lib/motion";
 import { Icon } from "@/components/ui/Icon";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useDismissable } from "@/lib/hooks/useDismissable";
@@ -18,6 +25,11 @@ import { AnnouncementBar } from "@/components/announcements/AnnouncementBar";
 import type { AnnouncementView } from "@/lib/announcements/service";
 import { NotificationPanel } from "./NotificationPanel";
 import { ProductsMenu, type MenuCategory } from "./ProductsMenu";
+import { BrandsMenu } from "./BrandsMenu";
+import { NavMenuGroup } from "./NavMenuGroup";
+import { BrandMark } from "@/components/brands/BrandMark";
+import { brandInitials } from "@/lib/brands/initials";
+import type { BrandSummary } from "@/lib/brands/service";
 
 export interface NavLink {
   href: string;
@@ -51,6 +63,11 @@ export interface NavbarProps {
   notifications?: NavNotification[];
   /** Categories for the Products hover menu. */
   categories?: MenuCategory[];
+  /**
+   * Brands for the Brands hover menu, already capped and ordered by
+   * `getNavData`. Empty leaves "Brands" a plain link to the full listing.
+   */
+  brands?: BrandSummary[];
   /**
    * Published notices for the strip under the bar.
    *
@@ -94,6 +111,10 @@ const DEFAULT_ITEMS: NavLink[] = [{ href: "/", label: "Home" }];
  * the home page — plus a footer link. In a computer shop a large share of
  * people arrive knowing the maker ("a MacBook", "ROG", "Sony"), so the axis
  * with no way in was the one a lot of shoppers were arriving with.
+ *
+ * On desktop the bar renders `BrandsMenu` rather than a `TopNavLink` for this
+ * href — the destination and the label are the same, which is why they still
+ * live here; only the trigger differs. The mobile menu uses it as a plain row.
  */
 const BRANDS_ITEM: NavLink = { href: "/brands", label: "Brands" };
 
@@ -119,7 +140,13 @@ function TopNavLink({
       href={item.href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "relative rounded-full px-4 py-2 text-sm font-medium",
+        // Tighter until `lg`. The bar gained a third destination when Brands
+        // was added, and at `md` — where the whole nav appears at once but the
+        // icon cluster has not yet dropped anything — the three pills at their
+        // full padding pushed the row past the viewport and the page scrolled
+        // sideways. Trimming the padding recovers more than the overflow
+        // without taking a destination out of the bar.
+        "relative rounded-full px-2 py-2 text-sm font-medium lg:px-4",
         "transition-colors duration-200 ease-in-out",
         "focus-visible:outline-2 focus-visible:outline-offset-2",
         "active:scale-95",
@@ -134,9 +161,7 @@ function TopNavLink({
           layoutId="navbar-active-pill"
           className="bg-secondary-container absolute inset-0 rounded-full"
           transition={
-            reduceMotion
-              ? { duration: 0 }
-              : { type: "spring", stiffness: 380, damping: 32 }
+            reduceMotion ? NO_MOTION : SPRING.panel
           }
         />
       )}
@@ -174,6 +199,7 @@ function MobileLink({
   onNavigate,
   badge,
   icon,
+  leading,
   indented = false,
 }: {
   href: string;
@@ -183,6 +209,11 @@ function MobileLink({
   badge?: number;
   /** Material Symbols ligature. Decorative — the label already says it. */
   icon?: string;
+  /**
+   * Anything else in the icon slot, for rows whose glyph is not a ligature —
+   * a brand's own mark, in practice. Wins over `icon` when both are passed.
+   */
+  leading?: ReactNode;
   indented?: boolean;
 }) {
   return (
@@ -203,13 +234,14 @@ function MobileLink({
           : "text-on-surface-variant hover:bg-on-surface/[0.06]",
       )}
     >
-      {icon && (
-        <Icon
-          name={icon}
-          size={20}
-          className={cn("shrink-0", active ? "" : "text-on-surface-variant")}
-        />
-      )}
+      {leading ??
+        (icon && (
+          <Icon
+            name={icon}
+            size={20}
+            className={cn("shrink-0", active ? "" : "text-on-surface-variant")}
+          />
+        ))}
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {badge !== undefined && (
         <span className="bg-primary text-on-primary grid min-w-5 shrink-0 place-items-center rounded-full px-1.5 text-xs">
@@ -240,7 +272,7 @@ function CountBadge({
       initial={reduceMotion ? false : { scale: 0.4, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={
-        reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 22 }
+        reduceMotion ? NO_MOTION : SPRING.badge
       }
       className={cn(
         "absolute top-1 right-1 grid min-w-4 place-items-center rounded-full px-1 text-[10px] leading-4 font-medium",
@@ -309,7 +341,7 @@ const PANEL_MOTION = {
   initial: { opacity: 0, scale: 0.95, y: -4 },
   animate: { opacity: 1, scale: 1, y: 0 },
   exit: { opacity: 0, scale: 0.95, y: -4 },
-  transition: { duration: 0.15, ease: [0.2, 0, 0, 1] as const },
+  transition: PANEL_TRANSITION,
 };
 
 export function Navbar({
@@ -317,6 +349,7 @@ export function Navbar({
   user,
   notifications = [],
   categories = [],
+  brands = [],
   announcements = [],
   cartCount = 0,
   wishlistCount = 0,
@@ -437,10 +470,10 @@ export function Navbar({
           href="/"
           className="group flex shrink-0 items-center gap-2.5 rounded-full pr-2 focus-visible:outline-2 focus-visible:outline-offset-2"
         >
-          <span className="bg-primary text-on-primary shadow-none transition-all duration-300 ease-[var(--ease-emphasized)] group-hover:shadow-elevation-2 group-hover:-rotate-6 group-hover:scale-110 group-hover:rounded-full grid size-9 place-items-center rounded-xl">
+          <span className="bg-primary text-on-primary shadow-none transition-all duration-300 ease-emphasized group-hover:shadow-elevation-2 group-hover:-rotate-6 group-hover:scale-110 group-hover:rounded-full grid size-9 place-items-center rounded-xl">
             <Icon name="storefront" size={20} filled />
           </span>
-          <span className="text-on-surface hidden text-lg font-medium tracking-tight sm:inline">
+          <span className="text-on-surface text-title-md hidden sm:inline">
             Ecom<span className="text-primary">.</span>
           </span>
         </Link>
@@ -456,14 +489,17 @@ export function Navbar({
             />
           ))}
 
-          <ProductsMenu categories={categories} active={isActive("/products")} />
+          {/* Both menus share one "which is open" value rather than holding a
+              boolean each. They are the only two hover menus in the bar and
+              their panels are wide enough to cover one another, so sliding
+              between the triggers used to show both at once for the length of
+              the outgoing menu's close timer. See `NavMenuGroup`. */}
+          <NavMenuGroup>
+            <ProductsMenu categories={categories} active={isActive("/products")} />
 
-          {/* After the catalogue, not before it — see `BRANDS_ITEM`. */}
-          <TopNavLink
-            item={BRANDS_ITEM}
-            active={isActive(BRANDS_ITEM.href)}
-            reduceMotion={reduceMotion}
-          />
+            {/* After the catalogue, not before it — see `BRANDS_ITEM`. */}
+            <BrandsMenu brands={brands} active={isActive(BRANDS_ITEM.href)} />
+          </NavMenuGroup>
         </nav>
 
         {/* ---------- Right cluster ---------- */}
@@ -474,7 +510,7 @@ export function Navbar({
               animate={{ width: searchOpen ? 240 : 40 }}
               initial={false}
               transition={
-                reduceMotion ? { duration: 0 } : { duration: 0.2, ease: [0.2, 0, 0, 1] }
+                reduceMotion ? NO_MOTION : { duration: DURATION.short4, ease: EASE_STANDARD }
               }
               className={cn(
                 "flex h-10 items-center overflow-hidden rounded-full",
@@ -569,7 +605,7 @@ export function Navbar({
               {menu === "bell" && (
                 <motion.div
                   {...PANEL_MOTION}
-                  transition={reduceMotion ? { duration: 0 } : PANEL_MOTION.transition}
+                  transition={reduceMotion ? NO_MOTION : PANEL_MOTION.transition}
                   role="menu"
                   aria-label="Notifications"
                   className="bg-surface-container-high shadow-elevation-2 absolute right-0 mt-2 w-[min(24rem,calc(100vw-1.5rem))] origin-top-right overflow-hidden rounded-xl"
@@ -666,7 +702,11 @@ export function Navbar({
                 <Avatar user={user} className="size-8 text-xs" />
                 <motion.span
                   animate={{ rotate: menu === "avatar" ? 180 : 0 }}
-                  transition={reduceMotion ? { duration: 0 } : { duration: 0.2 }}
+                  transition={
+                    reduceMotion
+                      ? NO_MOTION
+                      : { duration: DURATION.short4, ease: EASE_STANDARD }
+                  }
                   className="text-on-surface-variant grid place-items-center"
                 >
                   <Icon name="expand_more" size={18} />
@@ -677,7 +717,7 @@ export function Navbar({
                 {menu === "avatar" && (
                   <motion.div
                     {...PANEL_MOTION}
-                    transition={reduceMotion ? { duration: 0 } : PANEL_MOTION.transition}
+                    transition={reduceMotion ? NO_MOTION : PANEL_MOTION.transition}
                     role="menu"
                     aria-label="Account"
                     className="bg-surface-container-high shadow-elevation-2 absolute right-0 mt-2 w-64 origin-top-right overflow-hidden rounded-xl"
@@ -726,7 +766,12 @@ export function Navbar({
           ) : (
             <Link
               href="/login"
-              className="bg-primary text-on-primary inline-flex h-10 items-center rounded-full px-5 text-sm font-medium transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-95"
+              // `shrink-0` and `whitespace-nowrap`: it is the last thing in a
+              // flex row, so it is the first thing the row squeezes — and a
+              // fixed-height pill with its label broken over two lines is the
+              // one way this button can look broken. It keeps its width and the
+              // row gives way elsewhere.
+              className="bg-primary text-on-primary inline-flex h-10 shrink-0 items-center rounded-full px-5 text-sm font-medium whitespace-nowrap transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-95"
             >
               Sign in
             </Link>
@@ -762,7 +807,11 @@ export function Navbar({
                           { top: 13, rotate: 0, opacity: 1 },
                         ][i]
                   }
-                  transition={reduceMotion ? { duration: 0 } : { duration: 0.2 }}
+                  transition={
+                    reduceMotion
+                      ? NO_MOTION
+                      : { duration: DURATION.short4, ease: EASE_STANDARD }
+                  }
                 />
               ))}
             </span>
@@ -780,7 +829,7 @@ export function Navbar({
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={
-              reduceMotion ? { duration: 0 } : { duration: 0.25, ease: [0.2, 0, 0, 1] }
+              reduceMotion ? NO_MOTION : { duration: DURATION.medium1, ease: EASE_STANDARD }
             }
             className="bg-surface border-outline-variant overflow-hidden border-b md:hidden"
           >
@@ -822,7 +871,7 @@ export function Navbar({
 
               {categories.length > 0 && (
                 <div className="pt-1">
-                  <p className="text-on-surface-variant px-4 pb-1 text-xs tracking-[0.18em] uppercase">
+                  <p className="label-caps text-on-surface-variant px-4 pb-1">
                     Shop by category
                   </p>
                   {categories.map((category) => (
@@ -839,6 +888,56 @@ export function Navbar({
                       indented
                     />
                   ))}
+                </div>
+              )}
+
+              {/* The desktop menu is `md:flex` only, so without this a phone
+                  could reach brands only through the /brands page. Same list,
+                  same order, same cap — one row each rather than a grid of
+                  plates, because at this width a row is what the rest of the
+                  menu is made of. */}
+              {brands.length > 0 && (
+                <div className="pt-1">
+                  <p className="label-caps text-on-surface-variant px-4 pb-1">
+                    Shop by brand
+                  </p>
+                  {brands.map((brand) => (
+                    <MobileLink
+                      key={brand.slug}
+                      href={`/products?brand=${brand.slug}`}
+                      label={brand.name}
+                      // The brand's own mark in the icon slot, boxed to the
+                      // size a ligature would occupy so the labels down this
+                      // list stay on one vertical line. Initials stand in
+                      // wherever there is no artwork, exactly as on the tiles.
+                      leading={
+                        <span className="grid size-5 shrink-0 place-items-center">
+                          <BrandMark
+                            svg={brand.iconSvg}
+                            logo={brand.logo}
+                            treatment={brand.logoTreatment}
+                            size={18}
+                            className="text-on-surface-variant max-w-full!"
+                            fallback={
+                              <span
+                                aria-hidden
+                                className="text-on-surface-variant/70 text-[9px] font-semibold tracking-[0.08em] select-none"
+                              >
+                                {brandInitials(brand.name)}
+                              </span>
+                            }
+                          />
+                        </span>
+                      }
+                      active={false}
+                      onNavigate={close}
+                      indented
+                    />
+                  ))}
+                  {/* No "all brands" row closing the section: the "Brands" row
+                      at the top of this menu is already that link, and the
+                      category list above does not repeat "All products"
+                      either. */}
                 </div>
               )}
 

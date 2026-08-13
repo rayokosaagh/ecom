@@ -21,7 +21,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           className="mb-8 flex items-center gap-3 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2"
         >
           <Icon name="storefront" size={32} className="text-primary" filled />
-          <span className="text-on-surface text-2xl">
+          <span className="text-on-surface text-headline-sm">
             Ecom<span className="text-primary">.</span>
           </span>
         </Link>

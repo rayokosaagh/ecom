@@ -184,7 +184,7 @@ function RailButton({
         // Floating over the row rather than beside it, so the tabs keep the
         // full width and the control costs no layout.
         "absolute top-1/2 z-10 -translate-y-1/2",
-        "transition-[opacity,transform] duration-[var(--duration-short4)] ease-[var(--ease-emphasized)]",
+        "transition-[opacity,transform] duration-[var(--duration-short4)] ease-emphasized",
         // Exactly one `pointer-events` utility, never a base plus an override:
         // `cn` joins rather than merges, so both would reach the element and
         // stylesheet order would decide — which is how this shipped inert the

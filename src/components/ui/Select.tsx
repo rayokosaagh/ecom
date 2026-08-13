@@ -44,7 +44,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
           className={cn(
             "h-14 w-full appearance-none rounded-sm border bg-transparent px-4 pt-4 text-base",
             "text-on-surface",
-            "transition-colors duration-200 ease-[var(--ease-standard)]",
+            "transition-colors duration-200 ease-standard",
             "focus:border-2 focus:outline-none",
             hasError ? "border-error focus:border-error" : "border-outline focus:border-primary",
           )}

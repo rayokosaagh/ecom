@@ -104,9 +104,9 @@ export function CheckoutSummary({
         </p>
       )}
 
-      <div className="border-outline-variant flex justify-between border-t pt-4">
-        <span className="text-on-surface font-medium">Total</span>
-        <span className="text-on-surface text-lg">
+      <div className="border-outline-variant flex items-baseline justify-between border-t pt-4">
+        <span className="text-on-surface text-title-md">Total</span>
+        <span data-numeric className="text-on-surface text-title-lg">
           {formatPrice(payableCents + shippingCents)}
         </span>
       </div>

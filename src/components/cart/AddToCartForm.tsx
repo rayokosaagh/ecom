@@ -182,7 +182,7 @@ export function AddToCartForm({
       {/* Price restated here rather than only in the header, because with
           variants it is a consequence of the selection above. */}
       {variants.length > 0 && (
-        <p className="text-on-surface text-2xl" aria-live="polite">
+        <p className="text-on-surface text-headline-sm" aria-live="polite">
           {unsoldCombination ? (
             <span className="text-on-surface-variant text-base">
               That combination is not sold — pick another.

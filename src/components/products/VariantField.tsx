@@ -114,7 +114,7 @@ export function VariantField({
 
       {/* Axes ---------------------------------------------------------- */}
       <div className="space-y-2">
-        <p className="text-on-surface-variant text-xs tracking-wide uppercase">
+        <p className="label-caps text-on-surface-variant">
           Varies by
         </p>
         <ul className="flex flex-wrap gap-2">
@@ -156,7 +156,7 @@ export function VariantField({
       {/* Configurations ------------------------------------------------ */}
       {namedAxes > 0 && (
         <div className="space-y-2">
-          <p className="text-on-surface-variant text-xs tracking-wide uppercase">
+          <p className="label-caps text-on-surface-variant">
             Configurations sold
           </p>
 

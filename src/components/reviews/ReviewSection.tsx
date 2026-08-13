@@ -45,7 +45,7 @@ export function ReviewSection({
     <section className="mt-14" aria-labelledby="reviews-heading">
       <h2
         id="reviews-heading"
-        className="text-on-surface text-2xl font-normal tracking-tight"
+        className="text-on-surface text-headline-sm"
       >
         Reviews
       </h2>

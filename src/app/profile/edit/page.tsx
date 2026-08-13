@@ -42,7 +42,7 @@ export default async function EditProfilePage() {
       back={{ href: "/profile", label: "Back to profile" }}
     >
       <div>
-        <h1 className="text-on-surface text-2xl font-normal tracking-tight">
+        <h1 className="text-on-surface text-headline-sm">
           Edit profile
         </h1>
         <p className="text-on-surface-variant mt-1 text-sm">

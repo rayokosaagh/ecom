@@ -53,7 +53,7 @@ export function AddressBook({ addresses }: { addresses: SavedAddress[] }) {
                     <p className="text-on-surface flex flex-wrap items-center gap-2 text-sm font-medium">
                       {address.label || address.name}
                       {address.isDefault && (
-                        <span className="bg-secondary-container text-on-secondary-container rounded-full px-2 py-0.5 text-[0.6875rem] font-medium">
+                        <span className="bg-secondary-container text-on-secondary-container rounded-full px-2 py-0.5 text-label-sm font-medium">
                           Default
                         </span>
                       )}

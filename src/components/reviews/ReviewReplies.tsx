@@ -158,12 +158,12 @@ function ReplyItem({ reply, viewerId }: { reply: ReplyRow; viewerId?: string }) 
               someone who does not, and that is as true in an answer as in a
               verdict. */}
           {reply.verified && (
-            <span className="text-tertiary inline-flex items-center gap-1 text-[0.6875rem]">
+            <span className="text-tertiary inline-flex items-center gap-1 text-label-sm">
               <Icon name="verified" size={12} />
               Verified purchase
             </span>
           )}
-          <span className="text-on-surface-variant text-[0.6875rem]">
+          <span className="text-on-surface-variant text-label-sm">
             {reply.createdAt.toLocaleDateString("en-US", {
               day: "numeric",
               month: "short",
@@ -188,14 +188,14 @@ function ReplyItem({ reply, viewerId }: { reply: ReplyRow; viewerId?: string }) 
                     await deleteReply(reply.id);
                   })
                 }
-                className="text-error rounded-sm text-[0.6875rem] font-medium hover:underline focus-visible:outline-2 disabled:opacity-50"
+                className="text-error rounded-sm text-label-sm font-medium hover:underline focus-visible:outline-2 disabled:opacity-50"
               >
                 Delete for good
               </button>
               <button
                 type="button"
                 onClick={() => setConfirming(false)}
-                className="text-on-surface-variant rounded-sm text-[0.6875rem] hover:underline focus-visible:outline-2"
+                className="text-on-surface-variant rounded-sm text-label-sm hover:underline focus-visible:outline-2"
               >
                 Keep it
               </button>
@@ -204,7 +204,7 @@ function ReplyItem({ reply, viewerId }: { reply: ReplyRow; viewerId?: string }) 
             <button
               type="button"
               onClick={() => setConfirming(true)}
-              className="text-on-surface-variant hover:text-error mt-1 inline-flex items-center gap-1 rounded-sm text-[0.6875rem] transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2"
+              className="text-on-surface-variant hover:text-error mt-1 inline-flex items-center gap-1 rounded-sm text-label-sm transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2"
             >
               <Icon name="delete" size={12} />
               Delete

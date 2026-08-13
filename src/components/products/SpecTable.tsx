@@ -83,7 +83,7 @@ export function SpecTable({ rows }: { rows: SpecTableRow[] }) {
     <section aria-labelledby="specs-heading" className="mt-16">
       <h2
         id="specs-heading"
-        className="text-on-surface text-2xl font-medium tracking-tight"
+        className="text-on-surface text-headline-sm"
       >
         Specifications
       </h2>

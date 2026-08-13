@@ -9,6 +9,7 @@ import { SearchSuggestions } from "@/components/search/SearchSuggestions";
 import { useDismissable } from "@/lib/hooks/useDismissable";
 import { useProductSearch } from "@/lib/hooks/useProductSearch";
 import { cn } from "@/lib/cn";
+import { currencySymbol } from "@/lib/money/currency";
 
 export interface FilterValues {
   q: string;
@@ -207,7 +208,14 @@ export function ProductFilters({ initial }: { initial: FilterValues }) {
 
       {/* Price range */}
       <div className="bg-surface-container-high flex h-11 items-center gap-1 rounded-full px-4">
-        <Icon name="attach_money" size={18} className="text-on-surface-variant" />
+        {/* The shop's own symbol, not a dollar glyph. `attach_money` is drawn
+            as a "$" whatever the catalogue is priced in, so on a rupee shop
+            this field asked for a range in a currency the shop does not use.
+            Taken from the same currency the prices beside it are formatted
+            from, so it follows a switch instead of having to be remembered. */}
+        <span aria-hidden className="text-on-surface-variant text-sm">
+          {currencySymbol()}
+        </span>
         <input
           type="number"
           min="0"

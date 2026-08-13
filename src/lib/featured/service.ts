@@ -28,8 +28,15 @@ export interface FeaturedProductView {
    * disagree with the page it was served.
    */
   isNew: boolean;
-  /** A few headline specs, in definition order. */
-  specs: { label: string; value: string; icon: string | null }[];
+  /**
+   * Headline specs, in the global definition order.
+   *
+   * `key` rides along with the display fields because the hero's callouts pick
+   * *which* specs to annotate the product with, and that decision has to be
+   * made against a stable slug rather than a label an admin can rename. See
+   * `lib/products/spec-callouts`.
+   */
+  specs: { key: string; label: string; value: string; icon: string | null }[];
   /**
    * The background wash an admin chose, as a preset id from `lib/tints`, or
    * null when nobody has chosen one.
@@ -42,8 +49,21 @@ export interface FeaturedProductView {
   tint: string | null;
 }
 
-/** How many specs the showcase lists before it stops being a summary. */
-const SHOWCASE_SPECS = 3;
+/**
+ * How many specs travel with a featured product.
+ *
+ * Wider than the three the shelf lists, because the hero does not want the
+ * *first* few specs — it wants the few most worth annotating a photograph
+ * with, and those are chosen by key from whatever this product happens to
+ * carry. A laptop's first three by global order are Processor, GPU and CPU
+ * cores; the callouts would rather trade CPU cores for RAM or the refresh
+ * rate, and cannot if the query has already thrown them away.
+ *
+ * The shelf still shows three — it slices this list rather than the query
+ * doing it, so the two surfaces can want different amounts without a second
+ * round trip. See `FeaturedShowcase`.
+ */
+const SHOWCASE_SPECS = 8;
 
 /** How long a product wears the "New" badge. */
 const NEW_FOR_DAYS = 30;
@@ -84,7 +104,7 @@ export async function getFeaturedProducts(): Promise<FeaturedProductView[]> {
             take: SHOWCASE_SPECS,
             select: {
               value: true,
-              definition: { select: { label: true, unit: true, icon: true } },
+              definition: { select: { key: true, label: true, unit: true, icon: true } },
             },
           },
         },
@@ -114,6 +134,7 @@ export async function getFeaturedProducts(): Promise<FeaturedProductView[]> {
         soldOut: availableStock(product, product.variants) === 0,
         isNew: product.createdAt.getTime() >= newerThan,
         specs: product.specs.map((spec) => ({
+          key: spec.definition.key,
           label: spec.definition.label,
           value: spec.definition.unit
             ? `${spec.value} ${spec.definition.unit}`

@@ -21,6 +21,14 @@ export interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>
   variant?: Variant;
   size?: number;
   filledIcon?: boolean;
+  /**
+   * Classes for the glyph rather than the button.
+   *
+   * For the cases where the mark has to be addressed on its own — animating it
+   * without dragging the button's state layer along, or finding it from a ref
+   * on the button. `ThemeToggle` does both.
+   */
+  iconClassName?: string;
 }
 
 /**
@@ -42,6 +50,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
       variant = "standard",
       size = 24,
       filledIcon = false,
+      iconClassName,
       className,
       type = "button",
       ...props
@@ -56,7 +65,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
         title={label}
         className={cn(
           "state-layer grid size-10 shrink-0 place-items-center rounded-full",
-          "transition-all duration-200 ease-[var(--ease-standard)]",
+          "transition-all duration-200 ease-standard",
           "focus-visible:outline-2 focus-visible:outline-offset-2",
           "active:scale-95",
           "disabled:pointer-events-none disabled:text-on-surface/[0.38]",
@@ -65,7 +74,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
         )}
         {...props}
       >
-        <Icon name={icon} size={size} filled={filledIcon} />
+        <Icon name={icon} size={size} filled={filledIcon} className={iconClassName} />
       </button>
     );
   },

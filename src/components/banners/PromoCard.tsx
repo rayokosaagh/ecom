@@ -112,7 +112,7 @@ function customCardTint(hex: string): {
 
 const SHELL = cn(
   "relative h-full overflow-hidden ring-1 ring-inset",
-  "transition-[box-shadow,transform] duration-300 ease-[var(--ease-emphasized)]",
+  "transition-[box-shadow,transform] duration-300 ease-emphasized",
   "motion-reduce:transition-none motion-reduce:group-hover:translate-y-0",
 );
 
@@ -156,13 +156,13 @@ const ART = cn(
   // object-cover with an explicit centre anchor: the frame's dimensions are
   // fixed, so any source ratio fills it and is cropped from the middle.
   "absolute inset-0 size-full object-cover object-center",
-  "transition-transform duration-300 ease-[var(--ease-emphasized)]",
+  "transition-transform duration-300 ease-emphasized",
   "group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100",
 );
 
 const PAD = "p-5 @sm:p-6 @2xl:p-8";
 const TITLE =
-  "text-xl @xs:text-2xl @sm:text-[1.75rem] leading-[1.15] font-semibold tracking-tight text-balance";
+  "text-title-lg @xs:text-headline-sm @sm:text-headline-md font-semibold";
 const SUB = "max-w-prose text-sm leading-snug text-pretty opacity-75 @sm:text-base";
 
 function Cta({ label, accent = false }: { label: string; accent?: boolean }) {
@@ -177,7 +177,7 @@ function Cta({ label, accent = false }: { label: string; accent?: boolean }) {
         {label}
         <span
           aria-hidden
-          className="absolute -bottom-0.5 left-0 h-px w-full origin-left scale-x-0 bg-current transition-transform duration-300 ease-[var(--ease-emphasized)] group-hover:scale-x-100 motion-reduce:transition-none"
+          className="absolute -bottom-0.5 left-0 h-px w-full origin-left scale-x-0 bg-current transition-transform duration-300 ease-emphasized group-hover:scale-x-100 motion-reduce:transition-none"
         />
       </span>
       <Icon name="arrow_forward" size={accent ? 16 : 18} className="shrink-0" />
@@ -249,7 +249,7 @@ export function PromoCard({
           {/* Short accent rule anchors the copy so the column reads as
               deliberate rather than as leftover space. */}
           <span aria-hidden className="bg-primary h-0.5 w-8 rounded-full" />
-          <h3 className="text-on-surface text-lg leading-[1.15] font-semibold tracking-tight text-balance @sm:text-xl">
+          <h3 className="text-on-surface text-title-md @sm:text-title-lg font-semibold">
             {heading}
           </h3>
           {subtext && (

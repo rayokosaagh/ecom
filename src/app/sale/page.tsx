@@ -56,7 +56,7 @@ export default async function SalePage({
 
       <main className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6">
         <div className="mb-8">
-          <p className="text-tertiary flex items-center gap-2 text-xs font-medium tracking-[0.25em] uppercase">
+          <p className="eyebrow text-tertiary flex items-center gap-2">
             <Icon name="sell" size={16} filled />
             On sale
           </p>
@@ -64,7 +64,7 @@ export default async function SalePage({
           {/* Same two-tone construction and weight as the home shelf's heading,
               a size up because this one is a page title rather than a section
               heading. */}
-          <h1 className="text-on-surface mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">
+          <h1 className="text-on-surface text-headline-lg sm:text-display-sm mt-3">
             Every{" "}
             <span className="accent-word">reduction.</span>
           </h1>

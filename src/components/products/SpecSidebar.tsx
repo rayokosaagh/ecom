@@ -97,7 +97,7 @@ export function SpecSidebar({
         <div className="mb-2 hidden items-center justify-between gap-2 px-1 lg:flex">
           <h2
             id="spec-filters-heading"
-            className="text-on-surface-variant min-w-0 truncate text-xs font-medium tracking-[0.15em] uppercase"
+            className="label-caps text-on-surface-variant min-w-0 truncate"
           >
             {scope ? `Refine ${scope}` : "Refine"}
           </h2>
@@ -179,7 +179,7 @@ function SpecGroup({
               glance on a collapsed row is whether this label is doing
               anything. */}
           {selectedCount > 0 && (
-            <span className="bg-primary text-on-primary grid size-5 shrink-0 place-items-center rounded-full text-[11px]">
+            <span className="bg-primary text-on-primary grid size-5 shrink-0 place-items-center rounded-full text-label-sm">
               {selectedCount}
             </span>
           )}

@@ -42,7 +42,7 @@ export default async function ProfileSettingsPage() {
       back={{ href: "/profile", label: "Back to profile" }}
     >
       <div>
-        <h1 className="text-on-surface text-2xl font-normal tracking-tight">Settings</h1>
+        <h1 className="text-on-surface text-headline-sm">Settings</h1>
         <p className="text-on-surface-variant mt-1 text-sm">
           Your password, what we tell you about, and closing your account.
         </p>

@@ -28,12 +28,15 @@ export default async function SettingsPage() {
       </div>
 
       <div>
+        {/* "Customer support" up to the point this form grew a third card. It
+            already covered collection at checkout, and now the home page's
+            layout as well — a heading naming only the first of three is worse
+            than one naming none of them. */}
         <h3 className="text-on-surface text-sm font-medium tracking-[0.15em] uppercase">
-          Customer support
+          Storefront
         </h3>
         <p className="text-on-surface-variant mt-1 mb-4 text-sm">
-          The WhatsApp buttons on the home page, product pages, order pages and
-          the FAQ. Each one opens a chat with the question already written.
+          Support, collection and how the front page opens. Saved together.
         </p>
         <StoreSettingsForm values={settings} envFallbackNumber={envFallbackNumber} />
       </div>

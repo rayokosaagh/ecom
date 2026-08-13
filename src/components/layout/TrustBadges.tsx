@@ -1,14 +1,29 @@
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
+import { formatPrice } from "@/lib/products/format";
+import { FREE_SHIPPING_OVER_CENTS } from "@/lib/checkout/shipping";
 
 /**
  * Store policies.
  *
- * PLACEHOLDER COPY — these describe policies the app does not implement.
- * Edit them to match what the store actually offers before going live.
+ * PLACEHOLDER COPY — the last three describe policies the app does not
+ * implement. Edit them to match what the store actually offers before going
+ * live.
+ *
+ * The first one is not placeholder copy any more, and that is the point: it
+ * used to read "On orders over $50" on a shop whose every price is in rupees,
+ * which is both the wrong currency and a promise the checkout would not keep.
+ * The threshold it now quotes is the same constant `shippingFor` charges
+ * against, so the badge on the footer of every page and the line in the cart
+ * summary cannot drift apart — and a change of currency carries it across with
+ * everything else. See `lib/checkout/shipping`.
  */
 export const STORE_PROMISES = [
-  { icon: "local_shipping", title: "Free shipping", copy: "On orders over $50" },
+  {
+    icon: "local_shipping",
+    title: "Free shipping",
+    copy: `On orders over ${formatPrice(FREE_SHIPPING_OVER_CENTS)}`,
+  },
   { icon: "assignment_return", title: "30-day returns", copy: "No questions asked" },
   { icon: "lock", title: "Secure checkout", copy: "Encrypted end to end" },
   { icon: "support_agent", title: "Real support", copy: "Answers from humans" },
