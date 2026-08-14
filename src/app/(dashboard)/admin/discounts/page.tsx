@@ -8,6 +8,7 @@ import {
   type DiscountFormValues,
 } from "@/components/discounts/DiscountForm";
 import { DiscountRowActions } from "@/components/discounts/DiscountRowActions";
+import { DeleteExpiredDiscounts } from "@/components/discounts/DeleteExpiredDiscounts";
 import { requireAdmin } from "@/lib/auth/dal";
 import { getDiscountCode, getDiscountCodes } from "@/lib/discounts/service";
 import { formatPrice } from "@/lib/products/format";
@@ -75,6 +76,12 @@ export default async function AdminDiscountsPage({
 
   const now = new Date();
 
+  // Counted from the list already in hand rather than a second round trip.
+  // These only size and label the sweep button — the action decides for itself
+  // what has expired when it runs.
+  const expiredCodes = codes.filter((c) => c.endsAt !== null && c.endsAt < now);
+  const expiredUsed = expiredCodes.filter((c) => c._count.orders > 0).length;
+
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <div>
@@ -98,6 +105,23 @@ export default async function AdminDiscountsPage({
         </Card>
 
         <div className="space-y-3">
+          {/* Sits with the list rather than beside the page title: it acts on
+              these rows, and the header slot on every other admin screen holds
+              that screen's primary "Add" action. */}
+          {codes.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+              <p className="text-on-surface-variant text-sm">
+                {codes.length} code{codes.length === 1 ? "" : "s"}
+                {expiredCodes.length > 0 && ` · ${expiredCodes.length} expired`}
+              </p>
+
+              <DeleteExpiredDiscounts
+                count={expiredCodes.length}
+                usedCount={expiredUsed}
+              />
+            </div>
+          )}
+
           {codes.length === 0 ? (
             <Card variant="outlined">
               <CardContent className="flex flex-col items-center gap-3 py-12 text-center">

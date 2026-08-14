@@ -102,3 +102,28 @@ export async function deleteDiscount(id: string): Promise<DiscountActionState> {
   revalidateDiscountViews();
   return { success: "Code deleted." };
 }
+
+/**
+ * Clear out every code whose end date has passed.
+ *
+ * Unlike deleting one by hand, this does not spare a code that has been
+ * redeemed. It can afford not to: `Order.discountCodeId` is `SetNull` and each
+ * order snapshots the label and the money taken off, so an old receipt still
+ * adds up afterwards. What does not survive is the link from an order back to
+ * the code — and once the window has closed that link only served reporting,
+ * since nothing can be redeemed against it again.
+ *
+ * A code with no end date is never expired, however long it has sat there:
+ * `lt` does not match null, so open-ended codes are untouched.
+ */
+export async function deleteExpiredDiscounts(): Promise<DiscountActionState> {
+  await requireAdmin();
+
+  const { count } = await prisma.discountCode.deleteMany({
+    where: { endsAt: { lt: new Date() } },
+  });
+  if (count === 0) return { message: "No expired codes to delete." };
+
+  revalidateDiscountViews();
+  return { success: `Deleted ${count} expired code${count === 1 ? "" : "s"}.` };
+}
