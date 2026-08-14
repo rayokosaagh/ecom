@@ -410,7 +410,20 @@ export function Navbar({
         className,
       )}
     >
-      <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-3 sm:px-6">
+      {/* `relative z-10` so the bar — and everything that hangs off it — paints
+          above the announcement strip below it.
+
+          The strip is a later sibling inside this same header, and its moving
+          track carries a `transform`, which makes it a stacking context painted
+          as though it were `z-index: 0`. A dropdown left at `z-auto` sits in
+          that same layer, so the two were ordered by nothing but their position
+          in the markup — and the strip, being last, won. The account menu came
+          out with a coloured band running across its face.
+
+          Ordering the bar rather than each panel is what stops it coming back:
+          the next menu added in here is above the strip because of where it is,
+          not because somebody remembered a `z-`. */}
+      <div className="relative z-10 mx-auto flex h-16 max-w-7xl items-center gap-2 px-3 sm:px-6">
         {/* ---------- Logo ---------- */}
         <Link
           href="/"
@@ -545,7 +558,11 @@ export function Navbar({
                   transition={reduceMotion ? NO_MOTION : PANEL_MOTION.transition}
                   role="menu"
                   aria-label="Notifications"
-                  className="bg-surface-container-high shadow-elevation-2 absolute right-0 mt-2 w-[min(24rem,calc(100vw-1.5rem))] origin-top-right overflow-hidden rounded-xl"
+                  /* `z-50` to match every other panel in this bar — the two
+                     hover menus and the search suggestions all carry it. These
+                     two were the only ones that did not, which is how they
+                     ended up underneath things. */
+                  className="bg-surface-container-high shadow-elevation-2 absolute right-0 z-50 mt-2 w-[min(24rem,calc(100vw-1.5rem))] origin-top-right overflow-hidden rounded-xl"
                 >
                   <NotificationPanel
                     notifications={notifications}
@@ -657,7 +674,9 @@ export function Navbar({
                     transition={reduceMotion ? NO_MOTION : PANEL_MOTION.transition}
                     role="menu"
                     aria-label="Account"
-                    className="bg-surface-container-high shadow-elevation-2 absolute right-0 mt-2 w-64 origin-top-right overflow-hidden rounded-xl"
+                    /* See the notifications panel above: `z-50` is what the
+                       rest of this bar's panels use. */
+                    className="bg-surface-container-high shadow-elevation-2 absolute right-0 z-50 mt-2 w-64 origin-top-right overflow-hidden rounded-xl"
                   >
                     <div className="border-outline-variant flex items-center gap-3 border-b px-4 py-3">
                       <Avatar user={user} className="size-10 text-sm" />
@@ -915,7 +934,12 @@ export function Navbar({
           between them. Inside the header rather than after it because the
           header is `sticky`: a notice worth putting on every page is worth
           keeping on screen, and one that scrolls away is one most visitors
-          never see. */}
+          never see.
+
+          Being last is about *position*, not about paint order: it must stay
+          below the bar in both senses, and it is the bar's own `z-10` that
+          arranges the second one. Do not give this a `z-` of its own — that is
+          the change that would put the strip back over the account menu. */}
       <AnnouncementBar items={announcements} />
     </header>
   );
