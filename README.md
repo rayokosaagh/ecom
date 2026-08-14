@@ -165,8 +165,13 @@ src/app/               routes: storefront, (auth), (dashboard) admin
 src/components/        UI, grouped by feature
 src/lib/               business logic; `lib/<feature>/` is pure, `actions/` writes
 scripts/               check:* suites, seeders and one-off migrations
-docs/                  development records — see docs/README.md
 ```
 
 `src/generated/` is Prisma Client output and is not committed; `postinstall`
 recreates it.
+
+A `docs/` directory holds development records — session reports and the
+long-form work report — but it is local rather than committed, so a fresh clone
+will not have one. This README and the comments in `prisma/schema.prisma` are
+the entry points instead; the schema carries the reasoning behind most of the
+decisions those records describe.

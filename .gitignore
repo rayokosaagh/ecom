@@ -153,3 +153,16 @@ next-env.d.ts
 # Claude Code — local agent config, not part of the project.
 CLAUDE.md
 .claude/
+
+# ---------------------------------------------------------------------------
+# Development records — kept locally, not in the repository.
+# ---------------------------------------------------------------------------
+# Session reports, the build report and the long-form work report. They are
+# point-in-time accounts of *why* things were done, written for whoever is
+# working on this next — not user documentation, and not something a fresh
+# clone needs in order to run the project.
+#
+# The files stay on disk; they were untracked with `git rm -r --cached docs`,
+# which is what an ignore rule cannot do on its own. Earlier revisions remain in
+# the history. Root README.md is the entry point a clone reads instead.
+/docs/
