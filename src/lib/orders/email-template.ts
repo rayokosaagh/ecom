@@ -14,6 +14,7 @@ import {
   emailStatusCard,
   emailThumbnail,
   emailTracker,
+  escapeHtml,
   type MoneyRow,
   type TrackerStep,
 } from "@/lib/email/layout";
@@ -221,20 +222,9 @@ function shipmentTracker(kind: OrderEmailKind): [TrackerStep, TrackerStep, Track
   return null;
 }
 
-/**
- * Escape before interpolating into the HTML body.
- *
- * Product names and addresses are typed by people. `&` first, or it would
- * double-escape the entities the later replacements introduce.
- */
-export function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
+// Re-exported so `check:order-email` and the order paths keep importing it
+// from here, while there is only one implementation — see `lib/email/layout`.
+export { escapeHtml };
 
 /** "16 GB / 512 GB · Space Grey", or "" when a line has neither. */
 function describeLine(line: OrderEmailLine): string {

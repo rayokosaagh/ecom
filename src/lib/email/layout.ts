@@ -102,16 +102,26 @@ const TABLE_OPEN =
   '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse';
 
 /**
- * Escape before an attribute, not just a text node.
+ * Escape before interpolating anything into one of these bodies.
  *
- * A local copy rather than importing `escapeHtml` from `orders/email-template`
- * — that would make this lower-level module depend on the one built on top of
- * it. Every caller here hands in a URL, not prose, but a URL is still
- * attacker-reachable in the ways that matter to an attribute: a stray `"`
- * breaks out of it.
+ * Lives here rather than in `orders/email-template`, which is where it started
+ * and where a second, narrower copy used to sit alongside it: a mail that
+ * greets somebody by name has the same problem as one that lists a product
+ * name, and neither is a reason for an auth module to depend on an orders one.
+ * `&` first, or it would double-escape the entities the later replacements
+ * introduce.
+ *
+ * Safe for attributes as well as text — escaping `'` and `>` inside one is
+ * harmless, and `&` becoming `&amp;` in a query string is what the HTML spec
+ * asks for anyway.
  */
-function escapeAttr(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 /**
@@ -127,7 +137,7 @@ export function emailButton(href: string, label: string, icon?: EmailAsset): str
         icon,
       )}" width="17" height="17" alt="" style="vertical-align:middle;border:0;margin-right:9px">`
     : "";
-  return `<a class="ecom-btn" href="${escapeAttr(href)}" style="display:inline-block;background:${PRIMARY};color:${ON_PRIMARY};text-decoration:none;padding:14px 28px;border-radius:999px;font-weight:600;font-size:15px"><span style="vertical-align:middle">${mark}${label}</span></a>`;
+  return `<a class="ecom-btn" href="${escapeHtml(href)}" style="display:inline-block;background:${PRIMARY};color:${ON_PRIMARY};text-decoration:none;padding:14px 28px;border-radius:999px;font-weight:600;font-size:15px"><span style="vertical-align:middle">${mark}${label}</span></a>`;
 }
 
 /** `text-headline-sm`-scale: bigger and bolder than a body heading has to be. */
@@ -325,7 +335,7 @@ export function emailThumbnail(src: string | null, size = 88): string {
   if (!src) {
     return `<div class="ecom-thumb" style="${frame}">&nbsp;</div>`;
   }
-  return `<img class="ecom-thumb" src="${escapeAttr(src)}" width="${size}" height="${size}" alt="" style="${frame};object-fit:cover;display:block">`;
+  return `<img class="ecom-thumb" src="${escapeHtml(src)}" width="${size}" height="${size}" alt="" style="${frame};object-fit:cover;display:block">`;
 }
 
 /**
@@ -389,6 +399,13 @@ export function emailDeliveryCard(addressHtml: string, trackerHtml?: string): st
   );
 }
 
+/** A full-width illustration, centred, that shrinks with the card around it. */
+export function emailScene(asset: EmailAsset, width = 280): string {
+  return `<div style="text-align:center;margin:8px 0 24px"><img src="${assetSrc(
+    asset,
+  )}" width="${width}" alt="" style="border:0;display:block;margin:0 auto;width:100%;max-width:${width}px;height:auto"></div>`;
+}
+
 /**
  * Wraps a rendered body in the branded header/card/footer common to every mail.
  *
@@ -399,7 +416,17 @@ export function emailDeliveryCard(addressHtml: string, trackerHtml?: string): st
  * banner). Omit it and the card simply ends after the body, the way every
  * mail before this one did.
  */
-export function emailShell(bodyHtml: string, homeUrl: string, trustFooterHtml?: string): string {
+export function emailShell(
+  bodyHtml: string,
+  homeUrl: string,
+  trustFooterHtml?: string,
+  /**
+   * The flourish beside the wordmark. Defaults to the parcel, which is right
+   * for anything about an order and wrong for anything that is not — see
+   * `ART_HEADER_WELCOME` in `build-email-art`.
+   */
+  masthead: EmailAsset = "headerArt",
+): string {
   return `
 ${MOBILE_STYLES}
 <div class="ecom-shell" style="background:${WHITE};padding:20px 10px;font-family:${FONT_SANS}">
@@ -411,7 +438,7 @@ ${MOBILE_STYLES}
             <td style="width:46px"><span style="display:inline-block;width:38px;height:38px;line-height:38px;text-align:center;background:${PRIMARY};color:${ON_PRIMARY};border-radius:12px;font-weight:700;font-size:17px;font-family:${FONT_SANS}">E</span></td>
             <td style="font-size:21px;font-weight:700;letter-spacing:-0.01em;color:${ON_SURFACE};white-space:nowrap">${BRAND_NAME}<span style="color:${PRIMARY}">.</span></td>
             <td class="ecom-art" style="text-align:right"><img src="${assetSrc(
-              "headerArt",
+              masthead,
             )}" width="150" alt="" style="border:0;display:inline-block;width:100%;max-width:150px;height:auto"></td>
           </tr>
         </table>
@@ -426,7 +453,7 @@ ${MOBILE_STYLES}
       }
     </div>
     <p style="margin:18px 0 0;text-align:center;color:${ON_SURFACE_VARIANT};font-size:12px;line-height:1.6">
-      <a href="${escapeAttr(homeUrl)}" style="color:${ON_SURFACE_VARIANT};text-decoration:underline">${BRAND_NAME}</a> · This is an automated message — please don't reply to it.
+      <a href="${escapeHtml(homeUrl)}" style="color:${ON_SURFACE_VARIANT};text-decoration:underline">${BRAND_NAME}</a> · This is an automated message — please don't reply to it.
     </p>
   </div>
 </div>`.trim();
@@ -438,13 +465,25 @@ ${MOBILE_STYLES}
  * the platform's own SVG mark, for the same reason icons elsewhere in this
  * file are emoji rather than `<svg>`.
  */
-export function emailTrustFooter(socialLinks: { url: string; label: string }[]): string {
+export function emailTrustFooter(
+  socialLinks: { url: string; label: string }[],
+  /**
+   * What the line says, when thanking somebody for shopping would be wrong.
+   *
+   * A welcome mail goes to an account that has not bought anything yet, and
+   * "thank you for shopping with us" addressed to someone who has not shopped
+   * is the sort of line that gives a template away.
+   */
+  copy: { lead?: string; sub?: string } = {},
+): string {
+  const lead = copy.lead ?? "Thank you for shopping with";
+  const sub = copy.sub ?? "We appreciate your trust.";
   const socials = socialLinks
     .map(
       (link) =>
-        `<a href="${escapeAttr(link.url)}" title="${escapeAttr(
+        `<a href="${escapeHtml(link.url)}" title="${escapeHtml(
           link.label,
-        )}" style="display:inline-block;width:34px;height:34px;line-height:34px;text-align:center;background:${ON_SURFACE};color:${WHITE};border-radius:999px;text-decoration:none;font-size:14px;font-weight:700;margin-left:6px">${escapeAttr(
+        )}" style="display:inline-block;width:34px;height:34px;line-height:34px;text-align:center;background:${ON_SURFACE};color:${WHITE};border-radius:999px;text-decoration:none;font-size:14px;font-weight:700;margin-left:6px">${escapeHtml(
           link.label.slice(0, 1).toUpperCase(),
         )}</a>`,
     )
@@ -455,7 +494,7 @@ ${TABLE_OPEN}" class="ecom-stack">
   <tr>
     <td class="ecom-iconCell" style="width:48px;vertical-align:middle">${emailIconTile("heart", 36)}</td>
     <td style="vertical-align:middle;font-size:13px;line-height:1.5;color:${ON_SURFACE_VARIANT}">
-      Thank you for shopping with <span style="color:${PRIMARY};font-weight:600">${BRAND_NAME}.</span><br><span style="font-family:${FONT_DISPLAY};font-style:italic;font-size:14px">We appreciate your trust.</span>
+      ${lead} <span style="color:${PRIMARY};font-weight:600">${BRAND_NAME}.</span><br><span style="font-family:${FONT_DISPLAY};font-style:italic;font-size:14px">${sub}</span>
     </td>
     ${socials ? `<td class="ecom-socials" style="vertical-align:middle;text-align:right;white-space:nowrap">${socials}</td>` : ""}
   </tr>

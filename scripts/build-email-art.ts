@@ -43,6 +43,8 @@ const TRACKER_PATHS: Record<string, string> = {
   home: `<path d="M3.4 10.4 12 3.3l8.6 7.1"/><path d="M5.5 9.3V20.4h13V9.3"/><path d="M9.8 20.4v-5.6h4.4v5.6"/>`,
 };
 
+const BAG_PATH = `<path d="M4.4 7.4h15.2l-1.3 12.7a1.7 1.7 0 0 1-1.7 1.5H7.4a1.7 1.7 0 0 1-1.7-1.5z"/><path d="M8.9 10.2V6.5a3.1 3.1 0 0 1 6.2 0v3.7"/>`;
+
 const RECEIPT_PATH = `<path d="M5.2 2.6h13.6v18.8l-2.3-1.6-2.3 1.6-2.2-1.6-2.3 1.6-2.2-1.6-2.3 1.6z"/><path d="M8.8 8.2h6.4M8.8 12.2h6.4"/>`;
 
 const ICONS: Record<string, string> = {
@@ -56,6 +58,9 @@ const ICONS: Record<string, string> = {
   pin: icon(
     `<path d="M12 21.4s7-6.5 7-11.6a7 7 0 1 0-14 0c0 5.1 7 11.6 7 11.6z"/><circle cx="12" cy="9.8" r="2.7"/>`,
   ),
+  bag: icon(BAG_PATH),
+  // On the filled button, where brand-blue line art would be invisible.
+  "bag-on": icon(BAG_PATH, "#ffffff"),
   receipt: icon(RECEIPT_PATH),
   // On the filled button, where brand-blue line art would be invisible.
   "receipt-on": icon(RECEIPT_PATH, "#ffffff"),
@@ -124,6 +129,57 @@ const ART_DELIVERY = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 1
   <circle cx="47" cy="81" r="2.4" fill="${BLUE}"/>
 </svg>`;
 
+
+/**
+ * The welcome mail's masthead: a bag, not a parcel.
+ *
+ * `ART_HEADER` is about something being *sent* — a ticked box in transit —
+ * which is the wrong promise at the top of a message to somebody who has just
+ * made an account and bought nothing. Same canvas and same palette so the two
+ * sit at the same weight beside the wordmark.
+ */
+const ART_HEADER_WELCOME = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 80">
+  <path d="M36 48c-6.4 0-11.6-5.2-11.6-11.6s5.2-11.6 11.6-11.6c2.1-7.2 8.7-12.4 16.5-12.4s14.4 5.2 16.5 12.4c6.4 0 11.6 5.2 11.6 11.6S75.4 48 69 48z" fill="${PALE}"/>
+  <path d="M96 57c-4.4 0-8-3.6-8-8s3.6-8 8-8c1.5-5 6.1-8.6 11.6-8.6s10.1 3.6 11.6 8.6c4.4 0 8 3.6 8 8s-3.6 8-8 8z" fill="${PALER}"/>
+  <path d="M141 20l2.6 6.9 6.9 2.6-6.9 2.6-2.6 6.9-2.6-6.9-6.9-2.6 6.9-2.6z" fill="${RULE}"/>
+  <path d="M152 52l1.9 5 5 1.9-5 1.9-1.9 5-1.9-5-5-1.9 5-1.9z" fill="${RULE}"/>
+  <path d="M209 14l1.6 4.2 4.2 1.6-4.2 1.6-1.6 4.2-1.6-4.2-4.2-1.6 4.2-1.6z" fill="${RULE}"/>
+  <g stroke="${BLUE}" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M168 32h40l-3.6 33.4a3.6 3.6 0 0 1-3.6 3.2h-25.6a3.6 3.6 0 0 1-3.6-3.2z"/>
+    <path d="M179.8 35.4v-8.6a8.2 8.2 0 0 1 16.4 0v8.6"/>
+  </g>
+</svg>`;
+
+/**
+ * The shop, with its door open.
+ *
+ * Carries the welcome mail the way `ART_DELIVERY` carries a shipped one: it is
+ * the only picture in the message and it has to say "come in" rather than
+ * decorate. Drawn front-on and centred, so it reads at the width a phone gives
+ * it as well as at full card width.
+ */
+const ART_WELCOME = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 120">
+  <path d="M52 34c-3.6 0-6.6-3-6.6-6.6s3-6.6 6.6-6.6c1.2-4.1 5-7 9.5-7s8.3 2.9 9.5 7c3.6 0 6.6 3 6.6 6.6s-3 6.6-6.6 6.6z" fill="${PALER}"/>
+  <path d="M232 44c-3.1 0-5.6-2.5-5.6-5.6s2.5-5.6 5.6-5.6c1-3.5 4.2-6 8-6s7 2.5 8 6c3.1 0 5.6 2.5 5.6 5.6s-2.5 5.6-5.6 5.6z" fill="${PALER}"/>
+  <path d="M40 58l2.2 5.8 5.8 2.2-5.8 2.2-2.2 5.8-2.2-5.8-5.8-2.2 5.8-2.2z" fill="${RULE}"/>
+  <path d="M243 66l1.8 4.7 4.7 1.8-4.7 1.8-1.8 4.7-1.8-4.7-4.7-1.8 4.7-1.8z" fill="${RULE}"/>
+  <path d="M96 20l1.6 4.2 4.2 1.6-4.2 1.6-1.6 4.2-1.6-4.2-4.2-1.6 4.2-1.6z" fill="${RULE}"/>
+  <rect x="82" y="46" width="116" height="58" rx="3" fill="${PALE}"/>
+  <path d="M74 46l8-14h116l8 14z" fill="${BLUE}"/>
+  <path d="M82 32h19.3l-4 14H74zM120.7 32H140l1.3 14h-23zM159.3 32h19.3l6.7 14h-23z" fill="#ffffff" opacity="0.34"/>
+  <rect x="94" y="60" width="40" height="30" rx="2" fill="#ffffff"/>
+  <rect x="100" y="68" width="11" height="14" rx="1.5" fill="${RULE}"/>
+  <rect x="116" y="72" width="12" height="10" rx="1.5" fill="${RULE}"/>
+  <rect x="148" y="60" width="34" height="44" rx="2" fill="#ffffff"/>
+  <path d="M148 60h34v44" fill="none" stroke="${RULE}" stroke-width="1.6"/>
+  <circle cx="176" cy="84" r="2.2" fill="${BLUE}"/>
+  <path d="M20 104h240" stroke="${RULE}" stroke-width="2.4" stroke-linecap="round"/>
+  <g stroke="${BLUE}" stroke-width="2.2" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M212 76h20l-1.8 17a2 2 0 0 1-2 1.8h-12.4a2 2 0 0 1-2-1.8z"/>
+    <path d="M218 78v-4.6a4 4 0 0 1 8 0V78"/>
+  </g>
+</svg>`;
+
 const OUT = join(process.cwd(), "public", "email");
 mkdirSync(OUT, { recursive: true });
 
@@ -139,6 +195,8 @@ async function main() {
   // retina screen without shipping more bytes than a mail needs to carry.
   for (const [name, svg] of Object.entries(ICONS)) await write(`icon-${name}`, svg, 108);
   await write("art-header", ART_HEADER, 660);
+  await write("art-header-welcome", ART_HEADER_WELCOME, 660);
+  await write("art-welcome", ART_WELCOME, 840);
   await write("art-delivery", ART_DELIVERY, 840);
   console.log("Done.");
 }

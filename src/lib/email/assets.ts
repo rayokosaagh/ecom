@@ -25,6 +25,8 @@ export const EMAIL_ASSETS = {
   homeOn: "icon-home-on.png",
   homeOff: "icon-home-off.png",
   pin: "icon-pin.png",
+  bag: "icon-bag.png",
+  bagOn: "icon-bag-on.png",
   receipt: "icon-receipt.png",
   receiptOn: "icon-receipt-on.png",
   reset: "icon-reset.png",
@@ -35,6 +37,8 @@ export const EMAIL_ASSETS = {
   lock: "icon-lock.png",
   heart: "icon-heart.png",
   headerArt: "art-header.png",
+  headerArtWelcome: "art-header-welcome.png",
+  welcomeArt: "art-welcome.png",
   deliveryArt: "art-delivery.png",
 } as const;
 

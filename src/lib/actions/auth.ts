@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { AuthError } from "next-auth";
 
 import { signIn, signOut } from "@/auth";
@@ -8,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth/password";
 import { parseRegistration } from "@/lib/auth/validation";
 import { notifyAdmins } from "@/lib/notifications/service";
+import { sendWelcomeEmailSafely } from "@/lib/auth/welcome";
 import { NotificationType, Role } from "@/generated/prisma/enums";
 
 export type AuthFormState = {
@@ -89,6 +91,18 @@ export async function register(
       role: Role.USER,
     },
   });
+
+  /**
+   * The greeting, deferred until after the response.
+   *
+   * `after` rather than awaited, for the reason every other mail in this
+   * codebase is: the account is already committed, so nothing here may be
+   * allowed to fail it, and somebody who has just filled in a form should not
+   * be watching a spinner while an SMTP handshake completes. It is scheduled
+   * before the sign-in below deliberately — that can still fail, and the
+   * account exists either way, so the welcome should go out either way too.
+   */
+  after(() => sendWelcomeEmailSafely(name, email));
 
   // Real event → real notification for the people who care about it.
   await notifyAdmins({
