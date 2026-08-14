@@ -9,7 +9,7 @@ import { getCurrentUser, requireUser } from "@/lib/auth/dal";
 import { findCartId, getOrCreateCartId } from "@/lib/cart/identity";
 import { getCart } from "@/lib/cart/service";
 import { notifyAdmins, notifyUser } from "@/lib/notifications/service";
-import { sendOrderEmailSafely } from "@/lib/orders/email";
+import { sendOrderEmailSafely, sendAdminOrderPlacedEmailSafely } from "@/lib/orders/email";
 import { formatPrice } from "@/lib/products/format";
 import { describeVariant } from "@/lib/products/variants";
 import { VARIANT_SELECT, toVariantView } from "@/lib/cart/variants";
@@ -552,6 +552,7 @@ export async function checkout(
    * provider.
    */
   after(() => sendOrderEmailSafely(order.id, "PLACED"));
+  after(() => sendAdminOrderPlacedEmailSafely(order.id));
 
   // The picture for both notices below, taken from the cart that is still in
   // hand rather than read back off the order — the same photo, one query

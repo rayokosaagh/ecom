@@ -3,8 +3,19 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { appUrl } from "@/lib/app-url";
 import { sendEmail } from "@/lib/email/send";
+import {
+  emailBadge,
+  emailButton,
+  emailHeading,
+  emailIconCircle,
+  emailShell,
+  emailTrustFooter,
+} from "@/lib/email/layout";
+import type { EmailAsset } from "@/lib/email/assets";
 import { hashPassword } from "@/lib/auth/password";
 import { notifyUser } from "@/lib/notifications/service";
+import { getPublishedSocialLinks } from "@/lib/social/service";
+import { socialLinkName } from "@/lib/social/catalogue";
 import { NotificationType } from "@/generated/prisma/enums";
 import {
   RESET_TOKEN_TTL_MS,
@@ -22,7 +33,9 @@ import {
  * that touches the database and the mail provider.
  */
 
-function composeResetEmail(link: string): { subject: string; text: string; html: string } {
+async function composeResetEmail(
+  link: string,
+): Promise<{ subject: string; text: string; html: string; assets: EmailAsset[] }> {
   const subject = "Reset your Ecom password";
 
   const text = [
@@ -36,25 +49,37 @@ function composeResetEmail(link: string): { subject: string; text: string; html:
     "If this was not you, nothing has changed and you can ignore this message.",
   ].join("\n");
 
-  // Inline styles and a table-free layout on purpose: mail clients strip
-  // <style> blocks and disagree about everything else. The link is also
-  // repeated as plain text, because plenty of clients will not make a button
-  // clickable but every one of them shows a URL.
-  const html = `
-<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-size:15px;line-height:1.6;color:#1c1b1f;max-width:520px">
-  <h1 style="font-size:20px;font-weight:600;margin:0 0 16px">Reset your password</h1>
-  <p style="margin:0 0 16px">Someone asked to reset the password for this address.</p>
+  // The link is repeated as plain text below the button, because plenty of
+  // mail clients will not make a button clickable but every one of them shows
+  // a URL.
+  const body = `
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="ecom-stack" style="border-collapse:collapse;margin-bottom:24px">
+    <tr>
+      <td class="ecom-iconCell" style="width:72px;vertical-align:top">${emailIconCircle("lock", 56)}</td>
+      <td style="vertical-align:top">
+        ${emailHeading("Reset your password")}
+        <p style="margin:0 0 10px;color:#44474f;font-size:15px;line-height:1.5">Someone asked to reset the password for this address.</p>
+        ${emailBadge("Expires in 1 hour")}
+      </td>
+    </tr>
+  </table>
   <p style="margin:0 0 24px">
-    <a href="${link}" style="display:inline-block;background:#6750a4;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:500">Choose a new password</a>
+    ${emailButton(link, "Choose a new password")}
   </p>
-  <p style="margin:0 0 16px;color:#49454f">Or paste this into your browser:<br>
+  <p style="margin:0 0 16px;color:#44474f;font-size:13px">Or paste this into your browser:<br>
     <span style="word-break:break-all">${link}</span>
   </p>
-  <p style="margin:0 0 16px;color:#49454f">The link works once and expires in an hour.</p>
-  <p style="margin:0;color:#49454f">If this was not you, nothing has changed and you can ignore this message.</p>
-</div>`.trim();
+  <p style="margin:0 0 8px;color:#44474f;font-size:14px">The link works once and expires in an hour.</p>
+  <p style="margin:0;color:#44474f;font-size:14px">If this was not you, nothing has changed and you can ignore this message.</p>`.trim();
 
-  return { subject, text, html };
+  const socialLinks = await getPublishedSocialLinks();
+  const trustFooterHtml = emailTrustFooter(
+    socialLinks.map((social) => ({ url: social.url, label: socialLinkName(social.platform, social.label) })),
+  );
+
+  const html = emailShell(body, appUrl("/"), trustFooterHtml);
+
+  return { subject, text, html, assets: ["headerArt", "lock", "heart"] };
 }
 
 /**
@@ -104,7 +129,7 @@ export async function issuePasswordReset(email: string): Promise<void> {
   ]);
 
   const link = appUrl(`/reset-password?token=${encodeURIComponent(token)}`);
-  await sendEmail({ to: email, ...composeResetEmail(link) });
+  await sendEmail({ to: email, ...(await composeResetEmail(link)) });
 }
 
 /**

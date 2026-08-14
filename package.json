@@ -40,6 +40,7 @@
     "check:brand-logos": "tsx scripts/check-brand-logos.ts",
     "check:tints": "tsx scripts/check-tints.ts",
     "brands:icons": "tsx scripts/import-brand-icons.ts",
+    "build:email-art": "tsx scripts/build-email-art.ts",
     "seed:taxonomy": "tsx scripts/seed-taxonomy.ts",
     "seed:products": "tsx scripts/seed-products.ts",
     "slugs:products": "tsx scripts/backfill-product-slugs.ts",
@@ -54,6 +55,7 @@
     "material-symbols": "^0.45.10",
     "next": "16.2.10",
     "next-auth": "^5.0.0-beta.32",
+    "nodemailer": "^8.0.11",
     "pg": "^8.22.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -62,6 +64,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/nodemailer": "^8.0.1",
     "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",

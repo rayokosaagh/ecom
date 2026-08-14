@@ -81,7 +81,7 @@ written in `prisma/seed.ts` and therefore public.
 | `SEED_ADMIN_EMAIL` `SEED_ADMIN_PASSWORD` `SEED_ADMIN_NAME` | before seeding | The first administrator. Blank falls back to the public defaults in `prisma/seed.ts`. |
 | `NEXT_PUBLIC_SHOP_CURRENCY` | no | `NPR` (default) or `USD`. Must agree with what the database is denominated in — changing it is a migration, see `npm run currency`. |
 | `ALLOW_PUBLIC_SIGNUP` | no | `"false"` disables `/register`. |
-| `RESEND_API_KEY`&nbsp;/&nbsp;`EMAIL_FROM` | no | Leave both blank and mail is written to the server console instead of sent — the whole flow, links included, works with no provider. |
+| `GMAIL_USER`&nbsp;/&nbsp;`GMAIL_PASSWORD`&nbsp;/&nbsp;`EMAIL_FROM` | no | Leave `GMAIL_USER`/`GMAIL_PASSWORD` blank and mail is written to the server console instead of sent — the whole flow, links included, works with no provider. Delivers over Gmail SMTP via nodemailer when set; `GMAIL_PASSWORD` is a Google app password (requires 2-Step Verification), not the account password. `EMAIL_FROM` is optional and defaults to `GMAIL_USER`. |
 | `WHATSAPP_NUMBER` | no | Full international form, e.g. `+44 7911 123456`. Blank renders no chat buttons, which is the intended state for a shop without one. A national number with no country code cannot be detected as wrong and will produce a broken link. |
 | `PAYMENTS_MODE` | no | `live` talks to the real Khalti and eSewa. **Anything else is the sandbox**, which is the default. Explicit rather than inferred from `NODE_ENV`, because a staging deploy is `production` to Node and would otherwise take real money from whoever was testing it. |
 | `KHALTI_SECRET_KEY` | for Khalti | Merchant secret. Unset, Khalti is simply not offered at checkout. |

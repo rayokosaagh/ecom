@@ -179,7 +179,13 @@ const hostile = renderOrderEmail({
   discountCents: 100,
 });
 
-for (const needle of ["<script", "<img", "<b>", "<i>"]) {
+// `<img src=x` rather than a bare `<img`: the body legitimately contains image
+// tags of its own now — the status marks and the product thumbnails, which are
+// `cid:` references to attached art — so searching for the bare tag would fire
+// on the template's own markup and say nothing about the input. The payload as
+// typed is the thing that must not survive. The tag count below is the real
+// invariant either way.
+for (const needle of ["<script", "<img src=x", "<b>", "<i>"]) {
   check(`no raw ${needle} survives into the HTML`, !hostile.html.includes(needle), needle);
 }
 check(
