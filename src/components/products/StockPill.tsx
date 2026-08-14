@@ -14,11 +14,27 @@ import { cn } from "@/lib/cn";
  * Colour carries the urgency and the word carries the meaning, always together.
  * A green pill alone says nothing to anyone who cannot see the green, and the
  * glyph differs per state for the same reason.
+ *
+ * `stock` may be null, meaning "there is no such thing to have a stock level" —
+ * the combination a shopper has assembled from the variant axes is not one the
+ * shop sells. That is not zero: "Sold out" promises the thing exists and will
+ * come back, and neither half of that is true here.
  */
-export function StockPill({ stock, className }: { stock: number; className?: string }) {
-  const state = stockState(stock);
+export function StockPill({
+  stock,
+  className,
+}: {
+  stock: number | null;
+  className?: string;
+}) {
+  const state = stock === null ? "NONE" : stockState(stock);
 
   const { tone, icon, label } = {
+    NONE: {
+      tone: "bg-surface-container-high text-on-surface-variant",
+      icon: "help",
+      label: "Not sold",
+    },
     IN: {
       tone: "bg-tertiary-container text-on-tertiary-container",
       icon: "check_circle",

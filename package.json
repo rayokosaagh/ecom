@@ -34,6 +34,7 @@
     "check:stores": "tsx scripts/check-stores.ts",
     "check:dashboard": "tsx scripts/check-dashboard.ts",
     "check:inventory": "tsx scripts/check-inventory.ts",
+    "check:stock-pill": "tsx scripts/check-stock-pill.ts",
     "check:price": "tsx scripts/check-price.ts",
     "check:fulfilment": "tsx scripts/check-fulfilment.ts",
     "check:payments": "tsx scripts/check-payments.ts",

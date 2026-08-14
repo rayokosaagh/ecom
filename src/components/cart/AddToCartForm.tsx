@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
 import { useProductColor } from "@/components/products/ProductColorContext";
+import { useVariantSelection } from "@/components/products/VariantSelectionContext";
 import { addToCart, type CartActionState } from "@/lib/actions/cart";
 import { formatPrice } from "@/lib/products/format";
 import {
   describeVariant,
   findVariant,
   isValueAvailable,
+  openingSelection,
   variantAxes,
   type VariantView,
 } from "@/lib/products/variants";
@@ -71,21 +73,23 @@ export function AddToCartForm({
 
   const axes = variantAxes(variants);
 
-  // Opens on the cheapest configuration that is actually in stock, falling
-  // back to the cheapest overall — arriving on a sold-out default would read
-  // as the whole product being unavailable.
-  const [selection, setSelection] = useState<Record<string, string>>(() => {
-    if (variants.length === 0) return {};
-    const candidates = variants.filter((variant) => variant.stock > 0);
-    const opening = [...(candidates.length > 0 ? candidates : variants)].sort(
-      (a, b) => a.priceCents - b.priceCents,
-    )[0];
-    return Object.fromEntries(
-      opening.options.map((option) => [option.definitionId, option.valueKey]),
-    );
-  });
+  // Shared with the stock pill above the description exactly as the colour is
+  // shared with the gallery — the pill is rendered before this form in the
+  // page, so it cannot own the selection and neither can this. See
+  // `VariantSelectionContext`. `localSelection` is the fallback for a surface
+  // that renders this form with no provider around it, and opens on the same
+  // configuration the provider would.
+  const shell = useVariantSelection();
+  const [localSelection, setLocalSelection] = useState<Record<string, string>>(() =>
+    openingSelection(variants),
+  );
+  const selection = shell ? shell.selection : localSelection;
 
-  const variant = variants.length > 0 ? findVariant(variants, selection) : null;
+  const variant = shell
+    ? shell.variant
+    : variants.length > 0
+      ? findVariant(variants, selection)
+      : null;
 
   // A combination the shop does not sell leaves nothing to price or buy, which
   // is a real state the UI has to show rather than paper over.
@@ -97,7 +101,11 @@ export function AddToCartForm({
   const max = Math.min(effectiveStock, 99);
 
   const pick = (definitionId: string, valueKey: string) => {
-    setSelection((current) => ({ ...current, [definitionId]: valueKey }));
+    if (shell) shell.select(definitionId, valueKey);
+    else setLocalSelection((current) => ({ ...current, [definitionId]: valueKey }));
+    // Whichever side holds the selection, the quantity is this form's own: the
+    // new configuration has its own ceiling, and carrying "8" onto a variant
+    // with three left would hand the server a line it has to refuse.
     setQuantity(1);
   };
 

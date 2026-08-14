@@ -5,12 +5,12 @@ import { notFound } from "next/navigation";
 import { Navbar } from "@/components/nav/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { ProductGallery } from "@/components/products/ProductGallery";
-import { ProductColorProvider } from "@/components/products/ProductColorContext";
+import { ProductSelectionProvider } from "@/components/products/ProductSelectionProvider";
 import { AddToCartForm } from "@/components/cart/AddToCartForm";
 import { Icon } from "@/components/ui/Icon";
 import { BrandMark } from "@/components/brands/BrandMark";
 import { SpecTable } from "@/components/products/SpecTable";
-import { StockPill } from "@/components/products/StockPill";
+import { SelectedStockPill } from "@/components/products/SelectedStockPill";
 import { SimilarProducts } from "@/components/products/SimilarProducts";
 import { ReviewSection } from "@/components/reviews/ReviewSection";
 import { RatingBadge } from "@/components/reviews/RatingStars";
@@ -31,11 +31,7 @@ import { prisma } from "@/lib/prisma";
 import { appUrl } from "@/lib/app-url";
 import { formatPrice } from "@/lib/products/format";
 import { saleFor } from "@/lib/products/sale";
-import {
-  availableStock,
-  priceRange,
-  type VariantView,
-} from "@/lib/products/variants";
+import { priceRange, type VariantView } from "@/lib/products/variants";
 import { Role } from "@/generated/prisma/enums";
 
 async function getProduct(slug: string, admin: boolean) {
@@ -151,7 +147,6 @@ export default async function ProductDetailPage({
   // client picker needs and carries no "was" price, so passing it would quietly
   // report every configurable product as not on sale.
   const sale = saleFor(product, product.variants);
-  const sellable = availableStock(product, variants);
 
   // Whether the brand has artwork of any kind. `BrandMark` ranks the vector
   // above the hosted image and renders nothing when it has neither, so this is
@@ -205,10 +200,12 @@ export default async function ProductDetailPage({
           </p>
         )}
 
-        {/* One selection, two consumers: the gallery shows the colour and the
-            buy box submits it. Before this they each kept their own, so the
-            page could show one finish while the cart recorded another. */}
-        <ProductColorProvider colors={product.colors}>
+        {/* One set of choices, several consumers: the gallery shows the colour,
+            the stock pill reports the chosen configuration, and the buy box
+            submits both. Before this each kept its own, so the page could show
+            one finish while the cart recorded another — and the pill could
+            claim "In stock" for a variant with two left. */}
+        <ProductSelectionProvider colors={product.colors} variants={variants}>
           <div className="grid gap-10 lg:grid-cols-2">
             <ProductGallery
               name={product.name}
@@ -315,8 +312,15 @@ export default async function ProductDetailPage({
 
               {/* Availability as a state rather than a count — the running
                   total belonged to the dashboard, not to the person deciding
-                  whether they can have this today. See `StockPill`. */}
-              <StockPill stock={sellable} className="mt-3" />
+                  whether they can have this today. See `StockPill`.
+
+                  Reports the *selected* configuration rather than the product's
+                  summed stock, which is what it used to do: a variant with two
+                  left read "In stock" because the other sizes were well
+                  stocked, directly above a buy box saying "2 in stock". Only
+                  `product.stock` is passed, as the fallback for a product with
+                  nothing to configure — see `SelectedStockPill`. */}
+              <SelectedStockPill stock={product.stock} className="mt-3" />
 
               <p className="text-on-surface-variant mt-6 leading-relaxed whitespace-pre-line">
                 {product.description}
@@ -403,7 +407,7 @@ export default async function ProductDetailPage({
               </div>
             </div>
           </div>
-        </ProductColorProvider>
+        </ProductSelectionProvider>
 
         {/* Below the grid, not inside the right column: that column already
             carries price, stock and add-to-cart, and specs are reference

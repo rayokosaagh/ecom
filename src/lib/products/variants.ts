@@ -161,6 +161,31 @@ export function isValueAvailable(
   });
 }
 
+/**
+ * The configuration a product page should open on.
+ *
+ * The cheapest one that can actually be bought, falling back to the cheapest
+ * overall when nothing is in stock — arriving on a sold-out default would read
+ * as the whole product being unavailable.
+ *
+ * Shared rather than inlined in the buy box, because the stock pill above the
+ * description and the picker below it have to agree about what is selected
+ * from the very first frame. Two copies of "cheapest in stock" would be two
+ * chances to disagree.
+ */
+export function openingSelection(variants: VariantView[]): Record<string, string> {
+  if (variants.length === 0) return {};
+
+  const candidates = variants.filter((variant) => variant.stock > 0);
+  const opening = [...(candidates.length > 0 ? candidates : variants)].sort(
+    (a, b) => a.priceCents - b.priceCents,
+  )[0];
+
+  return Object.fromEntries(
+    opening.options.map((option) => [option.definitionId, option.valueKey]),
+  );
+}
+
 export interface PriceRange {
   minCents: number;
   maxCents: number;
@@ -188,11 +213,13 @@ export function priceRange(
 }
 
 /**
- * Units available to sell.
+ * Units available to sell, across the whole listing.
  *
- * Summed across variants, because "in stock" for a configurable product means
- * *some* configuration can be bought — the per-variant number is what gates
- * the actual add to cart.
+ * Summed across variants, because "in stock" for a configurable *product* means
+ * *some* configuration can be bought — which is the right question for a
+ * catalogue card, where no choice has been made yet. It is the wrong question
+ * on the detail page once a configuration is selected: see `SelectedStockPill`.
+ * The per-variant number is what gates the actual add to cart.
  */
 export function availableStock(
   product: { stock: number },
