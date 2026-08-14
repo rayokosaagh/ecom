@@ -6,9 +6,9 @@ import { OrderTicket } from "@/components/orders/OrderTicket";
 import { ReorderButton } from "@/components/orders/ReorderButton";
 import { ProductCard } from "@/components/products/ProductCard";
 import { Pagination } from "@/components/products/Pagination";
-import { Card, CardContent } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
 import { AddressBook } from "@/components/users/AddressBook";
+import { ProfileHero } from "@/components/users/ProfileHero";
 import { PanelEmpty, ProfilePanel } from "@/components/users/ProfilePanel";
 import { ProfileShell } from "@/components/users/ProfileShell";
 import { RecentPurchases } from "@/components/users/RecentPurchases";
@@ -26,7 +26,7 @@ import { prisma } from "@/lib/prisma";
 import { getRatings } from "@/lib/reviews/service";
 import { getWishlist } from "@/lib/wishlist/service";
 import { statusLabel } from "@/components/dashboard/pipeline";
-import { Role } from "@/generated/prisma/enums";
+import { OrderStatus } from "@/generated/prisma/enums";
 
 export const metadata: Metadata = { title: "Profile" };
 
@@ -43,9 +43,14 @@ const WISHLIST_PREVIEW = 4;
  * 1440px window — four and a half screens tall, with the two smallest cards
  * stretched full width and mostly empty.
  *
- * Every section is a `ProfilePanel`: a card carrying its own heading. That is
- * what makes the two columns possible at all — a panel can move between them
- * without leaving a heading behind in the other one.
+ * Above both columns sits `ProfileHero` — the greeting and a strip of counts.
+ * It is the page's one full-width element because it is the only thing on the
+ * page that summarises the rest: someone arriving to check how many orders are
+ * still pending gets the number and the link to them before scrolling at all.
+ *
+ * Below it, every section is a `ProfilePanel`: a card carrying its own heading.
+ * That is what makes the two columns possible at all — a panel can move between
+ * them without leaving a heading behind in the other one.
  *
  * Entirely Server Components. The editing surfaces are separate routes
  * (`/profile/edit`, `/profile/settings`, `/profile/addresses/*`,
@@ -61,7 +66,7 @@ export default async function ProfilePage({
   const params = await searchParams;
   const status = parseStatus(params.status);
 
-  const [user, nav, addresses, history, purchases, wishlist] = await Promise.all([
+  const [user, nav, addresses, history, purchases, wishlist, reviews] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.id },
       select: { name: true, email: true, image: true, role: true, createdAt: true },
@@ -71,13 +76,28 @@ export default async function ProfilePage({
     getOrderHistory(session.id, parsePage(params.page), undefined, status),
     getRecentPurchases(session.id),
     getWishlist(session.id),
+    // The one count the hero needs that nothing else on the page already
+    // fetches — a count rather than the rows, because the strip shows a number
+    // and the reviews themselves are read on the products they belong to.
+    prisma.review.count({ where: { userId: session.id } }),
   ]);
 
   if (!user) return null;
 
   return (
     <ProfileShell nav={nav}>
-      <AccountInfo user={user} />
+      <ProfileHero
+        user={user}
+        stats={{
+          // `counts` covers every status regardless of the active filter, so
+          // the strip keeps saying how many orders the account has even while
+          // the history below it is narrowed to one of them.
+          orders: history.totalAll,
+          pending: history.counts[OrderStatus.PENDING],
+          wishlist: wishlist.length,
+          reviews,
+        }}
+      />
 
       {/*
         `items-start` so the rail is free to be shorter than the main column —
@@ -110,71 +130,6 @@ export default async function ProfilePage({
         </aside>
       </div>
     </ProfileShell>
-  );
-}
-
-/**
- * Name, email, and the way to change them.
- *
- * Three parts that each need different room, so the row is a wrapping flex with
- * the identity block allowed to grow and the button never allowed to shrink.
- * On a phone the name and email sit beside the avatar and the button takes the
- * full width beneath — which is the arrangement that stops it being stranded on
- * a line of its own with a ragged block of metadata above it.
- */
-function AccountInfo({
-  user,
-}: {
-  user: { name: string | null; email: string; image: string | null; role: Role; createdAt: Date };
-}) {
-  const initial = (user.name ?? user.email).charAt(0).toUpperCase();
-  const since = user.createdAt.toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-  });
-
-  return (
-    <Card variant="outlined">
-      <CardContent className="flex flex-wrap items-center gap-x-5 gap-y-4">
-        <div className="bg-primary-container text-on-primary-container grid size-16 shrink-0 place-items-center overflow-hidden rounded-full text-xl font-medium sm:size-20 sm:text-2xl">
-          {user.image ? (
-            /* Plain <img> for the same reason `AvatarField` uses one: the
-               address may be any host, and next/image would need each in
-               remotePatterns. */
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={user.image} alt="" className="size-full object-cover" />
-          ) : (
-            <span aria-hidden>{initial}</span>
-          )}
-        </div>
-
-        <div className="min-w-0 flex-1 basis-48">
-          <h1 className="text-on-surface text-title-lg sm:text-headline-sm truncate">
-            {user.name ?? "Your account"}
-          </h1>
-          <p className="text-on-surface-variant truncate text-sm">{user.email}</p>
-
-          <div className="text-on-surface-variant mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-            <span className="flex items-center gap-1.5">
-              <Icon name={user.role === Role.ADMIN ? "shield_person" : "person"} size={16} />
-              {user.role === Role.ADMIN ? "Administrator" : "Standard user"}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Icon name="calendar_month" size={16} />
-              Member since {since}
-            </span>
-          </div>
-        </div>
-
-        <Link
-          href="/profile/edit"
-          className="border-outline text-primary state-layer inline-flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-full border px-5 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 sm:w-auto"
-        >
-          <Icon name="edit" size={18} />
-          Edit
-        </Link>
-      </CardContent>
-    </Card>
   );
 }
 
@@ -356,7 +311,12 @@ function SettingsLinks() {
   ];
 
   return (
-    <ProfilePanel id="settings" title="Settings" flush>
+    <ProfilePanel
+      id="settings"
+      title="Account settings"
+      blurb="Manage your account preferences."
+      flush
+    >
       <div className="divide-outline-variant border-outline-variant divide-y border-t">
         {rows.map((row) => (
           <Link
