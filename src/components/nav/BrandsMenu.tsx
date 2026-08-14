@@ -122,7 +122,9 @@ export function BrandsMenu({
           }
         }}
         className={cn(
-          // Matches `TopNavLink`: tighter until `lg`, so the bar fits at `md`.
+          // Matches the Products trigger: tighter until `lg`, so the bar fits
+          // at `md`, where the whole nav is showing but the icon cluster has
+          // not yet dropped anything.
           "relative flex items-center gap-1 rounded-full px-2 py-2 text-sm font-medium lg:px-4",
           "transition-colors duration-200 ease-in-out",
           "focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-95",

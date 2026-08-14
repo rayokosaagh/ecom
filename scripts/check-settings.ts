@@ -127,30 +127,6 @@ check(
   })(),
 );
 
-console.log("\nThe home page arrangement");
-
-/*
- * The failure this guards: `homeHeroCombined` is a checkbox whose *default* is
- * on, and an unchecked checkbox submits nothing. If the parser ever defaulted
- * an absent value to `true` to match the column default, the switch would
- * become impossible to turn off — saving the form would silently put the
- * combined hero back every time.
- */
-check(
-  "a checked box publishes the combined hero",
-  (() => {
-    const r = parseStoreSettings(form([["homeHeroCombined", "on"]]));
-    return r.ok && r.data.homeHeroCombined;
-  })(),
-);
-check(
-  "an absent box publishes the stacked arrangement — the switch can be turned off",
-  (() => {
-    const r = parseStoreSettings(form([["whatsappNumber", "+44 7911 123456"]]));
-    return r.ok && !r.data.homeHeroCombined;
-  })(),
-);
-
 console.log("\nErrors are keyed to the fields the form renders");
 
 const bad = parseStoreSettings(

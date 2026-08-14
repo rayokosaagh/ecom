@@ -1,17 +1,14 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
-import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
 import { BrandMark } from "@/components/brands/BrandMark";
 import { Tilt } from "@/components/ui/Tilt";
 import { Spotlight } from "@/components/ui/Spotlight";
 import { cn } from "@/lib/cn";
 import { formatPrice } from "@/lib/products/format";
-import { resolveWell } from "@/lib/tints";
-import { SALE_TINTS, saleGradient } from "@/components/products/sale-tints";
 import { RatingBadge } from "@/components/reviews/RatingStars";
 import {
   SpecificationHotspots,
@@ -29,21 +26,9 @@ type ShowcaseProduct = FeaturedProductView & {
 const AUTOPLAY_MS = 10000;
 
 /**
- * How many specs the shelf's summary line lists.
+ * The surface a floating chip is drawn on.
  *
- * Declared here rather than imported from `lib/featured/service`, which is
- * `server-only`: this is a client component, and pulling a *value* out of that
- * module would drag it into the browser bundle where its `import "server-only"`
- * throws. Only the type crosses that line. The service caps how many specs are
- * fetched; how many of them a given surface draws is this file's business
- * anyway.
- */
-const SHELF_SPEC_COUNT = 3;
-
-/**
- * The surface a floating chip is drawn on, in the hero.
- *
- * Solid, now that there is no card behind it. These were frosted while they sat
+ * Solid, because there is no card behind it. These were frosted while they sat
  * over a tinted stage, where a solid fill would have read as a second card laid
  * on the first. The stage is gone: the chips sit on the page's own background,
  * and a translucent slab on a plain background is just a slightly different
@@ -87,17 +72,26 @@ const CHANGE_FADE_MS = 260;
 const CHANGE_SHIFT_PX = 36;
 
 /**
- * The home page spotlight.
+ * The home page's front door: the shop's opening line, and one featured product
+ * on a stage beside it.
  *
- * One product at a time, with a named strip and dot indicators below to move
- * between them. A row of equal cards asks the shopper to compare several
- * things at once; a spotlight gives one product the stage.
+ * One product at a time, with dot indicators below to move between them. A row
+ * of equal cards asks the shopper to compare several things at once; a
+ * spotlight gives one product the stage — and putting the copy beside it rather
+ * than above it means the page makes its claim and shows the evidence in the
+ * same screen.
+ *
+ * There was a second arrangement of all this — a centred block of copy, with
+ * the featured products as a wide "Featured picks" shelf much further down the
+ * page — published by an admin setting. Both are gone: the shelf layout lived
+ * here as an `isHero` fork through every panel, and half of this file was
+ * spent asking which of the two it was in. What remains is the arrangement the
+ * shop actually serves.
  *
  * The *arrangement* is borrowed from a reference; the surface treatment is
  * not. Everything here is drawn from what the rest of the site already uses —
- * the outlined card, the spaced-caps eyebrow over a two-tone heading, the pill
- * buttons, and the secondary-container fill that marks a selection on the
- * brand and category rails.
+ * the spaced-caps eyebrow, the pill buttons, and the secondary-container fill
+ * that marks a selection on the brand and category rails.
  *
  * Every panel is rendered in one scrolling track rather than being swapped in
  * and out. That is what makes a swipe work — the browser owns the movement,
@@ -116,9 +110,9 @@ const CHANGE_SHIFT_PX = 36;
  * someone is mid-thought: a pointer resting on it, focus inside it, the tab in
  * the background, the section scrolled off, or a stated preference for reduced
  * motion. The pointer and focus cases are not only courtesy — the panel carries
- * two links, and a carousel that advances out from under a cursor already on
- * its way to "View product" sends the shopper to a different product than the
- * one they were looking at.
+ * a link, and a carousel that advances out from under a cursor already on its
+ * way to "View" sends the shopper to a different product than the one they were
+ * looking at.
  */
 export function FeaturedShowcase({
   products,
@@ -126,25 +120,20 @@ export function FeaturedShowcase({
 }: {
   products: ShowcaseProduct[];
   /**
-   * The hero copy, when this carousel is the front door rather than a shelf.
+   * The hero copy — the page's h1 and its call to action.
    *
-   * Passing it in rather than rendering it here is what lets the headline stay
-   * a server component while everything below is a client one — and it keeps
-   * this file ignorant of what the shop's opening line happens to say.
-   *
-   * Its presence is also the layout switch. With a lead the section becomes the
-   * two-column hero: copy on the left, one product on a stage to the right,
-   * and the panel's own copy condensed to what fits beside a headline. Without
-   * it, nothing changes — the section is the wide "Featured picks" shelf it has
-   * always been.
+   * Passed in rather than rendered here, which is what lets the headline stay a
+   * server component while everything below is a client one, and keeps this
+   * file ignorant of what the shop's opening line happens to say. The two have
+   * to be siblings in this component's own grid for the product to sit *beside*
+   * the headline rather than under it, which is why the page hands it over
+   * instead of wrapping both.
    */
-  lead?: React.ReactNode;
+  lead: React.ReactNode;
 }) {
-  const isHero = Boolean(lead);
   const [index, setIndex] = useState(0);
   const trackRef = useRef<HTMLDivElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
-  const baseId = useId();
 
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -202,7 +191,7 @@ export function FeaturedShowcase({
   // Which panel is showing is read back off the scroll position rather than
   // being the thing that drives it. That inversion is what makes a swipe work:
   // the browser owns the movement — with its own momentum and rubber-banding —
-  // and the tabs and dots simply ask it to scroll somewhere.
+  // and the dots simply ask it to scroll somewhere.
   useEffect(() => {
     const track = trackRef.current;
     if (!track) return;
@@ -354,14 +343,11 @@ export function FeaturedShowcase({
   }, [running, activeIndex]);
 
   if (products.length === 0) {
-    // As a shelf, an empty featured list means no section — the page should not
-    // show an empty card. As the hero it means no *carousel*: the copy beside it
-    // is the page's h1 and its call to action, and an admin emptying the
+    // An empty featured list means no *carousel*, not no hero: the copy beside
+    // it is the page's h1 and its call to action, and an admin emptying the
     // featured list is not a reason for the front door to lose its headline. So
     // the lead renders on its own, in one column, and the stage is simply not
     // there to fill.
-    if (!lead) return null;
-
     return (
       <section className="mx-auto max-w-7xl px-4 pt-10 pb-20 sm:px-6 sm:pt-14 sm:pb-24">
         {lead}
@@ -373,17 +359,15 @@ export function FeaturedShowcase({
   return (
     <section
       ref={sectionRef}
-      // As the hero there is no "Featured picks" heading to point at — the
-      // page's own h1 lives in the lead — and the track below still carries its
-      // own carousel label, so the region is left unlabelled rather than
-      // pointing at an id that is not rendered.
-      aria-labelledby={isHero ? undefined : `${baseId}-heading`}
+      // Deliberately unlabelled: there is no "Featured picks" heading to point
+      // at — the page's own h1 lives in the lead — and the track below carries
+      // its own carousel label.
       className={cn(
         "mx-auto max-w-7xl px-4 sm:px-6",
-        // Hero padding grew with the stage above it, for the same reason: with
-        // the best sellers no longer tucked underneath, this section is the
-        // whole of the first screen and was sitting too high in it.
-        isHero ? "pt-12 pb-24 sm:pt-20 sm:pb-28" : "pb-24",
+        // Generous, because with the best sellers no longer tucked underneath
+        // this section is the whole of the first screen and was sitting too
+        // high in it.
+        "pt-12 pb-24 sm:pt-20 sm:pb-28",
       )}
       // Mouse events rather than pointer events: a touch raises `pointerenter`
       // and then frequently never raises `pointerleave`, which would strand the
@@ -392,446 +376,274 @@ export function FeaturedShowcase({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       // These are focusin/focusout in the DOM, so they cover anything focused
-      // inside the section — a tab in the strip, a link on the panel.
+      // inside the section — a dot, a link on the panel.
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
     >
-      <div
-        className={cn(
-          isHero &&
-            "grid items-center gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-14",
-        )}
-      >
-        {/* Nothing at all when this is the plain shelf.
-
-            In a wrapper of its own rather than dropped straight into the grid,
+      <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-14">
+        {/* In a wrapper of its own rather than dropped straight into the grid,
             for two reasons. This component owns its own columns — where the
             copy sits is a fact about the layout, not about what the copy says —
             and it keeps an element built by another component out of a
             children *array*, which is the shape React's missing-key check looks
             at. The lead is one of two fixed children and needs no key; being
             the sole child of this wrapper is what makes that unambiguous. */}
-        {lead && <div className="min-w-0">{lead}</div>}
+        <div className="min-w-0">{lead}</div>
 
-        {/* `min-w-0` is load-bearing in the hero layout: a grid item defaults to
-            `min-width: auto`, so the track's own content would refuse to let
-            this column be narrower than its widest panel and would squeeze the
-            copy beside it down to nothing. */}
-        <div className={cn(isHero && "min-w-0")}>
-          {/* Same header shape as "Latest arrivals" below it — but as the hero
-              the page's h1 is the heading, and a "Featured picks" title over the
-              product would be a second one competing with it. "View all" goes
-              with it, since the lead already carries "Shop all products" to the
-              same place. */}
-          {!isHero && (
-            <div className="mb-6 flex items-end justify-between gap-4">
-              <h2
-                id={`${baseId}-heading`}
-                className="text-on-surface text-headline-sm sm:text-headline-md"
-              >
-                Featured <span className="accent-word">picks</span>
-              </h2>
-              <Link
-                href="/products"
-                className="text-primary rounded-sm text-sm font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
-              >
-                View all
-              </Link>
-            </div>
-          )}
+        {/* `min-w-0` is load-bearing: a grid item defaults to `min-width: auto`,
+            so the track's own content would refuse to let this column be
+            narrower than its widest panel and would squeeze the copy beside it
+            down to nothing. */}
+        <div className="min-w-0">
+          {/* A scroll container, not a transformed strip. Swiping is the whole
+              reason: a translated track cannot be dragged, so on a phone the
+              carousel could only be changed by the controls underneath it. The
+              scrollbar is hidden because the panels themselves are the
+              affordance.
 
-          {/* The shelf is a card. The hero is not — its product stands on the
-              page and its facts float beside it, so the frame is stripped back
-              to nothing rather than the panel being rebuilt without it.
+              `overflow-y-hidden` is deliberate. Setting one axis to `auto`
+              computes the other from `visible` to `auto` as well, and this
+              track reported 12px of vertical scrollable overflow —
+              scrollHeight 627 against clientHeight 615 — which made the whole
+              carousel a vertically scrollable box.
 
-              Neutralised with important-suffixed utilities rather than by
-              swapping the element, because `cn` is a plain joiner: a bare
-              `bg-transparent` and the variant's `bg-surface` are both plain
-              utilities and which one wins would come down to the order Tailwind
-              happened to emit them in. `!` settles it. Same pattern as
-              `max-w-full!` on the brand tiles.
-
-              `overflow-visible!` matters as much as the other two: the chips
-              carry their own shadow now, and a clipped shadow at the panel edge
-              is what would give the frame away after the border had gone. */}
-          <Card
-            variant="outlined"
+              What produces those 12px is not established. It survives hiding
+              every panel and every child of a panel, disabling the spotlight
+              animation, the `scale-105` on non-current panels, the tilt
+              transform and the drop shadow, and it is unchanged by
+              `overflow-x: hidden` or any `scrollbar-width`, so it is neither a
+              descendant nor a scrollbar gutter. Pinning it down was not worth
+              more than this comment; a horizontal carousel has no business
+              scrolling vertically either way, and nothing real is clipped —
+              every panel measures exactly the track's height, with its lowest
+              content ending well inside. */}
+          <div
+            ref={trackRef}
+            role="group"
+            aria-roledescription="carousel"
+            aria-label="Featured products"
+            // Focusable so the region can be scrolled from the keyboard.
+            tabIndex={0}
+            // Any hand on the track outranks a scroll still in flight: from here
+            // on the position it reports is a choice, not an animation frame.
+            onPointerDown={releaseTarget}
+            onTouchStart={releaseTarget}
+            onWheel={releaseTarget}
+            onKeyDown={releaseTarget}
             className={cn(
-              "overflow-hidden",
-              isHero && "border-transparent! bg-transparent! overflow-visible!",
-            )}
-          >
-        {/* A scroll container, not a transformed strip. Swiping is the whole
-            reason: a translated track cannot be dragged, so on a phone the
-            carousel could only be changed by the controls underneath it. The
-            scrollbar is hidden because the panels themselves are the
-            affordance.
+              "flex snap-x snap-mandatory overflow-x-auto overflow-y-hidden overscroll-x-contain focus-visible:outline-2 focus-visible:-outline-offset-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+              /*
+                The cross-slide.
 
-            `overflow-y-hidden` is deliberate. Setting one axis to `auto`
-            computes the other from `visible` to `auto` as well, and this track
-            reported 12px of vertical scrollable overflow — scrollHeight 627
-            against clientHeight 615 — which made the whole carousel a
-            vertically scrollable box.
+                A plain dissolve removed the seam but took the direction with
+                it: it says a product changed without saying which way the
+                carousel went. This puts that back without bringing the seam
+                back — the old product leaves to one side as it fades, and the
+                new one arrives from the other. Both are the only thing on
+                screen while they move, so there is still never a boundary
+                between two products for the container to cut.
 
-            What produces those 12px is not established. It survives hiding
-            every panel and every child of a panel, disabling the spotlight
-            animation, the `scale-105` on non-current panels, the tilt
-            transform and the drop shadow, and it is unchanged by
-            `overflow-x: hidden` or any `scrollbar-width`, so it is neither a
-            descendant nor a scrollbar gutter. Pinning it down was not worth
-            more than this comment; a horizontal carousel has no business
-            scrolling vertically either way, and nothing real is clipped —
-            every panel measures exactly the track's height, with its lowest
-            content ending well inside. */}
-        <div
-          ref={trackRef}
-          role="group"
-          aria-roledescription="carousel"
-          aria-label="Featured products"
-          // Focusable so the region can be scrolled from the keyboard.
-          tabIndex={0}
-          // Any hand on the track outranks a scroll still in flight: from here
-          // on the position it reports is a choice, not an animation frame.
-          onPointerDown={releaseTarget}
-          onTouchStart={releaseTarget}
-          onWheel={releaseTarget}
-          onKeyDown={releaseTarget}
-          className={cn(
-            "flex snap-x snap-mandatory overflow-x-auto overflow-y-hidden overscroll-x-contain focus-visible:outline-2 focus-visible:-outline-offset-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-            /*
-              The cross-slide.
+                The `in` frame carries no transition, because it is a
+                reposition rather than a movement. See `phase`.
+              */
+              phase === "in"
+                ? "transition-none"
+                : "transition-[opacity,transform] ease-standard",
+              /*
+                A soft edge on the two sides the track clips against.
 
-              A plain dissolve removed the seam but took the direction with it:
-              it says a product changed without saying which way the carousel
-              went. This puts that back without bringing the seam back — the old
-              product leaves to one side as it fades, and the new one arrives
-              from the other. Both are the only thing on screen while they move,
-              so there is still never a boundary between two products for the
-              container to cut.
+                The container cuts at the panel boundary, so mid-change the
+                product arriving from the right meets that boundary as a hard
+                vertical line straight down its middle — the edges do not read
+                as finished, they read as torn. A photograph sliced by a clean
+                rule is what a carousel looks like to whoever built it and what
+                a rendering fault looks like to everyone else.
 
-              The `in` frame carries no transition, because it is a
-              reposition rather than a movement. See `phase`.
-            */
-            phase === "in"
-              ? "transition-none"
-              : "transition-[opacity,transform] ease-standard",
-            /*
-              A soft edge on the two sides the track clips against.
-
-              The container cuts at the panel boundary, so mid-change the
-              product arriving from the right meets that boundary as a hard
-              vertical line straight down its middle — the edges do not read as
-              finished, they read as torn. A photograph sliced by a clean rule
-              is what a carousel looks like to whoever built it and what a
-              rendering fault looks like to everyone else.
-
-              A mask rather than a pair of gradient strips laid over the top:
-              a strip has to be painted in the page's own background colour and
-              would then be wrong the moment this section sits on anything else,
-              where a mask makes the pixels transparent and cannot disagree with
-              what is behind it. 16px is deliberately small — enough to turn the
-              cut into a fade, not enough to read as a vignette.
-
-              Hero only. The shelf's panels sit inside a bordered card, and a
-              fade running under that border would leave the border floating
-              over nothing at the corners.
-            */
-            isHero &&
+                A mask rather than a pair of gradient strips laid over the top:
+                a strip has to be painted in the page's own background colour
+                and would then be wrong the moment this section sits on
+                anything else, where a mask makes the pixels transparent and
+                cannot disagree with what is behind it. 16px is deliberately
+                small — enough to turn the cut into a fade, not enough to read
+                as a vignette.
+              */
               "[mask-image:linear-gradient(to_right,transparent_0,black_16px,black_calc(100%-16px),transparent_100%)]",
-          )}
-          style={{
-            transitionDuration: `${CHANGE_FADE_MS}ms`,
-            opacity: phase === "idle" ? 1 : 0,
-            // Short on purpose. This is a cue about direction, not a journey —
-            // a full panel's width of travel is the slide this replaced, and it
-            // is the slide that put two products on screen at once.
-            transform: `translateX(${
-              phase === "out"
-                ? -direction * CHANGE_SHIFT_PX
-                : phase === "in"
-                  ? direction * CHANGE_SHIFT_PX
-                  : 0
-            }px)`,
-          }}
-        >
-          {products.map((product, i) => {
-            const current = i === activeIndex;
-            return (
-              <div
-                key={product.id}
-                role="group"
-                aria-roledescription="slide"
-                aria-label={`${i + 1} of ${products.length}: ${product.name}`}
-                // Deliberately not `inert` and not hidden. When this was a
-                // transformed strip the off-stage panels really were
-                // unreachable, so hiding them was right; in a scroll container
-                // they are one swipe away. `inert` also applies
-                // `pointer-events: none`, which is the last thing a surface
-                // meant to be dragged should carry.
-                className={cn(
-                  "grid w-full shrink-0 snap-start",
-                  // The hero panel stays one column at every width: it is
-                  // already sitting in half a page, and splitting that again
-                  // would leave the product a quarter of the screen.
-                  !isHero && "md:grid-cols-2",
-                )}
-              >
-                <Spotlight
-                  className={cn(
-                    "relative",
-                    // The shelf keeps its filled, clipped stage. The hero has
-                    // neither: the product stands on the page's own background,
-                    // so there is no fill to paint and nothing to clip against.
-                    !isHero && "bg-surface-container-high overflow-hidden",
-                    // The floor, not the height — see the note on the image's
-                    // `max-h` below, which is what actually bounds the panel on
-                    // desktop. Both were trimmed together so a landscape
-                    // product, which rests on this minimum, shortens by the same
-                    // proportion as a portrait one, which rests on the cap.
-                    !isHero && "aspect-[4/3] md:aspect-auto md:min-h-[24rem]",
-                    // As the hero the stage *is* the card: the copy that used to
-                    // sit in a body beneath it now floats over it as chips, so
-                    // this height is the whole panel's height rather than the
-                    // top half of it. Stated outright at both widths instead of
-                    // an aspect ratio, because what has to be controlled here is
-                    // how much room the product and the chips get — not the
-                    // shape of the box they share. A ratio at this width would
-                    // also put the card well past the fold.
-                    // `hero-stage` also switches off the panel vignette, which
-                    // has no panel to sit on here. See `.hero-stage::after`.
-                    // The product is height-bound in this stage, so the stage's
-                    // own height is the lever on how large it draws.
-                    //
-                    // Raised from 30/40rem when the best-sellers shelf moved out
-                    // from under the hero (see the note in `app/page.tsx`).
-                    // Taking a whole shelf off the fold left the hero holding
-                    // the top of the page on its own and looking short for the
-                    // job — the stage is what fills that, and a larger stage
-                    // draws a larger product, which is the point of the
-                    // arrangement. The card still lands above the fold.
-                    // `hero-stage` also carries the spotlight — see
-                    // `.hero-stage::after`.
-                    isHero && "hero-stage h-[32rem] md:h-[44rem]",
-                    // The same background an admin picked for this product in
-                    // the featured list, so it looks like itself in both places
-                    // it appears on the home page. The spotlight's own lighting
-                    // layers over the top: the wash is the colour of the room,
-                    // the spotlight is the lamp standing in it.
-                    //
-                    // The hero takes none of it. A tinted well is a *panel*
-                    // treatment, and there is no panel there any more — painted
-                    // onto the page it would draw the rectangle back on, which
-                    // is the thing that arrangement exists to remove.
-                    !isHero && resolveWell(product.tint, i).className,
-                  )}
-                  style={isHero ? undefined : resolveWell(product.tint, i).style}
+            )}
+            style={{
+              transitionDuration: `${CHANGE_FADE_MS}ms`,
+              opacity: phase === "idle" ? 1 : 0,
+              // Short on purpose. This is a cue about direction, not a journey —
+              // a full panel's width of travel is the slide this replaced, and
+              // it is the slide that put two products on screen at once.
+              transform: `translateX(${
+                phase === "out"
+                  ? -direction * CHANGE_SHIFT_PX
+                  : phase === "in"
+                    ? direction * CHANGE_SHIFT_PX
+                    : 0
+              }px)`,
+            }}
+          >
+            {products.map((product, i) => {
+              const current = i === activeIndex;
+              return (
+                <div
+                  key={product.id}
+                  role="group"
+                  aria-roledescription="slide"
+                  aria-label={`${i + 1} of ${products.length}: ${product.name}`}
+                  // Deliberately not `inert` and not hidden. When this was a
+                  // transformed strip the off-stage panels really were
+                  // unreachable, so hiding them was right; in a scroll container
+                  // they are one swipe away. `inert` also applies
+                  // `pointer-events: none`, which is the last thing a surface
+                  // meant to be dragged should carry.
+                  //
+                  // One column at every width: the panel is already sitting in
+                  // half a page, and splitting that again would leave the
+                  // product a quarter of the screen.
+                  className="grid w-full shrink-0 snap-start"
                 >
-                  {/*
-                    The stage's colour, one per panel.
+                  <Spotlight
+                    className={cn(
+                      "relative",
+                      // The stage *is* the card: the product stands on the
+                      // page's own background and the copy floats over it as
+                      // chips, so there is no fill to paint and nothing to clip
+                      // against. Stated outright at both widths instead of an
+                      // aspect ratio, because what has to be controlled here is
+                      // how much room the product and the chips get — not the
+                      // shape of the box they share. A ratio at this width would
+                      // also put the card well past the fold.
+                      //
+                      // Raised from 30/40rem when the best-sellers shelf moved
+                      // out from under the hero (see the note in
+                      // `app/page.tsx`). Taking a whole shelf off the fold left
+                      // this holding the top of the page on its own and looking
+                      // short for the job — the stage is what fills that, and a
+                      // larger stage draws a larger product, which is the point
+                      // of the arrangement. The card still lands above the fold.
+                      // `hero-stage` also carries the spotlight and switches off
+                      // the panel vignette — see `.hero-stage::after`.
+                      "hero-stage h-[32rem] md:h-[44rem]",
+                    )}
+                  >
+                    {/*
+                      What stands behind the product now that nothing frames it.
 
-                    Assorted rather than random, and the distinction is the
-                    whole of it. `sale-tints` already sets out why a colour
-                    drawn at random is the wrong tool: a value picked during
-                    render differs between the server pass and the client's,
-                    which is a hydration mismatch, and a product that wears a
-                    different colour on every visit is a product nobody can
-                    recognise. So the palette is walked by panel index instead.
+                      Two faint fields of dots, `aria-hidden` and carrying
+                      nothing to read. Without a card the product hangs in an
+                      empty band, and the eye needs something to measure a
+                      floating object against. Tinted through `currentColor` so
+                      they follow the scheme into dark mode rather than becoming
+                      soot on charcoal.
 
-                    By index rather than by hashing the slug, for the reason
-                    that file gives about the sale shelf: a hash can land the
-                    same colour on two panels in a row, and with four tints and
-                    a handful of featured products, cycling guarantees every
-                    neighbour differs.
-
-                    Borrowed whole rather than redefined. Those four are built
-                    from theme tokens with no hardcoded hex in them, so this
-                    follows the light and dark schemes — and the wash is the
-                    same 70%-to-20% diagonal the sale cards wear, laid over the
-                    neutral fill above rather than replacing it, so the product
-                    still sits on a surface rather than in a puddle of colour.
-                  */}
-                  {!isHero && (
-                    <span
-                      aria-hidden
-                      className="absolute inset-0"
-                      style={{
-                        background: saleGradient(SALE_TINTS[i % SALE_TINTS.length]),
-                      }}
-                    />
-                  )}
-
-                  {/*
-                    What stands behind the product now that nothing frames it.
-
-                    Two faint fields of dots, `aria-hidden` and carrying nothing
-                    to read. Without a card the product hangs in an empty band,
-                    and the eye needs something to measure a floating object
-                    against. Tinted through `currentColor` so they follow the
-                    scheme into dark mode rather than becoming soot on charcoal.
-
-                    The pair of rings that used to sit here has gone: with the
-                    specification callouts leaning in from the corners, a circle
-                    around the product was a second thing drawing attention to
-                    the middle of the stage, and the two read as clutter
-                    together where either alone read as composition.
-                  */}
-                  {isHero && (
+                      The pair of rings that used to sit here has gone: with the
+                      specification callouts leaning in from the corners, a
+                      circle around the product was a second thing drawing
+                      attention to the middle of the stage, and the two read as
+                      clutter together where either alone read as composition.
+                    */}
                     <span aria-hidden className="pointer-events-none absolute inset-0">
                       <span className="hero-dot-grid text-primary/[0.14] absolute top-1/2 left-[6%] hidden size-28 -translate-y-1/2 lg:block" />
                       <span className="hero-dot-grid text-primary/[0.14] absolute top-[58%] right-[4%] hidden size-24 -translate-y-1/2 lg:block" />
                     </span>
-                  )}
 
-                  {/* The specifications, annotated onto the photograph. Built
-                      from this product's own spec rows — a different panel
-                      annotates different facts, and a product with none is not
-                      annotated at all. */}
-                  {isHero && (
+                    {/* The specifications, annotated onto the photograph. Built
+                        from this product's own spec rows — a different panel
+                        annotates different facts, and a product with none is not
+                        annotated at all. */}
                     <SpecificationHotspots
                       callouts={calloutsFor(product)}
                       current={current}
                     />
-                  )}
 
-                  {product.image ? (
-                    // Two nested transforms rather than one. The settle owns
-                    // the outer element at 700ms and the sway owns the inner at
-                    // 150ms; sharing a single `transform` property would force
-                    // one duration on both, and whichever was written last
-                    // would silently overwrite the other with no error.
+                    {product.image ? (
+                      // Two nested transforms rather than one. The settle owns
+                      // the outer element at 700ms and the sway owns the inner
+                      // at 150ms; sharing a single `transform` property would
+                      // force one duration on both, and whichever was written
+                      // last would silently overwrite the other with no error.
                       <div
-                      className={cn(
-                        "relative z-10 size-full transition-transform duration-700 ease-emphasized",
-                        // A gentle counter-drift against the slide: the image
-                        // trails the panel, which reads as depth rather than a
-                        // flat sheet of card moving sideways.
-                        current ? "scale-100" : "scale-105",
-                      )}
-                    >
-                      {/* Far higher than a grid card's 8deg, plus a slide.
-                          This subject is one large cut-out with nothing beside
-                          it for scale, and at card angles the movement simply
-                          did not register — see the note on `maxDeg`. */}
-                      <Tilt maxDeg={18} maxShiftPx={22} className="size-full">
-                        {/* `contain` rather than `cover`, and only here: a
-                            cut-out on transparency has to sit inside its box
-                            to read as a product on a stage. The grid cards
-                            keep `cover`, where filling the square matters more
-                            than showing every edge.
+                        className={cn(
+                          "relative z-10 size-full transition-transform duration-700 ease-emphasized",
+                          // A gentle counter-drift against the slide: the image
+                          // trails the panel, which reads as depth rather than a
+                          // flat sheet of card moving sideways.
+                          current ? "scale-100" : "scale-105",
+                        )}
+                      >
+                        {/* Far higher than a grid card's 8deg, plus a slide.
+                            This subject is one large cut-out with nothing beside
+                            it for scale, and at card angles the movement simply
+                            did not register — see the note on `maxDeg`. */}
+                        <Tilt maxDeg={18} maxShiftPx={22} className="size-full">
+                          {/* `contain` rather than `cover`: a cut-out on
+                              transparency has to sit inside its box to read as a
+                              product on a stage. The grid cards keep `cover`,
+                              where filling the square matters more than showing
+                              every edge.
 
-                            Both the halo and the shadow are cast by CSS from
-                            the alpha channel rather than baked into the file,
-                            so they follow the theme instead of fighting one of
-                            them — and they follow the product's own outline
-                            rather than a box around it. See `.product-glow`.
+                              Both the halo and the shadow are cast by CSS from
+                              the alpha channel rather than baked into the file,
+                              so they follow the theme instead of fighting one of
+                              them — and they follow the product's own outline
+                              rather than a box around it. See `.product-glow`.
 
-                            The padding is what gives the halo somewhere to
-                            go: `object-contain` fits the artwork to the box,
-                            so with no inset the glow would be clipped at the
-                            edges it is meant to wrap. */}
-                        {/* The `max-h` is what bounds the panel. `size-full` is
-                            `height: 100%`, but on desktop the stage above is
-                            `aspect-auto` with only a `min-height`, so that
-                            percentage has no definite height to resolve against
-                            and collapses to `auto` — leaving the product's own
-                            intrinsic aspect ratio to set the height of the whole
-                            carousel. A portrait cut-out then pushed every panel
-                            to ~682px, well past the 24rem the stage asks for.
-                            The cap belongs on the image rather than on the stage
-                            because the stage is `overflow-hidden`, which would
-                            crop; `object-contain` fits the artwork instead. It
-                            cannot bind on mobile, where `aspect-[4/3]` already
-                            gives the stage a definite height to fill.
-
-                            Because it is the real ceiling, this is the number to
-                            change when the section is asked to be shorter — the
-                            stage's `min-h` only moves the panels whose artwork
-                            is too short to reach it. */}
-                        {/* The inset in the hero is asymmetric, and that is the
-                            layout doing its job rather than an oversight: the
-                            chips occupy the top and bottom of the stage, so the
-                            artwork is given the band between them. The sides
-                            stay narrow because width is what the product is
-                            actually bound by here — a landscape cut-out in a
-                            ~680px stage runs out of width long before height,
-                            so trimming `px` is what makes it draw larger, while
-                            `pt`/`pb` cost it almost nothing and keep it clear of
-                            the chips. Untouched as a shelf, where the panel sits
-                            beside its own copy at half the width. */}
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={product.image}
-                          alt={product.name}
-                          className={cn(
-                            // The halo traces the artwork's own alpha, so it is
-                            // the light *on* the product — the pool behind it
-                            // is `.hero-stage::after`. Both, or neither reads as
-                            // lighting: a lit floor under an unlit object looks
-                            // like a sticker on a photograph.
-                            "product-glow size-full object-contain",
-                            // The cap belongs to the shelf only. It is there
-                            // because that stage is `aspect-auto` with a bare
-                            // `min-height`, so `size-full` has no definite
-                            // height to resolve against and the artwork's own
-                            // ratio would set the panel's height. The hero
-                            // states its height outright, so nothing there
-                            // needs catching — and the cap was quietly the
-                            // binding constraint on how large the product drew:
-                            // 35rem minus the insets left a 336px box inside a
-                            // 608px stage, so the product was sized by a rule
-                            // written for the other layout.
-                            !isHero && "max-h-[35rem]",
-                            // The bottom inset only tightens from `sm` up. On a
-                            // phone the two slabs stack instead of sitting side
-                            // by side, so the space they need down there is
-                            // roughly double — trimming it at every width would
-                            // buy the product a few pixels and run it into the
-                            // price.
-                            isHero
-                              ? "px-4 pt-14 pb-32 sm:px-8 sm:pt-16 sm:pb-32"
-                              : "p-8 sm:p-12",
-                          )}
-                        />
-                      </Tilt>
+                              The inset is asymmetric, and that is the layout
+                              doing its job rather than an oversight: the chips
+                              occupy the top and bottom of the stage, so the
+                              artwork is given the band between them. The sides
+                              stay narrow because width is what the product is
+                              actually bound by here — a landscape cut-out in a
+                              ~680px stage runs out of width long before height,
+                              so trimming `px` is what makes it draw larger,
+                              while `pt`/`pb` cost it almost nothing and keep it
+                              clear of the chips. The bottom inset only tightens
+                              from `sm` up: on a phone the two slabs stack
+                              instead of sitting side by side, so the space they
+                              need down there is roughly double. */}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={product.image}
+                            alt={product.name}
+                            className={cn(
+                              // The halo traces the artwork's own alpha, so it
+                              // is the light *on* the product — the pool behind
+                              // it is `.hero-stage::after`. Both, or neither
+                              // reads as lighting: a lit floor under an unlit
+                              // object looks like a sticker on a photograph.
+                              "product-glow size-full object-contain",
+                              "px-4 pt-14 pb-32 sm:px-8 sm:pt-16 sm:pb-32",
+                            )}
+                          />
+                        </Tilt>
                       </div>
-                  ) : (
-                    <div className="text-on-surface-variant relative z-10 grid size-full place-items-center">
-                      <Icon name="image" size={48} />
-                    </div>
-                  )}
+                    ) : (
+                      <div className="text-on-surface-variant relative z-10 grid size-full place-items-center">
+                        <Icon name="image" size={48} />
+                      </div>
+                    )}
 
-                  {!isHero && (product.isNew || product.soldOut) && (
-                    <span
-                      className={cn(
-                        "absolute top-4 left-4 rounded-full px-3 py-1 text-xs font-medium",
-                        product.soldOut
-                          ? "bg-error-container text-on-error-container"
-                          : "bg-primary text-on-primary",
-                      )}
-                    >
-                      {product.soldOut ? "Sold out" : "New"}
-                    </span>
-                  )}
+                    {/*
+                      The facts, floating over the stage instead of stacked
+                      under it.
 
-                  {/*
-                    The facts, floating over the stage instead of stacked under
-                    it.
+                      The panel used to be two halves — a picture on top, a
+                      column of copy beneath — which gave the product half a card
+                      and made the other half a list. Here the stage is the whole
+                      card and the same four facts orbit the product: what it is
+                      at the top, what it costs and where it goes at the bottom.
+                      Nothing is lost; it is arranged around the subject rather
+                      than queued below it.
 
-                    The panel used to be two halves — a picture on top, a column
-                    of copy beneath — which gave the product half a card and made
-                    the other half a list. Here the stage is the whole card and
-                    the same four facts orbit the product: what it is at the top,
-                    what it costs and where it goes at the bottom. Nothing is
-                    lost; it is arranged around the subject rather than queued
-                    below it.
-
-                    `pointer-events-none` on the layer is load-bearing. It spans
-                    the whole stage, and without it this would sit between the
-                    cursor and everything underneath — killing the tilt, the
-                    spotlight, and the press-and-drag that moves the carousel on
-                    a touch screen. Only the link inside takes events back.
-                  */}
-                  {isHero && (
+                      `pointer-events-none` on the layer is load-bearing. It
+                      spans the whole stage, and without it this would sit
+                      between the cursor and everything underneath — killing the
+                      tilt, the spotlight, and the press-and-drag that moves the
+                      carousel on a touch screen. Only the link inside takes
+                      events back.
+                    */}
                     <div
                       className={cn(
                         "pointer-events-none absolute inset-0 z-20 flex flex-col justify-between gap-3 p-4 sm:p-5",
@@ -947,236 +759,66 @@ export function FeaturedShowcase({
                         </div>
                       </div>
                     </div>
-                  )}
-                </Spotlight>
+                  </Spotlight>
 
-                {/* The same specifications, for phones — outside the stage, so
-                    nothing overlaps the product at the one width where there is
-                    no room beside it. Hidden from `md` up, where the positioned
-                    callouts above take over. */}
-                {isHero && <SpecificationList callouts={calloutsFor(product)} />}
-
-                {/* The shelf's copy column, beneath the picture at one width and
-                    beside it at another. The hero has no such column — its copy
-                    floats over the stage as chips — so everything from here down
-                    is the shelf only, and the conditionals this block used to
-                    carry for the hero have gone with it.
-
-                    The copy settles a beat after the slide, so the panel does
-                    not arrive as one rigid block. */}
-                {!isHero && (
-                <div
-                  className={cn(
-                    "flex flex-col p-6 transition-all duration-500 ease-emphasized sm:p-8",
-                    current
-                      ? "translate-y-0 opacity-100 delay-150"
-                      : "translate-y-3 opacity-0",
-                  )}
-                >
-                  <p className="eyebrow text-primary flex items-center gap-2">
-                    <Icon name="stars" size={16} filled />
-                    Featured
-                  </p>
-
-                  <h3 className="text-on-surface text-headline-sm sm:text-headline-md mt-4">
-                    {product.name}
-                  </h3>
-
-                  {/* Renders nothing until someone has rated it, so a new
-                      feature does not lead with an empty row of grey stars. */}
-                  {product.rating && (
-                    <RatingBadge
-                      average={product.rating.average}
-                      count={product.rating.count}
-                      size={15}
-                      className="mt-2"
-                    />
-                  )}
-
-                  <p className="label-caps text-on-surface-variant mt-3 flex items-center gap-1.5">
-                    {product.brand &&
-                      (product.brand.iconSvg || product.brand.logo ? (
-                        <BrandMark
-                          svg={product.brand.iconSvg}
-                          logo={product.brand.logo}
-                          treatment={product.brand.logoTreatment}
-                          size={16}
-                          label={product.brand.name}
-                        />
-                      ) : (
-                        <span className="text-on-surface font-medium">
-                          {product.brand.name}
-                        </span>
-                      ))}
-                    {product.brand && product.category && (
-                      <span aria-hidden className="bg-outline-variant h-3 w-px shrink-0" />
-                    )}
-                    {product.category}
-                  </p>
-
-                  <p className="text-on-surface-variant mt-4 line-clamp-3 leading-relaxed">
-                    {product.description}
-                  </p>
-
-                  {/* Sliced here rather than by the query. The service now
-                      carries a wider pool so the hero's callouts have something
-                      to choose from; this shelf still wants the three-line
-                      summary it has always shown, so it takes its own count
-                      instead of inheriting one meant for the other surface. */}
-                  {product.specs.length > 0 && (
-                    <ul className="text-on-surface-variant mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm">
-                      {product.specs.slice(0, SHELF_SPEC_COUNT).map((spec) => (
-                        <li key={spec.label} className="flex items-center gap-1.5">
-                          <Icon name={spec.icon ?? "label"} size={16} />
-                          {spec.label}
-                          <span className="text-on-surface font-medium">
-                            {spec.value}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  <p className="text-on-surface mt-6 text-2xl">
-                    {product.priceVaries && (
-                      <span className="text-on-surface-variant text-sm">from </span>
-                    )}
-                    {formatPrice(product.minCents)}
-                  </p>
-
-                  <div className="mt-6 flex flex-wrap items-center gap-3 pt-2">
-                    <Link
-                      href={`/products/${product.slug}`}
-                      className="bg-primary text-on-primary state-layer inline-flex h-12 w-full items-center justify-center gap-2 rounded-full px-8 text-sm font-medium shadow-none transition-all duration-200 hover:shadow-elevation-2 focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-95 sm:w-auto"
-                    >
-                      View product
-                      <Icon name="arrow_forward" size={18} />
-                    </Link>
-
-                    {product.category && (
-                      <Link
-                        href={`/products?category=${encodeURIComponent(
-                          product.category.toLowerCase().replace(/\s+/g, "-"),
-                        )}`}
-                        className="text-primary state-layer inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 sm:w-auto"
-                      >
-                        Shop {product.category}
-                      </Link>
-                    )}
-                  </div>
+                  {/* The same specifications, for phones — outside the stage, so
+                      nothing overlaps the product at the one width where there
+                      is no room beside it. Hidden from `md` up, where the
+                      positioned callouts above take over. */}
+                  <SpecificationList callouts={calloutsFor(product)} />
                 </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </Card>
-
-      {products.length > 1 && (
-        <>
-          {/* Selection rail, in the same pill language as the brand and
-              category rails. Dropped in the hero: a row of named thumbnails
-              under the panel is a second product list directly beneath the
-              first, in a column that is already only half the page. The dots
-              below take over its job there, and take over its labels with it. */}
-          {!isHero && (
-          <nav
-            aria-label="Choose a featured product"
-            className="-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0"
-          >
-            {products.map((product, i) => {
-              const selected = i === activeIndex;
-              return (
-                <button
-                  key={product.id}
-                  type="button"
-                  aria-current={selected}
-                  onClick={() => goTo(i)}
-                  className={cn(
-                    "flex h-12 shrink-0 items-center gap-2 rounded-full py-1 pr-4 pl-1 text-sm font-medium whitespace-nowrap transition-colors duration-200 sm:h-14 sm:gap-3 sm:pr-5",
-                    "focus-visible:outline-2 focus-visible:outline-offset-2",
-                    selected
-                      ? "bg-secondary-container text-on-secondary-container"
-                      : "text-on-surface-variant hover:bg-on-surface/[0.06]",
-                  )}
-                >
-                  <span className="bg-surface-container-highest size-10 shrink-0 overflow-hidden rounded-full sm:size-12">
-                    {product.image ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img
-                        src={product.image}
-                        alt=""
-                        className="size-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-on-surface-variant grid size-full place-items-center">
-                        <Icon name="image" size={18} />
-                      </span>
-                    )}
-                  </span>
-                  <span className="max-w-28 truncate sm:max-w-40">{product.name}</span>
-                </button>
-              );
-            })}
-          </nav>
-          )}
-
-          {/* Position indicators.
-
-              Hidden from assistive tech only while the strip above is there to
-              expose the same choice with real names — a second set of controls
-              for one panel is noise to anyone not looking at them. In the hero
-              the strip is gone, so these stop being decorative and become the
-              only way to change panel: they take the tab order and each one
-              takes the name of the product it selects. */}
-          <div
-            aria-hidden={isHero ? undefined : true}
-            role={isHero ? "group" : undefined}
-            aria-label={isHero ? "Choose a featured product" : undefined}
-            className={cn(
-              "flex gap-2",
-              // Under the panel it belongs to, and aligned with the copy in
-              // that column rather than with the page.
-              isHero ? "mt-5 justify-center lg:justify-start" : "mt-6 justify-center",
-            )}
-          >
-            {products.map((product, i) => {
-              const current = i === activeIndex;
-              return (
-                <button
-                  key={product.id}
-                  type="button"
-                  tabIndex={isHero ? undefined : -1}
-                  aria-label={isHero ? product.name : undefined}
-                  aria-current={isHero ? current : undefined}
-                  onClick={() => goTo(i)}
-                  className={cn(
-                    "h-2 overflow-hidden rounded-full transition-all duration-300 ease-emphasized",
-                    current ? "w-8" : "bg-outline-variant hover:bg-outline w-2",
-                    // Dimmed to a track only while something is draining it;
-                    // held or stationary it stays the solid dot it was.
-                    current && (running ? "bg-primary/25" : "bg-primary"),
-                  )}
-                >
-                  {/* Mounted only while the clock is actually running, which is
-                      also what restarts it: suspending unmounts this, and
-                      resuming mounts a fresh one from zero — the same reset the
-                      timeout itself gets, so the bar cannot claim time the
-                      carousel is not counting. */}
-                  {current && running && (
-                    <span
-                      className="bg-primary block h-full w-full origin-left rounded-full"
-                      style={{
-                        animation: `carousel-progress ${AUTOPLAY_MS}ms linear forwards`,
-                      }}
-                    />
-                  )}
-                </button>
               );
             })}
           </div>
-        </>
-      )}
+
+          {/* Position indicators, and the only way to change panel by hand: a
+              row of named thumbnails under the panel would be a second product
+              list directly beneath the first, in a column that is already only
+              half the page. So these take the tab order and each one takes the
+              name of the product it selects. */}
+          {products.length > 1 && (
+            <div
+              role="group"
+              aria-label="Choose a featured product"
+              // Under the panel it belongs to, and aligned with the copy in that
+              // column rather than with the page.
+              className="mt-5 flex justify-center gap-2 lg:justify-start"
+            >
+              {products.map((product, i) => {
+                const current = i === activeIndex;
+                return (
+                  <button
+                    key={product.id}
+                    type="button"
+                    aria-label={product.name}
+                    aria-current={current}
+                    onClick={() => goTo(i)}
+                    className={cn(
+                      "h-2 overflow-hidden rounded-full transition-all duration-300 ease-emphasized",
+                      current ? "w-8" : "bg-outline-variant hover:bg-outline w-2",
+                      // Dimmed to a track only while something is draining it;
+                      // held or stationary it stays the solid dot it was.
+                      current && (running ? "bg-primary/25" : "bg-primary"),
+                    )}
+                  >
+                    {/* Mounted only while the clock is actually running, which
+                        is also what restarts it: suspending unmounts this, and
+                        resuming mounts a fresh one from zero — the same reset
+                        the timeout itself gets, so the bar cannot claim time the
+                        carousel is not counting. */}
+                    {current && running && (
+                      <span
+                        className="bg-primary block h-full w-full origin-left rounded-full"
+                        style={{
+                          animation: `carousel-progress ${AUTOPLAY_MS}ms linear forwards`,
+                        }}
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </section>

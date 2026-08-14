@@ -23,8 +23,6 @@ export interface StoreSettingsView {
   pickupAddress: string;
   pickupHours: string;
   pickupNote: string;
-  /** See the column's note — on is the combined hero, off the previous one. */
-  homeHeroCombined: boolean;
 }
 
 /** The columns both readers below ask for. */
@@ -36,7 +34,6 @@ const SETTINGS_SELECT = {
   pickupAddress: true,
   pickupHours: true,
   pickupNote: true,
-  homeHeroCombined: true,
 } as const;
 
 /**
@@ -72,10 +69,6 @@ export const getStoreSettings = cache(async (): Promise<StoreSettingsView> => {
     pickupAddress: row?.pickupAddress?.trim() ?? "",
     pickupHours: row?.pickupHours?.trim() ?? "",
     pickupNote: row?.pickupNote?.trim() ?? "",
-    // Defaults to the combined hero, which is what the page ships as — a shop
-    // with no settings row should see what a fresh install looks like, not the
-    // arrangement it replaced.
-    homeHeroCombined: row?.homeHeroCombined ?? true,
   };
 });
 
@@ -97,7 +90,6 @@ export async function getStoreSettingsForAdmin() {
     pickupAddress: row?.pickupAddress ?? "",
     pickupHours: row?.pickupHours ?? "",
     pickupNote: row?.pickupNote ?? "",
-    homeHeroCombined: row?.homeHeroCombined ?? true,
   };
 }
 

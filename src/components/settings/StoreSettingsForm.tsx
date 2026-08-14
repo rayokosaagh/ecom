@@ -1,8 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 
-import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
@@ -25,70 +24,9 @@ export interface StoreSettingsFormValues {
   pickupAddress: string;
   pickupHours: string;
   pickupNote: string;
-  homeHeroCombined: boolean;
 }
 
 const INITIAL: StoreSettingsFormState = {};
-
-/**
- * A wireframe of one home page arrangement.
- *
- * Decoration in the strict sense — `aria-hidden`, no control, nothing it says
- * that the caption beside it does not. It earns its place anyway: the choice
- * being made here is *visual*, and "combined hero" is not a phrase that tells
- * an admin what they are about to publish to the front page. Two boxes do.
- *
- * Drawn from theme tokens at low alpha rather than fixed greys, so the sketch
- * follows the dashboard into dark mode instead of turning into a light patch.
- */
-function LayoutSketch({
-  title,
-  caption,
-  selected,
-  variant = "combined",
-}: {
-  title: string;
-  caption: string;
-  selected: boolean;
-  variant?: "combined" | "stacked";
-}) {
-  return (
-    <div
-      className={cn(
-        "rounded-xl border p-3 transition-colors duration-200",
-        selected
-          ? "border-primary bg-secondary-container/40"
-          : "border-outline-variant",
-      )}
-    >
-      <div
-        aria-hidden
-        className="bg-surface-container-high flex h-24 gap-2 rounded-lg p-2"
-      >
-        {variant === "combined" ? (
-          <>
-            <div className="flex flex-1 flex-col justify-center gap-1.5">
-              <span className="bg-on-surface/25 h-1.5 w-4/5 rounded-full" />
-              <span className="bg-on-surface/25 h-1.5 w-3/5 rounded-full" />
-              <span className="bg-primary/60 mt-1 h-3 w-1/2 rounded-full" />
-            </div>
-            <div className="bg-on-surface/15 flex-1 rounded-md" />
-          </>
-        ) : (
-          <div className="flex w-full flex-col items-center justify-center gap-1.5">
-            <span className="bg-on-surface/25 h-1.5 w-3/5 rounded-full" />
-            <span className="bg-on-surface/25 h-1.5 w-2/5 rounded-full" />
-            <span className="bg-primary/60 h-3 w-1/4 rounded-full" />
-            <div className="bg-on-surface/15 mt-1 h-7 w-full rounded-md" />
-          </div>
-        )}
-      </div>
-
-      <p className="text-on-surface mt-2.5 text-sm font-medium">{title}</p>
-      <p className="text-on-surface-variant mt-0.5 text-xs">{caption}</p>
-    </div>
-  );
-}
 
 export function StoreSettingsForm({
   values,
@@ -99,11 +37,6 @@ export function StoreSettingsForm({
   envFallbackNumber?: string | null;
 }) {
   const [state, formAction, pending] = useActionState(updateStoreSettings, INITIAL);
-
-  // The one field here that is mirrored into React state rather than left to
-  // the DOM: the sketches below have to highlight the arrangement the admin is
-  // *about* to save, and a `defaultChecked` box cannot tell them it changed.
-  const [heroCombined, setHeroCombined] = useState(values.homeHeroCombined);
 
   return (
     <form action={formAction} className="space-y-6" noValidate>
@@ -236,50 +169,10 @@ export function StoreSettingsForm({
         </CardContent>
       </Card>
 
-      <Card variant="outlined">
-        <CardContent className="space-y-5">
-          <div>
-            <h3 className="text-on-surface text-sm font-medium">Home page</h3>
-            <p className="text-on-surface-variant mt-1 text-xs">
-              How the front page opens. Both arrangements show the same
-              products — this is only where they sit.
-            </p>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <LayoutSketch
-              title="Combined"
-              caption="Opening line and the featured product side by side. Best sellers follow as their own shelf."
-              selected={heroCombined}
-            />
-            <LayoutSketch
-              title="Stacked"
-              caption="Centred opening line with best sellers beneath it, and Featured picks as a wide shelf further down."
-              selected={!heroCombined}
-              variant="stacked"
-            />
-          </div>
-
-          {/* An unchecked box submits nothing at all, which is exactly how the
-              parser reads "off" — the same convention as the two above. */}
-          <label className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              name="homeHeroCombined"
-              checked={heroCombined}
-              onChange={(event) => setHeroCombined(event.target.checked)}
-              className="accent-primary size-4"
-            />
-            <span className="text-on-surface text-sm">
-              Use the combined hero
-              <span className="text-on-surface-variant block text-xs">
-                Off restores the stacked arrangement this replaced. Nothing
-                changes on the storefront until this form is saved.
-              </span>
-            </span>
-          </label>
-        </CardContent>
-      </Card>
+      {/* The home page's opening arrangement was a setting here — a checkbox
+          and two wireframes choosing between the combined hero and the stacked
+          one it replaced. The stacked layout has been taken out of the
+          storefront, so the choice no longer has a second position to offer. */}
 
       <Button type="submit" loading={pending}>
         {pending ? "Saving…" : "Save settings"}

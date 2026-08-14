@@ -58,7 +58,6 @@ export interface NavbarUser {
 }
 
 export interface NavbarProps {
-  items?: NavLink[];
   user?: NavbarUser | null;
   notifications?: NavNotification[];
   /** Categories for the Products hover menu. */
@@ -96,14 +95,15 @@ export interface NavbarProps {
   className?: string;
 }
 
-const DEFAULT_ITEMS: NavLink[] = [{ href: "/", label: "Home" }];
-
 /**
  * Brands, as a top-level destination.
  *
- * Not in `items` because it has to render *after* the Products menu and that
- * list renders before it: the catalogue is the primary destination and a nav
- * reading "Home · Brands · Products" puts the main one last.
+ * A constant rather than a member of some list of links, because the bar has
+ * exactly two text destinations left — Products and Brands — and both are hover
+ * menus rather than plain links. There was a "Home" pill in front of them; it
+ * has been taken out, because the logo to its immediate left already goes there
+ * and a bar whose first two controls are the same link spends its most valuable
+ * space saying one thing twice.
  *
  * It earns a place in the bar at all because of an asymmetry on the storefront.
  * Categories are reachable from every page through the Products menu, while
@@ -112,69 +112,17 @@ const DEFAULT_ITEMS: NavLink[] = [{ href: "/", label: "Home" }];
  * people arrive knowing the maker ("a MacBook", "ROG", "Sony"), so the axis
  * with no way in was the one a lot of shoppers were arriving with.
  *
- * On desktop the bar renders `BrandsMenu` rather than a `TopNavLink` for this
- * href — the destination and the label are the same, which is why they still
- * live here; only the trigger differs. The mobile menu uses it as a plain row.
+ * On desktop the bar renders `BrandsMenu` for this href rather than a plain
+ * link — the destination and the label are the same, which is why they live
+ * here; only the trigger differs. The mobile menu uses it as a plain row.
  */
 const BRANDS_ITEM: NavLink = { href: "/brands", label: "Brands" };
 
 /**
- * One link in the desktop bar.
- *
- * Module scope, not defined inside `Navbar`: a component declared during render
- * is a new type on every render, so React would unmount and remount it each
- * time — which would throw away the shared `layoutId` and kill the sliding
- * pill this exists to carry.
- */
-function TopNavLink({
-  item,
-  active,
-  reduceMotion,
-}: {
-  item: NavLink;
-  active: boolean;
-  reduceMotion: boolean;
-}) {
-  return (
-    <Link
-      href={item.href}
-      aria-current={active ? "page" : undefined}
-      className={cn(
-        // Tighter until `lg`. The bar gained a third destination when Brands
-        // was added, and at `md` — where the whole nav appears at once but the
-        // icon cluster has not yet dropped anything — the three pills at their
-        // full padding pushed the row past the viewport and the page scrolled
-        // sideways. Trimming the padding recovers more than the overflow
-        // without taking a destination out of the bar.
-        "relative rounded-full px-2 py-2 text-sm font-medium lg:px-4",
-        "transition-colors duration-200 ease-in-out",
-        "focus-visible:outline-2 focus-visible:outline-offset-2",
-        "active:scale-95",
-        active
-          ? "text-on-secondary-container"
-          : "text-on-surface-variant hover:text-on-surface hover:bg-on-surface/[0.06]",
-      )}
-    >
-      {active && (
-        // Shared layoutId slides the pill between links on navigation.
-        <motion.span
-          layoutId="navbar-active-pill"
-          className="bg-secondary-container absolute inset-0 rounded-full"
-          transition={
-            reduceMotion ? NO_MOTION : SPRING.panel
-          }
-        />
-      )}
-      <span className="relative z-10">{item.label}</span>
-    </Link>
-  );
-}
-
-/**
- * Glyphs for the top-level nav links, in the mobile menu only.
+ * Glyphs for the mobile menu's rows.
  *
  * Keyed by href rather than label, so it survives the wording being changed.
- * Covers the routes this app has; a link added later with no entry renders
+ * Covers the routes this app has; a row added later with no entry renders
  * without one, which is a slightly plainer row and not a broken one — better
  * than guessing an icon for a destination nobody here knows anything about.
  * The desktop bar deliberately stays text-only: at that width the labels are
@@ -182,7 +130,6 @@ function TopNavLink({
  * icon cluster on the right.
  */
 const NAV_ICONS: Record<string, string> = {
-  "/": "home",
   "/products": "grid_view",
   "/sale": "sell",
   "/brands": "storefront",
@@ -345,7 +292,6 @@ const PANEL_MOTION = {
 };
 
 export function Navbar({
-  items = DEFAULT_ITEMS,
   user,
   notifications = [],
   categories = [],
@@ -480,15 +426,6 @@ export function Navbar({
 
         {/* ---------- Desktop links ---------- */}
         <nav aria-label="Main" className="ml-2 hidden items-center gap-1 md:flex">
-          {items.map((item) => (
-            <TopNavLink
-              key={item.href}
-              item={item}
-              active={isActive(item.href)}
-              reduceMotion={reduceMotion}
-            />
-          ))}
-
           {/* Both menus share one "which is open" value rather than holding a
               boolean each. They are the only two hover menus in the bar and
               their panels are wide enough to cover one another, so sliding
@@ -838,17 +775,6 @@ export function Navbar({
                 wishlist icon is `sm:grid` only — so on a phone neither had
                 anywhere to be reached from. */}
             <nav aria-label="Mobile" className="space-y-1 px-3 py-3">
-              {items.map((item) => (
-                <MobileLink
-                  key={item.href}
-                  href={item.href}
-                  label={item.label}
-                  icon={NAV_ICONS[item.href]}
-                  active={isActive(item.href)}
-                  onNavigate={close}
-                />
-              ))}
-
               <MobileLink
                 href="/products"
                 label="All products"
