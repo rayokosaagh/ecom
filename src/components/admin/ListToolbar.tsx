@@ -15,6 +15,14 @@ export interface ListFilter {
   label: string;
   /** The empty value is supplied by the toolbar as "Any". */
   options: { value: string; label: string }[];
+  /**
+   * What the unset option says, where "Label: any" is not English.
+   *
+   * A sort control is the case that needs it: leaving one unset does not mean
+   * "any order", it means the list's own default, and a dropdown offering
+   * "Sort: any" describes something the list cannot do.
+   */
+  emptyLabel?: string;
 }
 
 /**
@@ -192,7 +200,7 @@ export function ListToolbar({
                       : "border-outline text-on-surface-variant",
                   )}
                 >
-                  <option value="">{filter.label}: any</option>
+                  <option value="">{filter.emptyLabel ?? `${filter.label}: any`}</option>
                   {filter.options.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}

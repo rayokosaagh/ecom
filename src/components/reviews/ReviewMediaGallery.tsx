@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 
 import { Icon } from "@/components/ui/Icon";
+import { cn } from "@/lib/cn";
 
 export type ReviewMediaView = {
   id: string;
@@ -23,7 +24,23 @@ export type ReviewMediaView = {
  * the entrance animation. Left where it sat, the backdrop was sized to `<main>`
  * and started 900-odd pixels above the top of the screen.
  */
-export function ReviewMediaGallery({ media }: { media: ReviewMediaView[] }) {
+export function ReviewMediaGallery({
+  media,
+  className,
+  /**
+   * The thumbnail's own size, for callers with less room than a product page.
+   *
+   * A prop rather than a second component: the full-size view, the keyboard
+   * handling and the portal are the hard parts and they are identical
+   * everywhere — only how big the thumbnails are drawn differs between a review
+   * on the storefront and the same review in a moderation queue.
+   */
+  thumbClassName = "size-20",
+}: {
+  media: ReviewMediaView[];
+  className?: string;
+  thumbClassName?: string;
+}) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const open = openIndex === null ? null : media[openIndex];
 
@@ -36,14 +53,17 @@ export function ReviewMediaGallery({ media }: { media: ReviewMediaView[] }) {
 
   return (
     <>
-      <ul className="mt-3 flex flex-wrap gap-2">
+      <ul className={cn("mt-3 flex flex-wrap gap-2", className)}>
         {media.map((item, index) => (
           <li key={item.id}>
             <button
               type="button"
               onClick={() => setOpenIndex(index)}
               aria-label={item.kind === "VIDEO" ? "Play clip" : "View photo"}
-              className="group/media bg-surface-container-highest relative block size-20 overflow-hidden rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2"
+              className={cn(
+                "group/media bg-surface-container-highest relative block overflow-hidden rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2",
+                thumbClassName,
+              )}
             >
               {item.kind === "VIDEO" ? (
                 <video

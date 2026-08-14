@@ -151,9 +151,16 @@ export function ReviewSection({
                       purchase.
                     </p>
                   ) : (
-                    <p className="text-on-surface-variant mb-3 text-xs">
-                      You have not bought this one here, so it will not carry a
-                      verified-purchase badge.
+                    // Both halves of the rule, said before they start writing
+                    // rather than after they press Post — see
+                    // `lib/reviews/policy`. Somebody who learns their review is
+                    // held for approval only once it has disappeared reads that
+                    // as the site losing it.
+                    <p className="text-on-surface-variant mb-3 flex items-start gap-1.5 text-xs">
+                      <Icon name="schedule" size={14} className="mt-px shrink-0" />
+                      You have not bought this one here, so yours carries no
+                      verified-purchase badge and goes to a moderator before it
+                      appears.
                     </p>
                   )}
                   <ReviewForm productId={productId} />

@@ -35,8 +35,31 @@ enum ReviewMediaKind {
 /// the author's one-review-per-product slot taken, so a hidden review cannot be
 /// re-posted verbatim by writing a "new" one.
 enum ReviewStatus {
+  /// Written, but not yet visible to anyone but its author and a moderator.
+  ///
+  /// Which reviews land here is `statusForNewReview` in `lib/reviews/policy`,
+  /// and today the rule is: a review by someone who did not buy *that* product
+  /// waits for approval. Verified purchases still publish as they always have.
+  /// Nothing else in the app has to know about this state — every read filters
+  /// on PUBLISHED, so a pending review is out of the ratings and off the
+  /// product page until a moderator says otherwise.
+  PENDING
   PUBLISHED
   HIDDEN
+}
+
+/// Why a shopper flagged a review.
+///
+/// A closed list rather than free text: the reason is a filter and a summary
+/// line in the moderation queue, and "spam" spelled fourteen ways is neither.
+/// `OTHER` carries the note instead.
+enum ReviewReportReason {
+  SPAM
+  OFFENSIVE
+  OFF_TOPIC
+  /// Written by someone with something to gain — a competitor, or a paid post.
+  FAKE
+  OTHER
 }
 
 /// How a discount code takes money off.
@@ -268,23 +291,26 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  accounts      Account[]
-  sessions      Session[]
-  products      Product[]
-  notifications Notification[]
-  orders        Order[]
-  cart          Cart?
+  accounts         Account[]
+  sessions         Session[]
+  products         Product[]
+  notifications    Notification[]
+  orders           Order[]
+  cart             Cart?
   /// Saved delivery addresses. Never referenced by an order — see Address.
-  addresses     Address[]
-  wishlist      WishlistItem[]
-  reviews       Review[]
-  reviewLikes   ReviewLike[]
-  reviewReplies ReviewReply[]
-  resetTokens   PasswordResetToken[]
+  addresses        Address[]
+  wishlist         WishlistItem[]
+  reviews          Review[]
+  reviewLikes      ReviewLike[]
+  reviewReplies    ReviewReply[]
+  /// Reviews this account flagged, and — for an admin — the ones it moderated.
+  reviewReports    ReviewReport[]
+  moderatedReviews Review[]             @relation("ModeratedReviews")
+  resetTokens      PasswordResetToken[]
   /// Stock changes this account made by hand. See StockAdjustment.
-  stockChanges  StockAdjustment[]
+  stockChanges     StockAdjustment[]
   /// Price changes this account made by hand. See PriceChange.
-  priceChanges  PriceChange[]
+  priceChanges     PriceChange[]
 
   @@index([role])
 }
@@ -983,20 +1009,11 @@ model StoreSettings {
   /// *before* they commit, rather than in an email afterwards.
   pickupNote String?
 
-  /// Whether the home page opens with the combined hero.
-  ///
-  /// On, the shop's opening line and the featured carousel share one section:
-  /// copy on the left, one product on a stage to the right. Off restores the
-  /// arrangement that preceded it — a centred hero with the best-seller
-  /// accordion beneath it, and "Featured picks" as its own wide shelf further
-  /// down the page.
-  ///
-  /// A stored setting rather than a code change because which one reads better
-  /// depends on things this repository cannot see: how many products are
-  /// featured, how long their names run, and what the shop's own headline says.
-  /// Defaults to the combined layout, which is what the page ships as; the
-  /// switch exists so an admin can put it back without a deploy.
-  homeHeroCombined Boolean @default(true)
+  /// `homeHeroCombined` stood here: a switch between the combined hero — the
+  /// shop's opening line and the featured carousel sharing one section — and
+  /// the centred, stacked arrangement that preceded it. The stacked layout has
+  /// been removed from the storefront, so the column has gone with it. The
+  /// database may still hold it until `prisma db push` is run; nothing reads it.
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1569,9 +1586,21 @@ model Review {
 
   status ReviewStatus @default(PUBLISHED)
 
+  /// When a moderator last decided something about this review, and who.
+  ///
+  /// Both null on a review nobody has touched, which is what the moderation
+  /// queue reads as "not looked at yet" — a fact `status` cannot carry, since a
+  /// review that published itself and one an admin approved wear the same
+  /// value. `SetNull` rather than cascade: an admin account being deleted is
+  /// not a reason to lose the record that the decision was made.
+  moderatedAt   DateTime?
+  moderatedById String?
+  moderatedBy   User?     @relation("ModeratedReviews", fields: [moderatedById], references: [id], onDelete: SetNull)
+
   media   ReviewMedia[]
   likes   ReviewLike[]
   replies ReviewReply[]
+  reports ReviewReport[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1581,6 +1610,46 @@ model Review {
   @@unique([userId, productId])
   /// Backs the product page's list, newest first.
   @@index([productId, status, createdAt])
+  /// Backs the moderation queue, which reads by state and by date.
+  @@index([status, createdAt])
+}
+
+/// One shopper flagging one review.
+///
+/// A row per report rather than a counter on Review, for the reasons the like
+/// join row gives: a number cannot say who, cannot stop the same person filing
+/// the same complaint twice, and cannot be shown to a moderator deciding
+/// whether three reports are three people or one person clicking three times.
+///
+/// A report is *settled* rather than deleted — `resolvedAt` is what takes the
+/// review out of the Reported queue, and keeping the row means a review that
+/// gets flagged again by somebody new is a new report against a history rather
+/// than a first offence.
+model ReviewReport {
+  id String @id @default(cuid())
+
+  reviewId String
+  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  /// Who flagged it. Signed-in only — an anonymous report is a button anyone
+  /// can hold down.
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  reason ReviewReportReason
+  /// What they added in their own words. Required by the form only for OTHER.
+  note   String?
+
+  /// Set when a moderator has dealt with it, either by hiding the review or by
+  /// deciding there was nothing wrong with it. Null means still open.
+  resolvedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  /// One report per person per review.
+  @@unique([reviewId, userId])
+  /// Backs "which reviews have open reports", the Reported tab's whole query.
+  @@index([reviewId, resolvedAt])
 }
 
 /// A photo or clip attached to a review.

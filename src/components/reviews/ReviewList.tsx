@@ -11,6 +11,7 @@ import {
   type ReviewMediaView,
 } from "./ReviewMediaGallery";
 import { ReviewReplies } from "./ReviewReplies";
+import { ReportReview } from "./ReportReview";
 import { deleteReview, toggleReviewLike } from "@/lib/actions/reviews";
 
 export type ReviewAuthor = { name: string | null; email: string; image: string | null };
@@ -30,7 +31,12 @@ export type ReviewRow = {
   title: string | null;
   body: string;
   verified: boolean;
-  status: "PUBLISHED" | "HIDDEN";
+  /**
+   * PENDING only ever reaches this list as the viewer's *own* review — the
+   * query fetches published reviews plus whatever the viewer wrote, so somebody
+   * waiting on approval can see their words rather than watch them vanish.
+   */
+  status: "PENDING" | "PUBLISHED" | "HIDDEN";
   createdAt: Date;
   updatedAt: Date;
   userId: string;
@@ -203,11 +209,19 @@ function Row({
                 Yours
               </span>
             )}
-            {/* Only the author sees this, and only for their own review. */}
+            {/* Only the author sees these, and only on their own review. */}
             {mine && review.status === "HIDDEN" && (
               <span className="bg-error-container text-on-error-container inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs">
                 <Icon name="visibility_off" size={12} />
                 Hidden by a moderator
+              </span>
+            )}
+            {/* Said plainly, because the alternative is an author refreshing
+                the product page wondering why their review is not on it. */}
+            {mine && review.status === "PENDING" && (
+              <span className="bg-secondary-container text-on-secondary-container inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs">
+                <Icon name="schedule" size={12} />
+                Waiting for approval
               </span>
             )}
           </div>
@@ -271,6 +285,13 @@ function Row({
                     <Icon name="reply" size={14} />
                     Reply
                   </button>
+                )}
+
+                {/* Somebody else's review, and one that is actually on display:
+                    there is nothing to flag about writing nobody can see, and
+                    the action refuses it anyway. */}
+                {viewerId && !mine && review.status === "PUBLISHED" && (
+                  <ReportReview reviewId={review.id} />
                 )}
 
                 {mine && (
