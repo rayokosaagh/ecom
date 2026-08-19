@@ -10,12 +10,16 @@ import { AdjustPrice } from "@/components/inventory/AdjustPrice";
 import { AdjustStock } from "@/components/inventory/AdjustStock";
 import { AdjustmentList } from "@/components/inventory/AdjustmentList";
 import { StockBadge } from "@/components/inventory/StockBadge";
+import { ReorderPoint } from "@/components/inventory/ReorderPoint";
 import { requireAdmin } from "@/lib/auth/dal";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/products/format";
 import { getInventory, getStockHistory } from "@/lib/inventory/service";
 import { LOW_STOCK_THRESHOLD, type StockState } from "@/lib/inventory/stock";
+import { percentOffLabel } from "@/lib/inventory/price";
+import { historyHref } from "@/lib/inventory/links";
 import { releaseAbandonedOrders } from "@/lib/payments/expiry";
+import { endExpiredSales } from "@/lib/sales/schedule";
 
 export const metadata: Metadata = { title: "Inventory" };
 
@@ -59,6 +63,7 @@ export default async function AdminInventoryPage({
    * wrong number that decision gets made on.
    */
   await releaseAbandonedOrders();
+  await endExpiredSales();
 
   const params = await searchParams;
   const state = asState(params.state);
@@ -103,24 +108,59 @@ export default async function AdminInventoryPage({
         <div>
           <h2 className="text-on-surface text-2xl font-normal">Inventory</h2>
           <p className="text-on-surface-variant mt-1 text-sm">
-            Every configuration that can run out, emptiest first. Low means{" "}
-            {LOW_STOCK_THRESHOLD} or fewer.
+            Every configuration that can run out, emptiest first. A line is low at or
+            below its own mark — {LOW_STOCK_THRESHOLD} unless set on the line. Count and
+            reprice here; sales are started and ended on{" "}
+            <Link href="/admin/sales" className="text-primary hover:underline">
+              Sales
+            </Link>
+            .
           </p>
         </div>
 
-        <Link
-          href="/admin/inventory/history"
-          className="border-outline text-on-surface hover:bg-on-surface/[0.06] inline-flex h-10 shrink-0 items-center gap-2 rounded-full border px-5 text-sm transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2"
-        >
-          <Icon name="history" size={18} />
-          Stock history
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* The export carries the page's filters, so a filtered screen
+              downloads the filtered list — never silently the whole catalogue. */}
+          <a
+            href={`/api/admin/inventory/export${(() => {
+              const query = new URLSearchParams();
+              for (const [key, value] of Object.entries({ ...pillParams, state })) {
+                if (value) query.set(key, value);
+              }
+              const search = query.toString();
+              return search ? `?${search}` : "";
+            })()}`}
+            className="border-outline text-on-surface hover:bg-on-surface/[0.06] inline-flex h-10 shrink-0 items-center gap-2 rounded-full border px-5 text-sm transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2"
+          >
+            <Icon name="download" size={18} />
+            Export CSV
+          </a>
+          <Link
+            href={(() => {
+              const query = new URLSearchParams();
+              for (const [key, value] of Object.entries(pillParams)) if (value) query.set(key, value);
+              const search = query.toString();
+              return search ? `/admin/inventory/stock-take?${search}` : "/admin/inventory/stock-take";
+            })()}
+            className="border-outline text-on-surface hover:bg-on-surface/[0.06] inline-flex h-10 shrink-0 items-center gap-2 rounded-full border px-5 text-sm transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2"
+          >
+            <Icon name="fact_check" size={18} />
+            Stock take
+          </Link>
+          <Link
+            href="/admin/inventory/history"
+            className="border-outline text-on-surface hover:bg-on-surface/[0.06] inline-flex h-10 shrink-0 items-center gap-2 rounded-full border px-5 text-sm transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2"
+          >
+            <Icon name="history" size={18} />
+            Stock history
+          </Link>
+        </div>
       </div>
 
       <Card variant="outlined">
         <CardContent className="grid grid-cols-2 gap-4 py-4 sm:grid-cols-4">
           <Summary label="Out of stock" value={inventory.counts.OUT} tone="critical" />
-          <Summary label={`Low (≤ ${LOW_STOCK_THRESHOLD})`} value={inventory.counts.LOW} />
+          <Summary label="Low" value={inventory.counts.LOW} />
           <Summary label="Units on hand" value={inventory.totals.units} />
           <div>
             <p className="text-on-surface-variant text-xs">Stock at retail</p>
@@ -257,13 +297,38 @@ export default async function AdminInventoryPage({
                         <span className="tabular-nums">
                           {formatPrice(unit.priceCents)}
                         </span>
-                        {/* The "was" price, because it is the constraint on
+                        {/* The regular price, because it is the constraint on
                             repricing: the panel refuses anything at or above
                             it, and a figure that appears only in a refusal is
-                            one the admin had no way to see coming. */}
+                            one the admin had no way to see coming. Named, so
+                            a struck-through number is not a puzzle — and
+                            linked to where the sale itself is managed. */}
                         {unit.compareAtPriceCents !== null && (
-                          <span className="block text-xs line-through">
-                            {formatPrice(unit.compareAtPriceCents)}
+                          <span className="block text-xs">
+                            <span className="sr-only">regular price </span>
+                            <span className="line-through">
+                              {formatPrice(unit.compareAtPriceCents)}
+                            </span>
+                            <span className="text-tertiary block whitespace-nowrap">
+                              {percentOffLabel(unit.priceCents, unit.compareAtPriceCents) ??
+                                "on sale"}
+                              {unit.saleEndsAt && (
+                                <span className="text-on-surface-variant">
+                                  {" "}
+                                  · ends{" "}
+                                  {unit.saleEndsAt.toLocaleString("en-GB", {
+                                    day: "numeric",
+                                    month: "short",
+                                  })}
+                                </span>
+                              )}
+                            </span>
+                            <Link
+                              href={`/admin/sales?q=${encodeURIComponent(unit.name)}`}
+                              className="text-primary block text-xs whitespace-nowrap hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+                            >
+                              Manage on Sales
+                            </Link>
                           </span>
                         )}
                         {unit.flashSaleName && (
@@ -275,7 +340,15 @@ export default async function AdminInventoryPage({
                       </td>
 
                       <td className="px-6 py-3">
-                        <StockBadge stock={unit.stock} />
+                        <StockBadge stock={unit.stock} threshold={unit.threshold} />
+                        <ReorderPoint
+                          productId={unit.productId}
+                          variantId={unit.variantId}
+                          name={unit.name}
+                          configuration={unit.configuration}
+                          lowStockAt={unit.lowStockAt}
+                          reorderNote={unit.reorderNote}
+                        />
                       </td>
 
                       <td className="px-6 py-3">
@@ -290,7 +363,9 @@ export default async function AdminInventoryPage({
                             configuration={unit.configuration}
                             priceCents={unit.priceCents}
                             compareAtPriceCents={unit.compareAtPriceCents}
+                            saleEndsAt={unit.saleEndsAt}
                             flashSaleName={unit.flashSaleName}
+                            scope="price"
                           />
                           <AdjustStock
                             productId={unit.productId}
@@ -299,6 +374,18 @@ export default async function AdminInventoryPage({
                             configuration={unit.configuration}
                             stock={unit.stock}
                           />
+                          {/* This line's own ledger — both kinds, stock first. */}
+                          <Link
+                            href={historyHref({ productId: unit.productId, variantId: unit.variantId })}
+                            title="Stock and price history for this line"
+                            className="border-outline text-on-surface-variant hover:bg-on-surface/[0.06] inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2"
+                          >
+                            <Icon name="history" size={16} />
+                            <span className="sr-only">
+                              History for {unit.name}
+                              {unit.configuration ? ` · ${unit.configuration}` : ""}
+                            </span>
+                          </Link>
                         </div>
                       </td>
                     </tr>

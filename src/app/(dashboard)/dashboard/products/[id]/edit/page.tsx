@@ -12,6 +12,10 @@ import { getFlatCategories } from "@/lib/categories/tree";
 import { updateProduct, deleteProduct } from "@/lib/actions/products";
 import { getSpecLabels } from "@/lib/specs/resolve";
 import { centsToInput } from "@/lib/products/format";
+import { getPriceHistory, getStockHistory } from "@/lib/inventory/service";
+import { historyHref } from "@/lib/inventory/links";
+import { AdjustmentList } from "@/components/inventory/AdjustmentList";
+import { PriceChangeList } from "@/components/inventory/PriceChangeList";
 
 export const metadata: Metadata = { title: "Edit product" };
 
@@ -23,7 +27,7 @@ export default async function EditProductPage({
   await requireAdmin();
   const { id } = await params;
 
-  const [product, categories, brands, specLabels] = await Promise.all([
+  const [product, categories, brands, specLabels, stockHistory, priceHistory] = await Promise.all([
     prisma.product.findUnique({
       where: { id },
       include: {
@@ -40,6 +44,7 @@ export default async function EditProductPage({
         variants: {
           orderBy: { sortOrder: "asc" },
           select: {
+            id: true,
             sku: true,
             priceCents: true,
             compareAtPriceCents: true,
@@ -58,6 +63,11 @@ export default async function EditProductPage({
     getFlatCategories(),
     prisma.brand.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     getSpecLabels(),
+    // The product's own ledgers, most recent few. The price and stock fields
+    // above are read-only here, so this card is the answer to "why is it what
+    // it is" — and the way to the page where it can be changed.
+    getStockHistory({ productId: id, pageSize: 5 }),
+    getPriceHistory({ productId: id, pageSize: 5 }),
   ]);
 
   if (!product) notFound();
@@ -143,6 +153,9 @@ export default async function EditProductPage({
           })),
           variantAxes,
           variants: product.variants.map((variant) => ({
+            // The id travels with the row so saving updates this variant rather
+            // than replacing it — see `updateProduct`.
+            id: variant.id,
             // Values follow the axis order, not the order the options happen
             // to come back in — the grid is read positionally.
             values: variantAxes.map(
@@ -162,6 +175,51 @@ export default async function EditProductPage({
           published: product.published,
         }}
       />
+
+      <Card variant="outlined">
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h3 className="text-on-surface text-base font-medium">Recent stock and price changes</h3>
+              <p className="text-on-surface-variant mt-0.5 text-sm">
+                Every change made by hand, across all of this product&apos;s configurations.
+                Change stock and prices from{" "}
+                <Link
+                  href={`/admin/inventory?q=${encodeURIComponent(product.slug)}`}
+                  className="text-primary hover:underline"
+                >
+                  Inventory
+                </Link>
+                .
+              </p>
+            </div>
+            <Link
+              href={historyHref({ productId: product.id })}
+              className="text-primary inline-flex shrink-0 items-center gap-1 rounded-sm text-sm hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              All history
+              <Icon name="chevron_right" size={16} />
+            </Link>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div>
+              <p className="text-on-surface-variant label-caps mb-1">Stock</p>
+              <AdjustmentList
+                entries={stockHistory.entries}
+                emptyNote="No stock adjustments yet"
+              />
+            </div>
+            <div>
+              <p className="text-on-surface-variant label-caps mb-1">Price</p>
+              <PriceChangeList
+                entries={priceHistory.entries}
+                emptyNote="No price changes yet"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card variant="outlined" className="border-error/40">
         <CardContent className="flex flex-wrap items-center justify-between gap-4">

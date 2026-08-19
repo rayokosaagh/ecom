@@ -26,6 +26,13 @@ export const MAX_PRICE_CENTS = 1_000_000 * 100;
 export interface SaleView {
   /** What it used to cost. Always greater than `priceCents`. */
   compareAtCents: number;
+  /**
+   * When the sale ends by itself, if a date was set — so the storefront can
+   * say so. Null for a sale that runs until someone ends it.
+   */
+  endsAt: Date | null;
+  /** Milliseconds until `endsAt` as of the read, for a countdown's first render. */
+  endsInMs: number | null;
   /** What it costs now — the figure that is actually charged. */
   priceCents: number;
   /** Money off, in cents. */
@@ -46,7 +53,21 @@ export interface SaleView {
 export type Priced = {
   priceCents: number;
   compareAtPriceCents?: number | null;
+  /**
+   * When the sale ends by itself. Optional like `compareAtPriceCents`: a
+   * surface that does not select it shows a sale with no end named, which is
+   * true as far as it knows. Accepts a string because card data crosses the
+   * server/client boundary as JSON.
+   */
+  saleEndsAt?: Date | string | null;
 };
+
+/** A row's end date as a Date, or null. */
+function endOf(row: Priced): Date | null {
+  if (!row.saleEndsAt) return null;
+  const date = row.saleEndsAt instanceof Date ? row.saleEndsAt : new Date(row.saleEndsAt);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
 
 /**
  * The sale on one row, or null when there is not one.
@@ -54,16 +75,27 @@ export type Priced = {
  * A `compareAtPriceCents` at or below the price is not a discount — it is an
  * admin mid-edit, or a sale that ended by the price rising back. Either way it
  * must not render as "was $10, now $10", so it is treated as absent.
+ *
+ * A sale whose end date has passed is over, whatever the columns still say:
+ * the lazy sweep that restores the price (lib/sales/schedule) runs on the
+ * next read of a few pages, and in the minutes before it does, no page may
+ * still be advertising the discount. `now` is a parameter so the rule can be
+ * checked against a fixed clock.
  */
-function saleOfRow(row: Priced): SaleView | null {
+export function saleOfRow(row: Priced, now: Date = new Date()): SaleView | null {
   const compareAtCents = row.compareAtPriceCents;
   if (compareAtCents == null) return null;
   if (compareAtCents <= row.priceCents) return null;
+
+  const endsAt = endOf(row);
+  if (endsAt && endsAt.getTime() <= now.getTime()) return null;
 
   const savingCents = compareAtCents - row.priceCents;
 
   return {
     compareAtCents,
+    endsAt,
+    endsInMs: endsAt ? endsAt.getTime() - now.getTime() : null,
     priceCents: row.priceCents,
     savingCents,
     percentOff: Math.round((savingCents / compareAtCents) * 100),
@@ -82,14 +114,18 @@ function saleOfRow(row: Priced): SaleView | null {
  * variants uses its own figures, so nothing changes for a product that was
  * never configurable.
  */
-export function saleFor(product: Priced, variants: Priced[] = []): SaleView | null {
-  if (variants.length === 0) return saleOfRow(product);
+export function saleFor(
+  product: Priced,
+  variants: Priced[] = [],
+  now: Date = new Date(),
+): SaleView | null {
+  if (variants.length === 0) return saleOfRow(product, now);
 
   const cheapest = variants.reduce((best, variant) =>
     variant.priceCents < best.priceCents ? variant : best,
   );
 
-  return saleOfRow(cheapest);
+  return saleOfRow(cheapest, now);
 }
 
 /** Convenience for callers that only need the yes/no. */

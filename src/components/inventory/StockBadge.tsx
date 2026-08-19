@@ -12,8 +12,17 @@ import { cn } from "@/lib/cn";
  * The word is always present alongside the colour and the glyph — a red "0"
  * tells a reader who cannot see the red exactly nothing.
  */
-export function StockBadge({ stock, className }: { stock: number; className?: string }) {
-  const state = stockState(stock);
+export function StockBadge({
+  stock,
+  threshold = LOW_STOCK_THRESHOLD,
+  className,
+}: {
+  stock: number;
+  /** The line's own low-stock mark; the shop default when it has none. */
+  threshold?: number;
+  className?: string;
+}) {
+  const state = stockState(stock, threshold);
 
   if (state === "IN") {
     return (
@@ -40,7 +49,7 @@ export function StockBadge({ stock, className }: { stock: number; className?: st
       ) : (
         <>
           <span className="tabular-nums">{stock}</span> left
-          <span className="sr-only"> — at or below the low-stock mark of {LOW_STOCK_THRESHOLD}</span>
+          <span className="sr-only"> — at or below the low-stock mark of {threshold}</span>
         </>
       )}
     </span>

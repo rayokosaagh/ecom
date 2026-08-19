@@ -9,6 +9,7 @@ import { getCurrentUser, requireUser } from "@/lib/auth/dal";
 import { findCartId, getOrCreateCartId } from "@/lib/cart/identity";
 import { getCart } from "@/lib/cart/service";
 import { notifyAdmins, notifyUser } from "@/lib/notifications/service";
+import { alertOnStockLevel } from "@/lib/inventory/alerts";
 import { sendOrderEmailSafely, sendAdminOrderPlacedEmailSafely } from "@/lib/orders/email";
 import { formatPrice } from "@/lib/products/format";
 import { describeVariant } from "@/lib/products/variants";
@@ -363,7 +364,7 @@ export async function checkout(
   const variantIds = cart.items.map((item) => item.variantId).filter(Boolean);
   const variantRows = await prisma.productVariant.findMany({
     where: { id: { in: variantIds } },
-    select: { id: true, priceCents: true, stock: true },
+    select: { id: true, priceCents: true, stock: true, lowStockAt: true },
   });
   const variants = new Map(variantRows.map((variant) => [variant.id, variant]));
 
@@ -581,19 +582,23 @@ export async function checkout(
     imageUrl: orderImage,
   });
 
-  // Warn admins about anything that just sold out, counting down from
-  // whichever row the units came from.
-  for (const line of lines) {
-    if (line.stock - line.item.quantity > 0) continue;
-    await notifyAdmins({
-      type: NotificationType.STOCK,
-      title: line.item.variantLabel ? "Configuration sold out" : "Product sold out",
-      description: `${describe(line)} is now out of stock`,
-      href: `/dashboard/products/${line.item.productId}/edit`,
-      // The product that ran out, which is the whole subject of the notice.
-      imageUrl: line.item.product.image,
-    });
-  }
+  // Warn admins about anything this order took into Low or Out, counting down
+  // from whichever row the units came from. The helper decides whether a line
+  // crossed anything and says nothing otherwise; see lib/inventory/alerts.
+  // After the response, since the customer's receipt should not wait on it.
+  after(async () => {
+    for (const line of lines) {
+      await alertOnStockLevel({
+        productId: line.item.productId,
+        variantId: line.item.variantId ?? null,
+        before: line.stock,
+        after: line.stock - line.item.quantity,
+        threshold: line.item.variantId
+          ? (variants.get(line.item.variantId)?.lowStockAt ?? null)
+          : line.item.product.lowStockAt,
+      });
+    }
+  });
 
   revalidatePath("/cart");
   revalidatePath("/", "layout");

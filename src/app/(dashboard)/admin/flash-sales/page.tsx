@@ -52,6 +52,15 @@ export default async function AdminFlashSalesPage() {
                 ? `${live} running now, ${rows.length} in total.`
                 : `${rows.length} set up, none running.`}
           </p>
+          <p className="text-on-surface-variant mt-2 max-w-2xl text-sm">
+            <strong className="text-on-surface font-medium">Which page?</strong> A timed event
+            across several products that applies and restores itself — here. Marking one line
+            down for as long as you like —{" "}
+            <Link href="/admin/sales" className="text-primary hover:underline">
+              Sales
+            </Link>
+            .
+          </p>
         </div>
 
         <Link
@@ -72,8 +81,8 @@ export default async function AdminFlashSalesPage() {
               A flash sale actually lowers the prices of the products in it for
               a set window, then restores them — so the cart and the checkout
               charge the sale price without anything else changing. For a
-              standing discount on one product, set its “was” price on the
-              product form instead.
+              standing discount on one product, reprice it from the Inventory
+              page and tick “On sale”.
             </p>
           </CardContent>
         </Card>

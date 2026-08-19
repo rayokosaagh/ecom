@@ -40,14 +40,15 @@ const COLUMNS = [
  * the export. Prefixing a single quote makes the spreadsheet treat it as text;
  * the quote is not part of the value and does not show in the cell.
  */
-function cell(value: string | number | null | undefined): string {
+export function csvCell(value: string | number | null | undefined): string {
   const raw = value === null || value === undefined ? "" : String(value);
   const safe = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
 
   return /[",\r\n]/.test(safe) ? `"${safe.replaceAll('"', '""')}"` : safe;
 }
 
-const row = (values: (string | number | null)[]) => values.map(cell).join(",");
+export const csvRow = (values: (string | number | null)[]) => values.map(csvCell).join(",");
+const row = csvRow;
 
 export function ordersToCsv(orders: AdminOrderRecord[]): string {
   const lines = [

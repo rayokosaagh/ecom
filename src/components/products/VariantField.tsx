@@ -1,6 +1,7 @@
 "use client";
 
 import { useId } from "react";
+import Link from "next/link";
 
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/cn";
@@ -8,6 +9,16 @@ import { MAX_VARIANTS } from "@/lib/products/variants";
 import { MAX_SPEC_LABEL_LENGTH, MAX_SPEC_VALUE_LENGTH } from "@/lib/specs/keys";
 
 export interface VariantRow {
+  /**
+   * The stored variant this row edits, or undefined for one being added.
+   *
+   * Posted back so the save updates the row in place — its ledgers and the
+   * order lines that took units from it all point at this id. A row with an id
+   * also shows its price, regular price and stock read-only: the figures of
+   * something already selling are changed from Inventory, where each change
+   * is checked against the live value and recorded.
+   */
+  id?: string;
   /** One value per axis, index-aligned with `axes`. */
   values: string[];
   price: string;
@@ -18,6 +29,17 @@ export interface VariantRow {
 }
 
 const BLANK_INPUT = "h-11 w-full rounded-sm border border-outline bg-transparent px-3 text-sm text-on-surface caret-primary transition-colors duration-200 focus:border-2 focus:border-primary focus:outline-none";
+
+/**
+ * A figure the form shows but will not write. Still posted, so the row-major
+ * grid keeps its shape for the parser; the server ignores it for an existing
+ * variant, and the field says so rather than accepting a number it will not
+ * save.
+ */
+const FROZEN_INPUT = cn(
+  BLANK_INPUT,
+  "text-on-surface-variant border-dashed focus:border focus:border-outline",
+);
 
 /**
  * Variant grid editor.
@@ -103,6 +125,16 @@ export function VariantField({
         <p className="text-on-surface-variant text-xs">
           Leave empty for a product sold one way — it then uses the price and
           stock above. Adding variants moves both onto each configuration.
+          {rows.some((row) => row.id) && (
+            <>
+              {" "}
+              Price and stock of a configuration already saved are changed from{" "}
+              <Link href="/admin/inventory" className="text-primary hover:underline">
+                Inventory
+              </Link>
+              , so every change is recorded.
+            </>
+          )}
         </p>
       </div>
 
@@ -164,6 +196,9 @@ export function VariantField({
             <ul className="space-y-2">
               {rows.map((row, rowIndex) => (
                 <li key={rowIndex} className="flex items-start gap-2">
+                  {/* Always posted, blank for a new row, so the grid stays
+                      rectangular for the parser. */}
+                  <input type="hidden" name="variantId" value={row.id ?? ""} />
                   <div className="grid flex-1 gap-2 sm:grid-cols-[1fr_1fr_6rem_6rem_5rem_7rem]">
                     {axes.map((axis, axisIndex) => (
                       <input
@@ -181,41 +216,81 @@ export function VariantField({
                       />
                     ))}
 
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      name="variantPrice"
-                      value={row.price}
-                      onChange={(event) => setRow(rowIndex, { price: event.target.value })}
-                      placeholder="Price"
-                      aria-label={`Price for variant ${rowIndex + 1}`}
-                      className={BLANK_INPUT}
-                    />
-                    {/* Blank means this configuration is not reduced. A row can
-                        be on sale while its neighbours are not — that is the
-                        point of pricing per configuration. */}
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      name="variantCompareAt"
-                      value={row.compareAtPrice}
-                      onChange={(event) =>
-                        setRow(rowIndex, { compareAtPrice: event.target.value })
-                      }
-                      placeholder="Was"
-                      aria-label={`Previous price for variant ${rowIndex + 1}, leave empty if not on sale`}
-                      className={BLANK_INPUT}
-                    />
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      name="variantStock"
-                      value={row.stock}
-                      onChange={(event) => setRow(rowIndex, { stock: event.target.value })}
-                      placeholder="Stock"
-                      aria-label={`Stock for variant ${rowIndex + 1}`}
-                      className={BLANK_INPUT}
-                    />
+                    {row.id ? (
+                      /* Read-only once saved — see FROZEN_INPUT. */
+                      <>
+                        <input
+                          type="text"
+                          name="variantPrice"
+                          value={row.price}
+                          readOnly
+                          tabIndex={-1}
+                          title="Changed from Inventory"
+                          aria-label={`Price for variant ${rowIndex + 1}, changed from Inventory`}
+                          className={FROZEN_INPUT}
+                        />
+                        <input
+                          type="text"
+                          name="variantCompareAt"
+                          value={row.compareAtPrice}
+                          readOnly
+                          tabIndex={-1}
+                          title="Regular price — changed from Inventory"
+                          placeholder="Regular"
+                          aria-label={`Regular price for variant ${rowIndex + 1}, changed from Inventory`}
+                          className={FROZEN_INPUT}
+                        />
+                        <input
+                          type="text"
+                          name="variantStock"
+                          value={row.stock}
+                          readOnly
+                          tabIndex={-1}
+                          title="Adjusted from Inventory"
+                          aria-label={`Stock for variant ${rowIndex + 1}, adjusted from Inventory`}
+                          className={FROZEN_INPUT}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          name="variantPrice"
+                          value={row.price}
+                          onChange={(event) => setRow(rowIndex, { price: event.target.value })}
+                          placeholder="Price"
+                          aria-label={`Price for variant ${rowIndex + 1}`}
+                          className={BLANK_INPUT}
+                        />
+                        {/* Blank means this configuration is not on sale. A row
+                            can be on sale while its neighbours are not — that
+                            is the point of pricing per configuration. */}
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          name="variantCompareAt"
+                          value={row.compareAtPrice}
+                          onChange={(event) =>
+                            setRow(rowIndex, { compareAtPrice: event.target.value })
+                          }
+                          placeholder="Regular"
+                          title="Regular price — only if this configuration launches on sale"
+                          aria-label={`Regular price for variant ${rowIndex + 1}, leave empty unless launching on sale`}
+                          className={BLANK_INPUT}
+                        />
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          name="variantStock"
+                          value={row.stock}
+                          onChange={(event) => setRow(rowIndex, { stock: event.target.value })}
+                          placeholder="Stock"
+                          aria-label={`Initial stock for variant ${rowIndex + 1}`}
+                          className={BLANK_INPUT}
+                        />
+                      </>
+                    )}
                     <input
                       type="text"
                       name="variantSku"

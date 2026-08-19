@@ -23,6 +23,15 @@ export interface VariantAxisInput {
 }
 
 export interface VariantInput {
+  /**
+   * The row this configuration already is, or null for one being added.
+   *
+   * Carried so that saving the form updates a variant in place rather than
+   * replacing it. A variant's id is what its stock ledger, its price ledger and
+   * every order line that took units from it point at; a fresh id on every save
+   * would orphan all three. See `updateProduct`.
+   */
+  id: string | null;
   sku: string | null;
   priceCents: number;
   /** What this configuration used to cost. Null means it is not on sale. */
@@ -64,13 +73,14 @@ export function parseVariants(formData: FormData): VariantParseResult {
     axes.push({ label, labelKey });
   }
 
+  const ids = formData.getAll("variantId").map((v) => String(v).trim());
   const prices = formData.getAll("variantPrice").map((v) => String(v).trim());
   const compareAts = formData.getAll("variantCompareAt").map((v) => String(v).trim());
   const stocks = formData.getAll("variantStock").map((v) => String(v).trim());
   const skus = formData.getAll("variantSku").map((v) => String(v).trim());
   const values = formData.getAll("variantValue").map((v) => String(v).trim());
 
-  const rowCount = Math.max(prices.length, stocks.length, skus.length);
+  const rowCount = Math.max(ids.length, prices.length, stocks.length, skus.length);
 
   // No axes means no variants, whatever else was posted — a configuration
   // with nothing to configure is just the product.
@@ -86,6 +96,7 @@ export function parseVariants(formData: FormData): VariantParseResult {
 
   for (let row = 0; row < rowCount; row++) {
     const rowValues = values.slice(row * axes.length, (row + 1) * axes.length);
+    const id = ids[row] ?? "";
     const price = prices[row] ?? "";
     const compareAt = compareAts[row] ?? "";
     const stock = stocks[row] ?? "";
@@ -156,6 +167,7 @@ export function parseVariants(formData: FormData): VariantParseResult {
     }
 
     variants.push({
+      id: id || null,
       sku: sku || null,
       priceCents,
       compareAtPriceCents: compareAtCents,

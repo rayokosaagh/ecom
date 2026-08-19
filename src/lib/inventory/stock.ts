@@ -40,6 +40,28 @@ export function stockState(stock: number, threshold = LOW_STOCK_THRESHOLD): Stoc
   return "IN";
 }
 
+/**
+ * Which state a fall crossed into, or null when there is nothing to tell
+ * anyone.
+ *
+ * The rule behind the low-stock notices (lib/inventory/alerts): a notice is
+ * for a *crossing* on the way down — into Low, or into Out — never for a
+ * level, and never for a rise. A line that goes 7 → 2 crossed into Low; one
+ * that goes 2 → 1 did not cross anything; one that goes 0 → 3 is a rise.
+ * Pure, so the checks can walk the table of cases without a database.
+ */
+export function stockAlertFor(
+  before: number,
+  after: number,
+  threshold: number = LOW_STOCK_THRESHOLD,
+): Extract<StockState, "LOW" | "OUT"> | null {
+  if (after >= before) return null;
+  const from = stockState(before, threshold);
+  const to = stockState(after, threshold);
+  if (to === "IN" || to === from) return null;
+  return to;
+}
+
 export const STOCK_STATE_LABELS: Record<StockState, string> = {
   OUT: "Out of stock",
   LOW: "Low stock",

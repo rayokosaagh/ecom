@@ -1,6 +1,7 @@
 import "server-only";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 
 import { prisma } from "@/lib/prisma";
 import { OrderCancelReason, OrderStatus } from "@/generated/prisma/enums";
@@ -226,8 +227,20 @@ export async function returnOrderToCart(
   return { ok: true, restored: outcome, unavailable: order.items.length - restorable.length };
 }
 
-/** Everything that changes when an order is unwound: a basket, an order, stock. */
+/**
+ * Everything that changes when an order is unwound: a basket, an order, stock.
+ *
+ * Deferred with `after()`: the lazy sweep runs this during a page render
+ * (`/cart`, `/checkout`, `/admin/inventory`), and revalidating *in* a render
+ * is refused by Next — it threw, was caught by the sweep's error handler, and
+ * quietly never revalidated anything. After the response it is allowed, and
+ * the page that triggered the sweep has already read the fresh rows.
+ */
 function revalidateAbandonViews(orderId: string) {
+  after(() => revalidateAbandonPaths(orderId));
+}
+
+function revalidateAbandonPaths(orderId: string) {
   revalidatePath("/cart");
   revalidatePath("/checkout");
   revalidatePath("/orders");

@@ -3,6 +3,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { OrderStatus, Role } from "@/generated/prisma/enums";
 import { LOW_STOCK_THRESHOLD } from "@/lib/inventory/stock";
+import { getInventory } from "@/lib/inventory/service";
 import {
   bucketByDay,
   currentPeriod,
@@ -47,6 +48,32 @@ export { LOW_STOCK_THRESHOLD };
 
 /** Rows in the "top products" and "needs attention" lists. */
 const LIST_SIZE = 5;
+
+/**
+ * One line of the "needs attention" list: a thing that can run out.
+ *
+ * A product with no variants is one line; a product with variants is one line
+ * per variant and none of its own. The same rule the inventory page lists by
+ * and checkout decrements by — and literally the same read: the card asks
+ * `getInventory` for the emptiest published lines that are Low or Out, so a
+ * line's own low-stock mark, the shop default and the sort order cannot
+ * disagree between the two screens. The card used to read `product.stock`
+ * for everything, which for a configurable product is a column nothing sells
+ * from, so it flagged healthy products as empty and missed configurations
+ * that actually were.
+ */
+export interface AttentionLine {
+  /** Product id, plus variant id when the line is one configuration. */
+  key: string;
+  productId: string;
+  name: string;
+  slug: string;
+  /** "16 GB / 512 GB", or null when the product itself holds the units. */
+  configuration: string | null;
+  stock: number;
+  /** The mark this line is judged against. */
+  threshold: number;
+}
 
 type OrderRow = { createdAt: Date; totalCents: number; status: OrderStatus };
 
@@ -108,7 +135,7 @@ export async function getAdminOverview(range: RangeDays, now: Date = new Date())
   const period = currentPeriod(range, now);
   const earlier = previousPeriod(period);
 
-  const [orders, newUsers, items, lowStock, catalogue, published, outOfStock, recent] =
+  const [orders, newUsers, items, attention, catalogue, published, recent] =
     await Promise.all([
       // Both windows in one read, split in memory below — two round trips for
       // one contiguous span would be the same rows fetched twice.
@@ -137,15 +164,11 @@ export async function getAdminOverview(range: RangeDays, now: Date = new Date())
           product: { select: { slug: true } },
         },
       }),
-      prisma.product.findMany({
-        where: { published: true, stock: { lte: LOW_STOCK_THRESHOLD } },
-        orderBy: [{ stock: "asc" }, { name: "asc" }],
-        take: LIST_SIZE,
-        select: { id: true, name: true, slug: true, stock: true },
-      }),
+      // The emptiest published lines that are Low or Out, plus the Out count —
+      // see `AttentionLine`. One read, paged to the list size in Postgres.
+      getInventory({ published: true, state: ["OUT", "LOW"], pageSize: LIST_SIZE }),
       prisma.product.count(),
       prisma.product.count({ where: { published: true } }),
-      prisma.product.count({ where: { published: true, stock: 0 } }),
       prisma.order.findMany({
         orderBy: { createdAt: "desc" },
         take: LIST_SIZE,
@@ -203,6 +226,17 @@ export async function getAdminOverview(range: RangeDays, now: Date = new Date())
     entry.units += item.quantity;
     byProduct.set(key, entry);
   }
+
+  const lowStock: AttentionLine[] = attention.units.map((unit) => ({
+    key: unit.key,
+    productId: unit.productId,
+    name: unit.name,
+    slug: unit.slug,
+    configuration: unit.configuration,
+    stock: unit.stock,
+    threshold: unit.threshold,
+  }));
+  const outOfStock = attention.counts.OUT;
 
   const topProducts = [...byProduct.values()]
     .sort((a, b) => b.revenueCents - a.revenueCents)

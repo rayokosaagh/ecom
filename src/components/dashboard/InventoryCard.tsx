@@ -2,15 +2,8 @@ import Link from "next/link";
 
 import { Card, CardContent } from "@/components/ui/Card";
 import { Icon } from "@/components/ui/Icon";
-import { LOW_STOCK_THRESHOLD } from "@/lib/dashboard/metrics";
+import { LOW_STOCK_THRESHOLD, type AttentionLine } from "@/lib/dashboard/metrics";
 import { cn } from "@/lib/cn";
-
-export interface StockRow {
-  id: string;
-  name: string;
-  slug: string;
-  stock: number;
-}
 
 /**
  * The one card that is about the future rather than the past.
@@ -30,7 +23,7 @@ export function InventoryCard({
   published,
   drafts,
 }: {
-  lowStock: StockRow[];
+  lowStock: AttentionLine[];
   outOfStock: number;
   catalogue: number;
   published: number;
@@ -43,7 +36,8 @@ export function InventoryCard({
           <div>
             <h3 className="text-on-surface text-base font-medium">Needs attention</h3>
             <p className="text-on-surface-variant mt-0.5 text-sm">
-              Published products at {LOW_STOCK_THRESHOLD} or fewer in stock
+              Published lines at or below their low-stock mark ({LOW_STOCK_THRESHOLD} unless
+              set on the line) — one per configuration
             </p>
           </div>
           {/* Inventory rather than the products list: this card is a worklist,
@@ -61,12 +55,12 @@ export function InventoryCard({
         {lowStock.length === 0 ? (
           <p className="text-on-surface-variant flex items-center justify-center gap-2 py-6 text-center text-sm">
             <Icon name="check_circle" size={18} />
-            Every published product is stocked
+            Every published line is stocked
           </p>
         ) : (
           <ul className="divide-outline-variant/50 divide-y">
             {lowStock.map((product) => (
-              <li key={product.id}>
+              <li key={product.key}>
                 <Link
                   href={`/products/${product.slug}`}
                   className="state-layer -mx-2 flex items-center gap-3 rounded-md px-2 py-2.5 focus-visible:outline-2 focus-visible:outline-offset-2"
@@ -85,6 +79,9 @@ export function InventoryCard({
                   </span>
                   <span className="text-on-surface min-w-0 flex-1 truncate text-sm">
                     {product.name}
+                    {product.configuration && (
+                      <span className="text-on-surface-variant"> · {product.configuration}</span>
+                    )}
                   </span>
                   {/* The word, not just the colour — "0" and a red glyph mean
                    * nothing to a reader who gets neither. */}
@@ -107,7 +104,8 @@ export function InventoryCard({
           <span className="tabular-nums">{published}</span> published ·{" "}
           <span className="tabular-nums">{drafts}</span> draft
           {drafts === 1 ? "" : "s"} ·{" "}
-          <span className="tabular-nums">{outOfStock}</span> out of stock
+          <span className="tabular-nums">{outOfStock}</span> line{outOfStock === 1 ? "" : "s"}{" "}
+          out of stock
         </p>
       </CardContent>
     </Card>

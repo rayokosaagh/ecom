@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
 import { formatRelativeTime } from "@/lib/notifications/service";
 import { formatPrice } from "@/lib/products/format";
-import { priceDeltaSign } from "@/lib/inventory/price";
+import { describeSaleChange, priceDeltaSign } from "@/lib/inventory/price";
 import type { PriceHistoryEntry } from "@/lib/inventory/service";
 import { cn } from "@/lib/cn";
 
@@ -41,19 +41,39 @@ export function PriceChangeList({
       {entries.map((entry) => {
         const deltaCents = entry.toCents - entry.fromCents;
         const cheaper = deltaCents < 0;
+        // The sale side of the change — started, ended or re-anchored to a
+        // different regular price — which can move with the price left where
+        // it was. Rows older than the columns read as null → null and say
+        // nothing, correctly.
+        const sale = describeSaleChange(
+          entry.fromCompareAtCents,
+          entry.toCompareAtCents,
+          formatPrice,
+        );
 
         return (
           <li key={entry.id} className="flex flex-wrap items-start gap-3 py-3">
             <span
               className={cn(
                 "inline-flex h-6 shrink-0 items-center rounded-full px-2 text-xs font-medium tabular-nums",
-                cheaper
-                  ? "bg-tertiary-container text-on-tertiary-container"
-                  : "bg-error-container text-on-error-container",
+                deltaCents === 0
+                  ? "bg-surface-container-highest text-on-surface"
+                  : cheaper
+                    ? "bg-tertiary-container text-on-tertiary-container"
+                    : "bg-error-container text-on-error-container",
               )}
             >
-              {priceDeltaSign(deltaCents)}
-              {formatPrice(Math.abs(deltaCents))}
+              {deltaCents === 0 ? (
+                <>
+                  <Icon name="sell" size={14} />
+                  <span className="sr-only">price unchanged</span>
+                </>
+              ) : (
+                <>
+                  {priceDeltaSign(deltaCents)}
+                  {formatPrice(Math.abs(deltaCents))}
+                </>
+              )}
             </span>
 
             <div className="min-w-0 flex-1">
@@ -71,8 +91,11 @@ export function PriceChangeList({
 
               <p className="text-on-surface-variant mt-0.5 text-xs">
                 <span className="tabular-nums">
-                  {formatPrice(entry.fromCents)} → {formatPrice(entry.toCents)}
+                  {deltaCents === 0
+                    ? `${formatPrice(entry.toCents)} unchanged`
+                    : `${formatPrice(entry.fromCents)} → ${formatPrice(entry.toCents)}`}
                 </span>
+                {sale && <> · {sale}</>}
                 {entry.note && <> · “{entry.note}”</>}
               </p>
             </div>
@@ -80,9 +103,12 @@ export function PriceChangeList({
             <p className="text-on-surface-variant shrink-0 text-right text-xs">
               {formatRelativeTime(entry.createdAt)}
               <br />
-              {/* The account is gone, the record is not — saying so is more use
-                  than an empty space where a name was. */}
-              {entry.user?.name ?? entry.user?.email ?? "deleted account"}
+              {/* No account on a row the clock wrote — see lib/sales/schedule —
+                  and "deleted account" for one whose admin is gone: the record
+                  outlives both, and saying which is more use than a blank. */}
+              {entry.user?.name ??
+                entry.user?.email ??
+                (entry.note?.startsWith("Sale ended as scheduled") ? "automatic" : "deleted account")}
             </p>
           </li>
         );

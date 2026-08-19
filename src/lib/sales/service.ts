@@ -1,8 +1,9 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
-import { saleFor, saleProblem, type SaleView } from "@/lib/products/sale";
+import { saleFor, saleOfRow, type SaleView } from "@/lib/products/sale";
 import { availableStock } from "@/lib/products/variants";
+import { getInventory, type StockUnit } from "@/lib/inventory/service";
 import type { ProductCardData } from "@/components/products/ProductCard";
 
 /**
@@ -44,6 +45,7 @@ const SALE_SELECT = {
   image: true,
   priceCents: true,
   compareAtPriceCents: true,
+  saleEndsAt: true,
   stock: true,
   published: true,
   colors: { orderBy: { sortOrder: "asc" as const }, select: { name: true, hex: true } },
@@ -51,7 +53,7 @@ const SALE_SELECT = {
   // `slug` so the card's mark links through to the brand's listing.
   brand: { select: { name: true, slug: true, iconSvg: true, logo: true, logoTreatment: true } },
   variants: {
-    select: { priceCents: true, compareAtPriceCents: true, stock: true },
+    select: { priceCents: true, compareAtPriceCents: true, saleEndsAt: true, stock: true },
   },
 } as const;
 
@@ -180,46 +182,103 @@ export async function getSaleProductPage(
 }
 
 /**
- * Every sale, drafts included, for the admin screen.
+ * One line the sales screen manages: a product, or one configuration of it.
  *
- * Unpublished products are kept here precisely because they are hidden on the
- * storefront: an admin setting up a sale before launch needs to see it, and the
- * list marks it as a draft rather than pretending it is live.
+ * The same unit the inventory page lists by and the price panel writes to —
+ * a configurable product is on sale one configuration at a time, because that
+ * is how it is priced. See `StockUnit`.
+ */
+export type SaleLine = StockUnit & {
+  /** The discount as customers would see it, or null when none is showing. */
+  sale: SaleView | null;
+};
+
+/**
+ * Ceiling on the lines the sales screen reads.
+ *
+ * The screen has no pagination, so this is what stops a shop that marks down
+ * its whole catalogue from rendering thousands of rows. Well above any real
+ * sale; raise it alongside pagination, not instead of it.
+ */
+const SALE_LINES_LIMIT = 500;
+
+/**
+ * Everything for the admin sales screen.
+ *
+ * Drafts are kept — an admin setting up a sale before launch needs to see it,
+ * and the list marks it as a draft rather than pretending it is live.
+ *
+ * Two kinds of row are returned apart from the sales themselves, because each
+ * is almost certainly a mistake someone wants to see rather than a row that
+ * should vanish:
+ *
+ * - `broken`: a regular price that is not above the price, so no discount is
+ *   showing. Fixable in place, with the same panel.
+ * - `ignored`: a regular price on a product that is priced by configuration.
+ *   The storefront reads the configurations and never this column, so it is
+ *   noise with no effect — cleared with one click.
  */
 export async function getSalesForAdmin() {
-  const rows = await prisma.product.findMany({
-    where: SALE_CANDIDATES,
-    orderBy: { name: "asc" },
-    select: {
-      id: true,
-      slug: true,
-      name: true,
-      image: true,
-      published: true,
-      priceCents: true,
-      compareAtPriceCents: true,
-      brand: { select: { name: true } },
-      variants: {
-        select: { priceCents: true, compareAtPriceCents: true, stock: true },
-      },
-    },
-  });
+  const [inventory, ignoredRows] = await Promise.all([
+    getInventory({ pageSize: SALE_LINES_LIMIT }),
+    prisma.product.findMany({
+      where: { compareAtPriceCents: { not: null }, variants: { some: {} } },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, slug: true, priceCents: true, compareAtPriceCents: true },
+    }),
+  ]);
 
-  return rows
-    .map((product) => ({
-      ...product,
-      sale: saleFor(product, product.variants),
-      /** Set on the product row, on some variant, or both. */
-      variantSale: product.variants.some(
-        (variant) => variant.compareAtPriceCents !== null,
-      ),
-      /** Why no discount is showing, when a "was" price is set anyway. */
-      problem: saleProblem(product, product.variants),
+  const lines: SaleLine[] = inventory.units
+    .filter((unit) => unit.compareAtPriceCents !== null)
+    .map((unit) => ({
+      ...unit,
+      sale: saleOfRow({ priceCents: unit.priceCents, compareAtPriceCents: unit.compareAtPriceCents }),
+    }));
+
+  const onSale = lines
+    .filter((line) => line.sale !== null)
+    // Deepest discount first, as the shelf shows them; name last so the order
+    // is stable between identical requests.
+    .sort(
+      (a, b) =>
+        b.sale!.percentOff - a.sale!.percentOff ||
+        b.sale!.savingCents - a.sale!.savingCents ||
+        a.name.localeCompare(b.name),
+    );
+  const broken = lines.filter((line) => line.sale === null);
+
+  return {
+    onSale,
+    broken,
+    ignored: ignoredRows,
+    /** Lines customers can actually see on the Sale page right now. */
+    live: onSale.filter((line) => line.published).length,
+    bestPercentOff: onSale.reduce((best, line) => Math.max(best, line.sale!.percentOff), 0),
+    totalSavingCents: onSale.reduce((sum, line) => sum + line.sale!.savingCents, 0),
+    /** Whether the read was cut short — the screen says so rather than lying. */
+    truncated: inventory.totalPages > 1,
+  };
+}
+
+/**
+ * Lines matching a search, for putting something on sale.
+ *
+ * The inventory read, because it is already the list of things that have a
+ * price of their own. A short slice: the box is for finding one product, not
+ * browsing the catalogue.
+ */
+export async function findSaleCandidates(query: string, limit = 12): Promise<SaleLine[]> {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+  const inventory = await getInventory({ query: trimmed, pageSize: limit });
+  return inventory.units
+    .map((unit) => ({
+      ...unit,
+      sale: saleOfRow({ priceCents: unit.priceCents, compareAtPriceCents: unit.compareAtPriceCents }),
     }))
-    // A row with a "was" price set but no discount showing is not a sale. It
-    // still appears, flagged with the reason, because it is almost certainly a
-    // mistake someone wants to see rather than a row that should vanish.
-    .sort((a, b) => (b.sale?.percentOff ?? -1) - (a.sale?.percentOff ?? -1));
+    // Name order, not stock order: someone typing a name expects to see it
+    // where they would look for it, not sorted by how many are left.
+    .sort((a, b) => a.name.localeCompare(b.name) || (a.configuration ?? "").localeCompare(b.configuration ?? ""));
 }
 
 /** How many products are on sale right now, for the dashboard tile. */

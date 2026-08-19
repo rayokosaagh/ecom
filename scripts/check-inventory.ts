@@ -8,6 +8,7 @@ import {
   formatDelta,
   isAdjustMode,
   planAdjustment,
+  stockAlertFor,
   stockState,
 } from "../src/lib/inventory/stock";
 
@@ -173,6 +174,20 @@ check(
   REASONS_FOR_ADDING.includes(StockChangeReason.OTHER) &&
     REASONS_FOR_REMOVING.includes(StockChangeReason.OTHER),
 );
+
+console.log("\nWhen a fall is worth telling someone about");
+
+check("falling into Low is news", stockAlertFor(7, 2) === "LOW");
+check("falling straight to Out is news, and says Out", stockAlertFor(7, 0) === "OUT");
+check("falling from Low to Out is news", stockAlertFor(2, 0) === "OUT");
+check("falling within Low is not", stockAlertFor(3, 1) === null);
+check("falling within In is not", stockAlertFor(40, 20) === null);
+check("landing exactly on the mark is Low", stockAlertFor(9, LOW_STOCK_THRESHOLD) === "LOW");
+check("a rise is never news", stockAlertFor(0, 3) === null);
+check("no change is never news", stockAlertFor(2, 2) === null);
+check("a restock back above the mark is not news", stockAlertFor(2, 40) === null);
+check("a line's own mark is honoured", stockAlertFor(20, 10, 12) === "LOW");
+check("and a tighter mark stays quiet", stockAlertFor(20, 10, 5) === null);
 
 console.log("\nHow a change reads");
 

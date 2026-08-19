@@ -36,6 +36,8 @@
     "check:inventory": "tsx scripts/check-inventory.ts",
     "check:stock-pill": "tsx scripts/check-stock-pill.ts",
     "check:price": "tsx scripts/check-price.ts",
+    "check:variant-sync": "tsx scripts/check-variant-sync.ts",
+    "check:stock-take": "tsx scripts/check-stock-take.ts",
     "check:fulfilment": "tsx scripts/check-fulfilment.ts",
     "check:payments": "tsx scripts/check-payments.ts",
     "check:brand-logos": "tsx scripts/check-brand-logos.ts",
@@ -45,6 +47,7 @@
     "seed:taxonomy": "tsx scripts/seed-taxonomy.ts",
     "seed:products": "tsx scripts/seed-products.ts",
     "slugs:products": "tsx scripts/backfill-product-slugs.ts",
+    "prices:sync": "tsx scripts/sync-product-prices.ts",
     "currency": "tsx scripts/convert-currency.ts",
     "postinstall": "prisma generate"
   },

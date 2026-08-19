@@ -521,6 +521,27 @@ model Product {
   /// `compareAtPriceCents > priceCents`. See lib/products/sale.
   compareAtPriceCents Int?
   stock               Int      @default(0)
+  /// This product's own low-stock mark, when it has one. At or below it the
+  /// inventory page, the dashboard card and the admin notices call the line
+  /// "low". Null means the shop-wide default (`LOW_STOCK_THRESHOLD` in
+  /// lib/inventory/stock): a charger and a laptop do not run low at the same
+  /// count, and a global number is too noisy for one and too late for the
+  /// other. Read only when the product has no variants — a configurable
+  /// product's lines are its variants, each with a mark of its own.
+  lowStockAt          Int?
+  /// When the standing sale on this row ends by itself, if a date was set.
+  /// Meaningful only while `compareAtPriceCents` is set; cleared with it.
+  /// Swept lazily — see lib/sales/schedule — because this project has no
+  /// cron: the sale ends on the first read after the moment, through the same
+  /// ledgered path an admin ending it by hand would take. A scheduled *start*
+  /// is deliberately not here: a dated price change that applies and restores
+  /// itself is what a flash sale is, and this shop already has those.
+  saleEndsAt          DateTime?
+  /// Free text for whoever reorders: the supplier, a lead time, an order
+  /// code. Shown beside the line on the inventory page and nowhere a customer
+  /// looks. Not a relation — one shop's "supplier" is an email address, the
+  /// next one's is a phone number, and a table would be wrong for both.
+  reorderNote         String?
   published           Boolean  @default(false)
 
   categoryId String?
@@ -682,6 +703,15 @@ model ProductVariant {
   /// time, because that is also how it is priced.
   compareAtPriceCents Int?
   stock               Int  @default(0)
+  /// This configuration's own low-stock mark — see `Product.lowStockAt`. Null
+  /// means the shop-wide default. Per variant rather than per product because
+  /// stock is per variant: the 8 GB model and the 32 GB model sell at very
+  /// different rates.
+  lowStockAt          Int?
+  /// When this configuration's sale ends by itself — see `Product.saleEndsAt`.
+  saleEndsAt          DateTime?
+  /// Reorder notes for this configuration — see `Product.reorderNote`.
+  reorderNote         String?
 
   /// Optional photo of this configuration. Falls back to the product's.
   image String?
@@ -869,6 +899,16 @@ model PriceChange {
   /// everything before it, and these two can be read years later on their own.
   fromCents Int
   toCents   Int
+
+  /// The standing "was" price either side of the change, in minor units —
+  /// null meaning "not on sale". A price and its "was" price are changed
+  /// together from the inventory page, and a sale starting or ending is a
+  /// change worth reading back as much as the price moving: "Rs 10,700 →
+  /// Rs 9,900" means one thing on its own and another when the row also
+  /// gained "was Rs 10,700". Both nullable, and null on rows written before
+  /// the columns existed.
+  fromCompareAtCents Int?
+  toCompareAtCents   Int?
 
   /// Free text, e.g. "supplier raised cost" or a competitor's URL.
   note String?

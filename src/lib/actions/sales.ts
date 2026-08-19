@@ -7,53 +7,41 @@ import { requireAdmin } from "@/lib/auth/dal";
 
 export type SaleActionState = { message?: string; success?: string };
 
-/** Every surface a price appears on. */
-function revalidateSaleViews(slug?: string) {
-  revalidatePath("/");
-  revalidatePath("/admin/sales");
-  revalidatePath("/dashboard/products");
-  // Cards across the catalogue carry the "was" line too.
-  revalidatePath("/products", "layout");
-  if (slug) revalidatePath(`/products/${slug}`);
-}
-
 /**
- * End a sale, leaving the price where it is.
+ * Clear a regular price set on a product that is priced by configuration.
  *
- * Clearing the "was" price is the whole operation — it does **not** put the
- * price back up. That is deliberate and is the only honest reading: the shop
- * has been charging the reduced figure, and silently restoring the old one
- * from a button labelled "end sale" would change what customers pay as a side
- * effect of tidying up a badge. Raising the price again is a price change, and
- * belongs in the product form where it is visible.
+ * The storefront prices a configurable product from its variants and never
+ * reads the product's own `compareAtPriceCents`, so the column has no effect
+ * there — it is left over from before sales moved to the inventory page, or
+ * from a product created on sale and then given configurations. Clearing it
+ * changes nothing a customer sees and nothing a ledger would record (it is not
+ * a stock unit's price), which is why this is a plain update rather than a
+ * pass through `adjustPrice`.
  *
- * Variants are cleared alongside the product, because either can carry a sale
- * and leaving half of one behind is how a product stays on the sale shelf with
- * no discount showing.
+ * Refused for a product with no variants: there the column *is* the sale, and
+ * ending it belongs with the price, on the inventory page, where it is
+ * previewed and ledgered.
  */
-export async function endSale(productId: string): Promise<SaleActionState> {
+export async function clearIgnoredRegularPrice(productId: string): Promise<SaleActionState> {
   await requireAdmin();
 
   const product = await prisma.product.findUnique({
     where: { id: productId },
-    select: { id: true, slug: true, name: true },
+    select: { id: true, name: true, slug: true, _count: { select: { variants: true } } },
   });
   if (!product) return { message: "That product no longer exists." };
+  if (product._count.variants === 0) {
+    return { message: "This product is priced on its own row — end its sale from Inventory." };
+  }
 
-  await prisma.$transaction([
-    prisma.product.update({
-      where: { id: product.id },
-      data: { compareAtPriceCents: null },
-    }),
-    prisma.productVariant.updateMany({
-      where: { productId: product.id },
-      data: { compareAtPriceCents: null },
-    }),
-  ]);
+  await prisma.product.update({
+    where: { id: product.id },
+    data: { compareAtPriceCents: null },
+  });
 
-  revalidateSaleViews(product.slug);
+  revalidatePath("/admin/sales");
+  revalidatePath("/dashboard/products");
+  revalidatePath(`/dashboard/products/${product.id}/edit`);
 
-  return {
-    success: `${product.name} is no longer on sale. Its price is unchanged.`,
-  };
+  return { success: `${product.name}: cleared. Its configurations are unchanged.` };
 }

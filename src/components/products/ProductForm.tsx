@@ -194,46 +194,103 @@ export function ProductForm({
             />
           </div>
 
-          <div className="grid gap-5 sm:grid-cols-2">
-            <TextField
-              label="Price"
-              name="price"
-              type="number"
-              step="0.01"
-              min="0"
-              inputMode="decimal"
-              defaultValue={values.price}
-              leadingIcon="attach_money"
-              error={state.errors?.price}
-              required
-            />
+          {values.id ? (
+            /* Read-only once the product exists. Price, regular price and
+               stock of something already selling are changed from Inventory, where
+               each change is checked against the live figure and recorded —
+               a number typed here would be written over whatever has sold or
+               been repriced since the form opened, and appear in no history.
+               The server ignores all three on update regardless; this only
+               stops the form offering what it will not do. Still posted, so
+               the validation the create path shares keeps its shape. */
+            <div className="space-y-2">
+              <div className="grid gap-5 sm:grid-cols-3">
+                <TextField
+                  label="Price"
+                  name="price"
+                  type="number"
+                  value={values.price}
+                  readOnly
+                  leadingIcon="attach_money"
+                />
+                <TextField
+                  label={values.compareAtPrice ? "Regular price (on sale)" : "Regular price"}
+                  name="compareAtPrice"
+                  type="number"
+                  value={values.compareAtPrice}
+                  readOnly
+                  leadingIcon="sell"
+                  placeholder=" "
+                  supportingText={values.compareAtPrice ? undefined : "Not on sale"}
+                />
+                <TextField
+                  label="Stock"
+                  name="stock"
+                  type="number"
+                  value={String(values.stock)}
+                  readOnly
+                />
+              </div>
+              <p className="text-on-surface-variant px-4 text-xs">
+                {values.variants.length > 0
+                  ? "Each configuration below carries its own price and stock. "
+                  : ""}
+                Changed from{" "}
+                <Link
+                  href={`/admin/inventory?q=${encodeURIComponent(values.slug)}`}
+                  className="text-primary inline-flex items-center gap-0.5 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+                >
+                  Inventory
+                  <Icon name="chevron_right" size={14} />
+                </Link>
+                , so every price and stock change is recorded — sales are started
+                and ended there too.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-5 sm:grid-cols-2">
+              <TextField
+                label="Price"
+                name="price"
+                type="number"
+                step="0.01"
+                min="0"
+                inputMode="decimal"
+                defaultValue={values.price}
+                leadingIcon="attach_money"
+                error={state.errors?.price}
+                required
+              />
 
-            <TextField
-              label="Stock"
-              name="stock"
-              type="number"
-              min="0"
-              step="1"
-              defaultValue={String(values.stock)}
-              error={state.errors?.stock}
-            />
+              <TextField
+                label="Initial stock"
+                name="stock"
+                type="number"
+                min="0"
+                step="1"
+                defaultValue={String(values.stock)}
+                error={state.errors?.stock}
+              />
 
-            {/* Putting something on sale means lowering Price and recording
-                what it was here — Price stays the figure customers are
-                charged, so nothing downstream has to know a sale is on. */}
-            <TextField
-              label="Was (price before the sale)"
-              name="compareAtPrice"
-              type="number"
-              step="0.01"
-              min="0"
-              inputMode="decimal"
-              defaultValue={values.compareAtPrice}
-              leadingIcon="sell"
-              supportingText="Empty = not on sale. To start one, lower Price to the new figure and put the old, higher one here."
-              error={state.errors?.compareAtPrice}
-            />
-          </div>
+              {/* A sale is a price below a higher regular price — Price stays
+                  the figure customers are charged, so nothing downstream has
+                  to know a sale is on. Offered here only for a product that
+                  launches on sale; once it exists, sales are started and ended
+                  from Inventory with the price. */}
+              <TextField
+                label="Regular price (only if launching on sale)"
+                name="compareAtPrice"
+                type="number"
+                step="0.01"
+                min="0"
+                inputMode="decimal"
+                defaultValue={values.compareAtPrice}
+                leadingIcon="sell"
+                supportingText="Leave empty unless this launches on sale. If it does, Price is the sale figure and this is the higher regular price shown crossed out."
+                error={state.errors?.compareAtPrice}
+              />
+            </div>
+          )}
 
           {creatingCategory && (
             <div className="grid gap-5 sm:grid-cols-2">
