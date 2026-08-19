@@ -6,6 +6,7 @@ import { BrandMark } from "@/components/brands/BrandMark";
 import { WishlistButton } from "@/components/wishlist/WishlistButton";
 import { cn } from "@/lib/cn";
 import { formatPrice } from "@/lib/products/format";
+import { SaleEnds } from "@/components/products/SaleEnds";
 import { priceRange } from "@/lib/products/variants";
 import { saleGradient, type SaleTintPair } from "./sale-tints";
 import type { SaleProductView } from "@/lib/sales/service";
@@ -190,6 +191,16 @@ export function SaleCard({
               {formatPrice(sale.compareAtCents)}
             </span>
           </p>
+          {/* A dated sale says when — the date, or a countdown in its last two
+              days — in the card's own colour. */}
+          {sale.endsAt && (
+            <SaleEnds
+              compact
+              tone="inherit"
+              endsAtMs={sale.endsAt.getTime()}
+              remainingMs={Math.max(0, sale.endsInMs ?? 0)}
+            />
+          )}
         </div>
       </div>
     </Link>

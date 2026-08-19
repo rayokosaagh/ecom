@@ -5,6 +5,7 @@ import { RatingBadge } from "@/components/reviews/RatingStars";
 import { cn } from "@/lib/cn";
 import { formatPrice } from "@/lib/products/format";
 import { priceRange } from "@/lib/products/variants";
+import { SaleEnds } from "@/components/products/SaleEnds";
 import {
   DiscountBadge,
   SaleCard,
@@ -161,15 +162,13 @@ export function SaleLeadCard({
 
         <div className={cn(SALE_CONTENT, "grid md:grid-cols-2")}>
           <div className="flex flex-col justify-center gap-3 p-6 sm:p-8">
+            {/* The amount saved, in words. The percentage is the badge on the
+                image — the same one the grid cards wear — and saying it twice
+                in one card read as a mistake, not emphasis. */}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <span className="bg-tertiary text-on-tertiary rounded-full px-3 py-1 text-xs font-semibold tracking-wide uppercase">
                 Save {formatPrice(sale.savingCents)}
               </span>
-              {sale.percentOff >= 1 && (
-                <span className="text-sm font-medium opacity-75">
-                  {sale.percentOff}% off
-                </span>
-              )}
             </div>
 
             <TintedMeta product={product} />
@@ -202,6 +201,16 @@ export function SaleLeadCard({
                 {formatPrice(sale.compareAtCents)}
               </span>
             </p>
+            {/* A dated sale says when — the date, or a countdown inside the
+                last two days. */}
+            {sale.endsAt && (
+              <SaleEnds
+                tone="inherit"
+                className="mt-1"
+                endsAtMs={sale.endsAt.getTime()}
+                remainingMs={Math.max(0, sale.endsInMs ?? 0)}
+              />
+            )}
 
             {/* PromoCard's CTA: a label whose underline draws in on hover,
                 rather than a button — the whole card is already the link. */}

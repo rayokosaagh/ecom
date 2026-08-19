@@ -343,6 +343,7 @@ export default async function ProductsPage({
       image: true,
       priceCents: true,
       compareAtPriceCents: true,
+      saleEndsAt: true,
       stock: true,
       published: true,
       colors: { orderBy: { sortOrder: "asc" as const }, select: { name: true, hex: true } },
@@ -350,7 +351,9 @@ export default async function ProductsPage({
       category: { select: { name: true } },
       // `slug` so the card's mark links through to the brand's listing.
       brand: { select: { name: true, slug: true, iconSvg: true, logo: true, logoTreatment: true } },
-      variants: { select: { priceCents: true, compareAtPriceCents: true, stock: true } },
+      variants: {
+        select: { priceCents: true, compareAtPriceCents: true, saleEndsAt: true, stock: true },
+      },
     },
   });
 

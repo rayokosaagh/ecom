@@ -12,6 +12,7 @@ import { cn } from "@/lib/cn";
 import { formatPrice } from "@/lib/products/format";
 import { availableStock, priceRange } from "@/lib/products/variants";
 import { saleFor } from "@/lib/products/sale";
+import { SaleEnds } from "@/components/products/SaleEnds";
 
 export interface ProductCardData {
   id: string;
@@ -25,6 +26,8 @@ export interface ProductCardData {
    * quietly claiming there is no sale. See `lib/products/sale`.
    */
   compareAtPriceCents?: number | null;
+  /** When the sale ends by itself, if a date was set. Optional, as above. */
+  saleEndsAt?: Date | string | null;
   stock: number;
   published: boolean;
   colors: { name: string; hex: string }[];
@@ -50,7 +53,12 @@ export interface ProductCardData {
    * is — a surface that does not select them gets the product's own figures,
    * which is exactly right for a product that has no variants anyway.
    */
-  variants?: { priceCents: number; stock: number; compareAtPriceCents?: number | null }[];
+  variants?: {
+    priceCents: number;
+    stock: number;
+    compareAtPriceCents?: number | null;
+    saleEndsAt?: Date | string | null;
+  }[];
   /**
    * Top-level category, which is what comparison is locked to. Absent on
    * surfaces that do not offer comparison — the dashboard list, for one.
@@ -293,6 +301,16 @@ export function ProductCard({
                 </span>
               )}
             </p>
+            {/* A dated sale says so — the date, or a countdown inside the last
+                two days. The milliseconds are computed here, on the server,
+                and handed down so the first client render agrees. */}
+            {sale?.endsAt && (
+              <SaleEnds
+                compact
+                endsAtMs={sale.endsAt.getTime()}
+                remainingMs={Math.max(0, sale.endsInMs ?? 0)}
+              />
+            )}
 
             {product.colors.length > 0 && (
               <div className="flex items-center gap-1.5 pt-1">

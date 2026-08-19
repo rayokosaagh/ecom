@@ -31,6 +31,8 @@ import { prisma } from "@/lib/prisma";
 import { appUrl } from "@/lib/app-url";
 import { formatPrice } from "@/lib/products/format";
 import { saleFor } from "@/lib/products/sale";
+import { SaleEnds } from "@/components/products/SaleEnds";
+import { endExpiredSales } from "@/lib/sales/schedule";
 import { priceRange, type VariantView } from "@/lib/products/variants";
 import { Role } from "@/generated/prisma/enums";
 
@@ -63,6 +65,7 @@ async function getProduct(slug: string, admin: boolean) {
           sku: true,
           priceCents: true,
           compareAtPriceCents: true,
+          saleEndsAt: true,
           stock: true,
           image: true,
           options: {
@@ -105,6 +108,10 @@ export default async function ProductDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  // A standing sale past its end date closes before the price is read — this
+  // is the page someone buys from, so it must not quote a sale that is over.
+  // One indexed read when nothing has expired; see lib/sales/schedule.
+  await endExpiredSales();
   const [user, admin, nav, wishlistIds] = await Promise.all([
     getCurrentUser(),
     isAdmin(),
@@ -309,6 +316,17 @@ export default async function ProductDetailPage({
                   </span>
                 )}
               </p>
+              {/* When the sale ends, if it was given an end — named as a date,
+                  or counted down inside the last two days. This is the page
+                  someone decides on, so "ends tomorrow" belongs right here. */}
+              {sale?.endsAt && (
+                <p className="mt-1.5">
+                  <SaleEnds
+                    endsAtMs={sale.endsAt.getTime()}
+                    remainingMs={Math.max(0, sale.endsInMs ?? 0)}
+                  />
+                </p>
+              )}
 
               {/* Availability as a state rather than a count — the running
                   total belonged to the dashboard, not to the person deciding

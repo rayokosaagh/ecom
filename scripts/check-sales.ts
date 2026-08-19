@@ -231,5 +231,38 @@ for (const [priceCents, compareAtCents] of [
   );
 }
 
+console.log("\nA sale with an end date");
+
+const clock = new Date("2026-08-20T12:00:00Z");
+const dated = saleFor({ priceCents: 8_000, compareAtPriceCents: 10_000, saleEndsAt: new Date("2026-08-25T12:00:00Z") }, [], clock);
+check("a sale ending later is a sale", dated !== null);
+check("and carries its end", dated?.endsAt?.toISOString() === "2026-08-25T12:00:00.000Z");
+check("and how long is left, as of the read", dated?.endsInMs === 5 * 24 * 60 * 60 * 1000);
+check(
+  "a sale whose end has passed is not a sale, whatever the columns say",
+  saleFor({ priceCents: 8_000, compareAtPriceCents: 10_000, saleEndsAt: new Date("2026-08-19T12:00:00Z") }, [], clock) === null,
+);
+check(
+  "ending exactly now is over",
+  saleFor({ priceCents: 8_000, compareAtPriceCents: 10_000, saleEndsAt: clock }, [], clock) === null,
+);
+check(
+  "an end date arriving as a string is read",
+  saleFor({ priceCents: 8_000, compareAtPriceCents: 10_000, saleEndsAt: "2026-08-25T12:00:00Z" }, [], clock)?.endsAt instanceof Date,
+);
+const undated = saleFor({ priceCents: 8_000, compareAtPriceCents: 10_000 }, [], clock);
+check("a sale with no end has no end", undated !== null && undated.endsAt === null && undated.endsInMs === null);
+check(
+  "a configurable product reports its cheapest configuration's end",
+  saleFor(
+    { priceCents: 0 },
+    [
+      { priceCents: 9_000, compareAtPriceCents: 12_000, saleEndsAt: new Date("2026-09-01T00:00:00Z") },
+      { priceCents: 8_000, compareAtPriceCents: 10_000, saleEndsAt: new Date("2026-08-25T12:00:00Z") },
+    ],
+    clock,
+  )?.endsAt?.toISOString() === "2026-08-25T12:00:00.000Z",
+);
+
 console.log(failures === 0 ? "\nAll checks passed.\n" : `\n${failures} check(s) failed.\n`);
 process.exit(failures === 0 ? 0 : 1);

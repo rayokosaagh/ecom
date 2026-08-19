@@ -13,6 +13,7 @@ import { getWishlistProductIds } from "@/lib/wishlist/service";
 import { getRatings } from "@/lib/reviews/service";
 import { formatPrice } from "@/lib/products/format";
 import { getSaleProductPage } from "@/lib/sales/service";
+import { endExpiredSales } from "@/lib/sales/schedule";
 
 export const metadata: Metadata = {
   title: "On sale · Ecom",
@@ -34,6 +35,10 @@ export default async function SalePage({
     Number.isFinite(requested) ? Math.trunc(requested) : 1,
     1,
   );
+
+  // Sales past their end date close before the shelf is read, so the first
+  // visit after the moment does not show a sale that has ended.
+  await endExpiredSales();
 
   const [nav, wishlistIds, pageResult] = await Promise.all([
     getNavData(),

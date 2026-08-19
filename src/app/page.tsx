@@ -21,6 +21,7 @@ import { getWishlistProductIds } from "@/lib/wishlist/service";
 import { getRatings } from "@/lib/reviews/service";
 import { getFeaturedProducts } from "@/lib/featured/service";
 import { getSaleProducts } from "@/lib/sales/service";
+import { endExpiredSales } from "@/lib/sales/schedule";
 import { getShoppableBrands } from "@/lib/brands/service";
 import { getBestSellers } from "@/lib/products/best-sellers";
 import { getLiveFlashSale, reconcileFlashSales } from "@/lib/flash/service";
@@ -142,6 +143,8 @@ export default async function HomePage() {
   // running *alongside* the showcase and sale-shelf queries would let them read
   // yesterday's figures on the first request after a sale opens or closes.
   await reconcileFlashSales();
+  // Standing sales that were given an end date, for the same reason.
+  await endExpiredSales();
 
   const [
     nav,
@@ -200,13 +203,16 @@ export default async function HomePage() {
       image: true,
       priceCents: true,
       compareAtPriceCents: true,
+      saleEndsAt: true,
       stock: true,
       published: true,
       colors: { orderBy: { sortOrder: "asc" as const }, select: { name: true, hex: true } },
       category: { select: { name: true } },
       // `slug` so the card's mark links through to the brand's listing.
       brand: { select: { name: true, slug: true, iconSvg: true, logo: true, logoTreatment: true } },
-      variants: { select: { priceCents: true, compareAtPriceCents: true, stock: true } },
+      variants: {
+        select: { priceCents: true, compareAtPriceCents: true, saleEndsAt: true, stock: true },
+      },
     },
   });
 
