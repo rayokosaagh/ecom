@@ -166,3 +166,43 @@ CLAUDE.md
 # which is what an ignore rule cannot do on its own. Earlier revisions remain in
 # the history. Root README.md is the entry point a clone reads instead.
 /docs/
+
+# ---------------------------------------------------------------------------
+# Machine-local artefacts
+# ---------------------------------------------------------------------------
+# `Thumbs.db` is listed above; this is the other half of the pair. Explorer
+# writes it into any folder whose view settings are touched, so it appears
+# beside source rather than only in image directories.
+desktop.ini
+
+# Turbopack's cache. `next dev` and `next build` both run through it here, so
+# this fills up during ordinary work.
+.turbo/
+
+# Editor state. These carry absolute paths from one person's disk, which is
+# what makes them a conflict on every pull rather than merely noise.
+.vscode/
+.idea/
+*.swp
+
+# The `*-debug.log` rules above only cover the package manager's own crash
+# logs. An application log is the one that ends up holding session tokens and
+# customer addresses.
+*.log
+logs/
+
+# Caches and process state.
+.eslintcache
+.pnpm-store/
+*.pid
+
+# `/node_modules` above is anchored to the repository root, so it does not
+# match a nested install (`src/node_modules`, or one inside a workspace).
+node_modules/
+
+# Test and build artefacts, including screenshots — Playwright reports embed
+# full-page captures of whatever data the run happened to render.
+test-results/
+playwright-report/
+storybook-static/
+/out/
