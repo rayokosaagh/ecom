@@ -22,17 +22,14 @@ export default function Loading() {
         <Skeleton className="mt-4 h-12 w-80 max-w-full" />
         <Skeleton className="mt-3 h-4 w-24" />
 
-        {/* Toolbar */}
         <Skeleton className="mt-6 h-14 w-full rounded-xl" />
 
-        {/* Category pills */}
         <div className="mt-4 flex flex-wrap gap-2">
           {Array.from({ length: 5 }).map((_, index) => (
             <Skeleton key={index} className="h-9 w-28 rounded-full" />
           ))}
         </div>
 
-        {/* Brand bar */}
         <div className="border-outline-variant mt-6 flex gap-2 overflow-hidden border-y py-2">
           {Array.from({ length: 7 }).map((_, index) => (
             <Skeleton key={index} className="h-11 w-32 shrink-0 rounded-full" />

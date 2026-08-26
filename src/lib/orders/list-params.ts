@@ -21,10 +21,6 @@ export function parseStatus(value: string | undefined): OrderStatus | undefined 
   return STATUSES.includes(value as OrderStatus) ? (value as OrderStatus) : undefined;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Sort                                                                       */
-/* -------------------------------------------------------------------------- */
-
 export type OrderSort = "newest" | "oldest" | "highest" | "lowest";
 
 export const SORT_OPTIONS: { value: OrderSort; label: string }[] = [
@@ -52,10 +48,6 @@ export function parseSort(value: string | undefined, status: OrderStatus | undef
   return value && SORTS.has(value) ? (value as OrderSort) : defaultSort(status);
 }
 
-/* -------------------------------------------------------------------------- */
-/* Paging                                                                     */
-/* -------------------------------------------------------------------------- */
-
 export const PER_PAGE_OPTIONS = [25, 50, 100] as const;
 export const DEFAULT_PER_PAGE = 50;
 
@@ -69,19 +61,11 @@ export function parsePage(value: string | undefined): number {
   return Number.isFinite(n) && n > 0 ? n : 1;
 }
 
-/* -------------------------------------------------------------------------- */
-/* View                                                                       */
-/* -------------------------------------------------------------------------- */
-
 export type OrderView = "table" | "cards";
 
 export function parseView(value: string | undefined): OrderView {
   return value === "cards" ? "cards" : "table";
 }
-
-/* -------------------------------------------------------------------------- */
-/* Date range                                                                 */
-/* -------------------------------------------------------------------------- */
 
 export type DateRangeKey = "today" | "7d" | "month" | "custom";
 

@@ -37,7 +37,6 @@ export default function Loading() {
               <Skeleton className="h-4 w-2/3" />
             </div>
 
-            {/* Variant pickers and the add-to-cart row. */}
             <div className="mt-8 space-y-4">
               <Skeleton className="h-4 w-20" />
               <div className="flex gap-2">
@@ -50,7 +49,6 @@ export default function Loading() {
           </div>
         </div>
 
-        {/* Spec table */}
         <div className="mt-16">
           <Skeleton className="h-8 w-56" />
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
