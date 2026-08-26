@@ -154,6 +154,12 @@ next-env.d.ts
 CLAUDE.md
 .claude/
 
+# `AGENTS.md` is the same thing under a tool-neutral name — CLAUDE.md here is
+# only a one-line `@AGENTS.md` include. The content is boilerplate regenerated
+# by the Next.js agent tooling, so it carries no project knowledge worth
+# keeping in the history.
+AGENTS.md
+
 # ---------------------------------------------------------------------------
 # Development records — kept locally, not in the repository.
 # ---------------------------------------------------------------------------
