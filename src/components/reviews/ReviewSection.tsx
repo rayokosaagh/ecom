@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { Icon } from "@/components/ui/Icon";
-import { RatingStars } from "./RatingStars";
+import { ReviewOverview } from "./ReviewOverview";
 import { ReviewForm } from "./ReviewForm";
 import { ReviewList, type ReviewRow } from "./ReviewList";
 import type { RatingSummary } from "@/lib/reviews/service";
@@ -42,75 +42,21 @@ export function ReviewSection({
   viewerId?: string;
 }) {
   return (
-    <section className="mt-14" aria-labelledby="reviews-heading">
+    <section className="border-outline-variant/70 mt-14 border-t pt-10" aria-labelledby="reviews-heading">
       <h2
         id="reviews-heading"
         className="text-on-surface text-headline-sm"
       >
-        Reviews
+        Customer reviews
       </h2>
+      <p className="text-on-surface-variant mt-2 text-sm">
+        A little insight from people who have tried it.
+      </p>
 
-      <div className="mt-6 grid gap-8 lg:grid-cols-[18rem_1fr]">
-        <div>
-          {summary.count === 0 ? (
-            <p className="text-on-surface-variant text-sm">Not rated yet.</p>
-          ) : (
-            <>
-              <div className="flex items-baseline gap-3">
-                <span className="text-on-surface text-5xl font-light tabular-nums">
-                  {summary.average.toFixed(1)}
-                </span>
-                <div>
-                  <RatingStars value={summary.average} size={18} />
-                  <p className="text-on-surface-variant mt-1 text-sm">
-                    {summary.count} review{summary.count === 1 ? "" : "s"}
-                  </p>
-                  {/* Stated rather than implied: the average covers everything,
-                      and this says how much of it came from owners. */}
-                  {summary.verifiedCount > 0 && (
-                    <p className="text-tertiary mt-0.5 flex items-center gap-1 text-xs">
-                      <Icon name="verified" size={13} />
-                      {summary.verifiedCount} verified purchase
-                      {summary.verifiedCount === 1 ? "" : "s"}
-                    </p>
-                  )}
-                </div>
-              </div>
+      <div className="mt-7 grid items-start gap-6 lg:grid-cols-[20rem_minmax(0,1fr)] lg:gap-8">
+        <ReviewOverview summary={summary} reviews={reviews} />
 
-              {/* Distribution bars. The shape of the spread says something an
-                  average cannot — five 3s and a mix of 1s and 5s both average
-                  3, and they mean very different things. */}
-              <ul className="mt-5 space-y-1.5">
-                {[5, 4, 3, 2, 1].map((star) => {
-                  const n = summary.distribution[star] ?? 0;
-                  const share =
-                    summary.count === 0 ? 0 : (n / summary.count) * 100;
-                  return (
-                    <li key={star} className="flex items-center gap-2 text-xs">
-                      <span className="text-on-surface-variant w-8 shrink-0 tabular-nums">
-                        {star} ★
-                      </span>
-                      <span
-                        aria-hidden
-                        className="bg-surface-container-highest h-2 flex-1 overflow-hidden rounded-full"
-                      >
-                        <span
-                          className="bg-primary block h-full rounded-full"
-                          style={{ width: `${share}%` }}
-                        />
-                      </span>
-                      <span className="text-on-surface-variant w-6 shrink-0 text-right tabular-nums">
-                        {n}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </>
-          )}
-        </div>
-
-        <div>
+        <div className="border-outline-variant/70 min-w-0 rounded-2xl border p-4 sm:p-6">
           {/* Nothing to offer someone who has already reviewed this — the row
               in the list below carries their edit and delete controls. */}
           {!eligibility.own && (

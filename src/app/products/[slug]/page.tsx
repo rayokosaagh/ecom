@@ -179,7 +179,7 @@ export default async function ProductDetailPage({
     <div className="bg-surface-container-low flex min-h-dvh flex-col">
       <Navbar {...nav} />
 
-      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 [&_[id]]:scroll-mt-36">
         <nav
           aria-label="Breadcrumb"
           className="text-on-surface-variant mb-6 text-sm"
@@ -426,6 +426,31 @@ export default async function ProductDetailPage({
             </div>
           </div>
         </ProductSelectionProvider>
+
+        <nav aria-label="Product sections" className="border-outline-variant/70 mt-12 flex flex-wrap gap-2 border-y py-3">
+          {[
+            ...(product.description.trim() ? [{ href: "#description-heading", label: "Overview", icon: "subject" }] : []),
+            ...(product.specs.length > 0 ? [{ href: "#specs-heading", label: "Specifications", icon: "tune" }] : []),
+            { href: "#reviews-heading", label: "Reviews", icon: "reviews" },
+          ].map((item) => (
+            <a key={item.href} href={item.href} className="text-on-surface-variant hover:bg-surface-container hover:text-primary inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2">
+              <Icon name={item.icon} size={18} />
+              {item.label}
+            </a>
+          ))}
+        </nav>
+
+        {product.description.trim() && (
+          <section aria-labelledby="description-heading" className="mt-10 grid gap-4 lg:grid-cols-[20rem_minmax(0,1fr)] lg:gap-8">
+            <div>
+              <p className="text-primary mb-2 text-xs font-semibold tracking-widest uppercase">A closer look</p>
+              <h2 id="description-heading" className="text-on-surface text-headline-sm">About this product</h2>
+            </div>
+            <p className="text-on-surface-variant max-w-3xl text-sm leading-7 whitespace-pre-line [overflow-wrap:anywhere] sm:text-base sm:leading-8">
+              {product.description}
+            </p>
+          </section>
+        )}
 
         {/* Below the grid, not inside the right column: that column already
             carries price, stock and add-to-cart, and specs are reference

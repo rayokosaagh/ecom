@@ -532,7 +532,7 @@ export function Navbar({
           </div>
 
           {/* Notifications */}
-          <div ref={bellRef} className="relative">
+          <div ref={bellRef} className="static sm:relative">
             <button
               type="button"
               aria-label={
@@ -562,7 +562,7 @@ export function Navbar({
                      hover menus and the search suggestions all carry it. These
                      two were the only ones that did not, which is how they
                      ended up underneath things. */
-                  className="bg-surface-container-high shadow-elevation-2 absolute right-0 z-50 mt-2 w-[min(24rem,calc(100vw-1.5rem))] origin-top-right overflow-hidden rounded-xl"
+                  className="bg-surface border-outline-variant/70 shadow-elevation-3 absolute top-full right-3 z-50 mt-2 w-[min(26rem,calc(100vw-1.5rem))] origin-top-right overflow-hidden rounded-3xl border sm:top-auto sm:right-0"
                 >
                   <NotificationPanel
                     notifications={notifications}

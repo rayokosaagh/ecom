@@ -80,38 +80,32 @@ export function SpecTable({ rows }: { rows: SpecTableRow[] }) {
   groups.sort((a, b) => Number(a.name !== null) - Number(b.name !== null));
 
   return (
-    <section aria-labelledby="specs-heading" className="mt-16">
+    <section aria-labelledby="specs-heading" className="border-outline-variant/70 mt-16 border-t pt-10">
       <h2
         id="specs-heading"
         className="text-on-surface text-headline-sm"
       >
         Specifications
       </h2>
+      <p className="text-on-surface-variant mt-2 text-sm">
+        The details that make the difference, all in one place.
+      </p>
 
       {highlights.length > 0 && (
-        <ul className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <ul aria-label="Key specifications" className="mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
           {highlights.map((row) => (
             <li
               key={row.label}
-              className="bg-surface-container-low border-outline-variant/60 rounded-2xl border p-4"
+              className="bg-surface-container-low border-outline-variant/70 min-w-0 rounded-2xl border p-4 sm:p-5"
             >
-              <Icon
-                name={row.icon ?? GROUP_FALLBACK_ICON}
-                size={20}
-                className="text-primary"
-              />
-              {/* Three lines before clipping, and wrapping on words rather than
-                  anywhere: "NVIDIA GeForce RTX 4070" is 23 characters and the
-                  two-line clamp cut it in half on a narrow tile, which is the
-                  one thing a headline tile must not do. */}
-              <p className="text-on-surface mt-4 line-clamp-3 text-base leading-snug font-medium text-pretty break-words">
-                {formatSpecValue(row.value, row.unit)}
-              </p>
-              {/* Wraps rather than truncates. Labels run to 18 characters
-                  ("Operating system", "Battery capacity") and a tile reading
-                  "Operating sys…" has lost the only thing naming the value. */}
-              <p className="text-on-surface-variant mt-1 text-xs leading-snug text-pretty">
+              <span className="bg-primary-container text-on-primary-container grid size-10 place-items-center rounded-xl">
+                <Icon name={row.icon ?? GROUP_FALLBACK_ICON} size={21} />
+              </span>
+              <p className="text-on-surface-variant mt-4 text-xs leading-relaxed font-medium text-pretty [overflow-wrap:anywhere]">
                 {row.label}
+              </p>
+              <p className="text-on-surface mt-1 text-base leading-snug font-semibold text-pretty [overflow-wrap:anywhere]">
+                {formatSpecValue(row.value, row.unit)}
               </p>
             </li>
           ))}
@@ -124,26 +118,28 @@ export function SpecTable({ rows }: { rows: SpecTableRow[] }) {
           uneven — "Performance" runs six rows where "Software" runs one — and
           a grid would leave the short ones stranded beside the tall ones.
           `break-inside-avoid` is what keeps a heading with its rows. */}
-      <div className="mt-10 md:columns-2 md:gap-x-14">
+      <div className={cn("mt-6 gap-x-5", groups.length > 1 && "lg:columns-2")}>
         {groups.map((group) => (
           <div
             key={group.name ?? "__ungrouped"}
-            className="mb-9 break-inside-avoid"
+            className="border-outline-variant/70 mb-5 break-inside-avoid overflow-hidden rounded-2xl border"
           >
-            {/* Sentence case, not micro-caps. Uppercase at 0.18em tracking is
-                the least legible setting on the page, and these headings are
-                what a reader scans to find the section they want — the icon and
-                the rule already separate a heading from the rows under it, so
-                the letterforms do not have to. */}
-            <h3 className="text-on-surface border-outline-variant/70 flex items-center gap-2 border-b pb-2 text-sm font-semibold">
-              <Icon name={group.icon} size={16} className="text-primary" />
-              {group.name ?? "Overview"}
-            </h3>
+            <div className="bg-surface-container-low border-outline-variant/70 flex items-center gap-3 border-b px-5 py-4">
+              <span className="bg-surface-container-highest text-primary grid size-9 shrink-0 place-items-center rounded-xl">
+                <Icon name={group.icon} size={19} />
+              </span>
+              <h3 className="text-on-surface min-w-0 flex-1 text-sm font-semibold [overflow-wrap:anywhere]">
+                {group.name ?? "Overview"}
+              </h3>
+              <span className="text-on-surface-variant shrink-0 text-xs tabular-nums">
+                {group.rows.length} {group.rows.length === 1 ? "detail" : "details"}
+              </span>
+            </div>
 
             {/* No per-row glyphs. One icon per section is orientation; one per
                 line was twenty-two marks competing with the values they were
                 meant to introduce. */}
-            <dl className="divide-outline-variant/50 mt-1 divide-y">
+            <dl className="divide-outline-variant/40 divide-y">
               {group.rows.map((row) => {
                 const value = formatSpecValue(row.value, row.unit);
                 const prose = value.length > PROSE_VALUE_LENGTH;
@@ -151,31 +147,18 @@ export function SpecTable({ rows }: { rows: SpecTableRow[] }) {
                 return (
                   <div
                     key={row.label}
-                    /* Stacked on a phone, two columns from `sm` — except for a
-                       prose value, which stays stacked at every width.
-
-                       The label column is 9rem because the longest label in the
-                       catalogue is 18 characters and nothing is served by
-                       reserving more: this list sits inside a two-up column
-                       layout, so every rem given to the label is taken from the
-                       value beside it. At the old 11rem and gap-6 the long
-                       values wrapped to five lines.
-
-                       Baseline alignment, so a value that still wraps starts
-                       level with its label rather than floating above it. */
+                    // Long prose stays stacked; short values align beside
+                    // their labels once the viewport has room.
                     className={cn(
-                      "grid grid-cols-1 gap-x-4 gap-y-0.5 py-3",
+                      "grid grid-cols-1 gap-x-5 gap-y-1 px-5 py-3.5 even:bg-surface-container-low/50",
                       !prose &&
-                        "sm:grid-cols-[minmax(0,9rem)_minmax(0,1fr)] sm:items-baseline",
+                        "sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] sm:items-baseline",
                     )}
                   >
-                    <dt className="text-on-surface-variant min-w-0 text-sm text-pretty">
+                    <dt className="text-on-surface-variant min-w-0 text-sm leading-relaxed text-pretty [overflow-wrap:anywhere]">
                       {row.label}
                     </dt>
-                    {/* `break-words` for the value that has no spaces to wrap
-                        at — a resolution or a part number — which would
-                        otherwise push the column wider than its share. */}
-                    <dd className="text-on-surface min-w-0 text-sm leading-relaxed font-medium text-pretty break-words">
+                    <dd className="text-on-surface min-w-0 text-sm leading-relaxed font-medium text-pretty [overflow-wrap:anywhere]">
                       {value}
                     </dd>
                   </div>

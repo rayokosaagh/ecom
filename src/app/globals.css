@@ -2172,7 +2172,9 @@ html[data-sweeping]::view-transition-old(root) {
 
 html[data-sweeping]::view-transition-new(root) {
   z-index: 1;
-  animation: theme-sweep var(--duration-long2) var(--ease-emphasized);
+  /* A decelerating entrance curve reaches 95% halfway through, leaving the
+   * far corner apparently stuck. Keep the reveal moving through the end. */
+  animation: theme-sweep var(--duration-medium4) linear both;
 }
 
 @keyframes theme-sweep {
@@ -2221,7 +2223,9 @@ html[data-sweeping]::view-transition-old(theme-glyph) {
 html[data-sweeping]::view-transition-new(theme-glyph) {
   /* Starts a little after the outgoing mark has begun clearing out, so the two
    * are not both at half strength on top of each other in the middle. */
-  animation: theme-glyph-in var(--duration-medium4) var(--ease-emphasized)
+  /* 300ms + 100ms delay matches the sweep; the icon must not hold the
+   * transition open after the page has finished changing. */
+  animation: theme-glyph-in var(--duration-medium2) var(--ease-emphasized)
     var(--duration-short2) both;
 }
 

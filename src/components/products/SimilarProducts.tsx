@@ -34,13 +34,16 @@ export function SimilarProducts({
   if (products.length === 0) return null;
 
   return (
-    <section className="mt-14" aria-labelledby="similar-heading">
+    <section className="border-outline-variant/70 mt-14 border-t pt-10" aria-labelledby="similar-heading">
       <h2
         id="similar-heading"
         className="text-on-surface text-headline-sm"
       >
         Similar products
       </h2>
+      <p className="text-on-surface-variant mt-2 text-sm">
+        A few more options worth a closer look.
+      </p>
 
       <ul className="stagger mt-6 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
         {products.map((product) => (
